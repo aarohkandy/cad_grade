@@ -4,10 +4,7 @@ import { StlViewer } from "./client/stlViewer";
 import type { ArenaFamily, ArenaItem, BattleResponse, HoldChallenge, PublicStats, VoteResponse } from "./shared/types";
 
 const SESSION_KEY = "capybara-arena-session";
-const FAMILY_KEY = "capybara-arena-family";
 const SEEN_PAIRS_KEY = "capybara-arena-seen-pairs";
-
-type FamilyChoice = ArenaFamily | "any";
 
 interface CurrentBattle extends BattleResponse {
   localOnly?: boolean;
@@ -38,11 +35,6 @@ app.innerHTML = `
         <h2>Pick the better generated model.</h2>
       </div>
       <div class="arena-controls">
-        <div class="segmented" aria-label="Object family">
-          <button type="button" data-family="any">Any</button>
-          <button type="button" data-family="wall_planter">Planters</button>
-          <button type="button" data-family="wall_hook">Hooks</button>
-        </div>
         <button type="button" class="ghost-action" id="next-battle">Skip</button>
       </div>
     </section>
@@ -112,7 +104,6 @@ const dom = {
   startNow: document.querySelector("#start-now") as HTMLButtonElement,
   nextBattle: document.querySelector("#next-battle") as HTMLButtonElement,
   continueBattle: document.querySelector("#continue-battle") as HTMLButtonElement,
-  familyButtons: [...document.querySelectorAll<HTMLButtonElement>("[data-family]")],
   totalVotes: document.querySelector("#total-votes") as HTMLElement,
   dataMode: document.querySelector("#data-mode") as HTMLElement,
   leftCanvas: document.querySelector("#left-canvas") as HTMLCanvasElement,
@@ -136,7 +127,6 @@ const dom = {
   feedbackCopy: document.querySelector("#feedback-copy") as HTMLElement,
 };
 
-let selectedFamily = (window.localStorage.getItem(FAMILY_KEY) as FamilyChoice | null) || "any";
 let currentBattle: CurrentBattle | null = null;
 let selectedWinnerId: string | null = null;
 let battleStartedAt = "";
@@ -173,6 +163,27 @@ function rememberPair(leftId: string, rightId: string): void {
   window.localStorage.setItem(SEEN_PAIRS_KEY, JSON.stringify([...pairs].slice(-700)));
 }
 
+function allLocalPairs(items: ArenaItem[]): Array<[ArenaItem, ArenaItem]> {
+  const pairs: Array<[ArenaItem, ArenaItem]> = [];
+  for (let leftIndex = 0; leftIndex < items.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < items.length; rightIndex += 1) {
+      pairs.push([items[leftIndex], items[rightIndex]]);
+    }
+  }
+  return pairs;
+}
+
+function localSeenItemBattles(priorPairs: Set<string>): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const key of priorPairs) {
+    const [leftId, rightId] = key.split("__");
+    if (!leftId || !rightId) continue;
+    counts.set(leftId, (counts.get(leftId) || 0) + 1);
+    counts.set(rightId, (counts.get(rightId) || 0) + 1);
+  }
+  return counts;
+}
+
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${url} returned ${response.status}`);
@@ -191,26 +202,39 @@ async function postJson<T>(url: string, payload: unknown): Promise<T> {
 }
 
 function localBattle(): CurrentBattle {
-  const family =
-    selectedFamily === "any"
-      ? Math.random() > 0.72
-        ? "wall_hook"
-        : "wall_planter"
-      : selectedFamily;
-  const items = (dataset.items as ArenaItem[]).filter((item) => item.family === family);
   const priorPairs = seenPairs();
-  const availablePairs: Array<[ArenaItem, ArenaItem]> = [];
-  for (let leftIndex = 0; leftIndex < items.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < items.length; rightIndex += 1) {
-      const left = items[leftIndex];
-      const right = items[rightIndex];
-      if (!priorPairs.has(pairKeyClient(left.id, right.id))) availablePairs.push([left, right]);
-    }
-  }
-  const pairs = availablePairs.length ? availablePairs : items.flatMap((left, leftIndex) =>
-    items.slice(leftIndex + 1).map((right) => [left, right] as [ArenaItem, ArenaItem]),
-  );
-  const selected = pairs[Math.floor(Math.random() * pairs.length)];
+  const seenItemBattles = localSeenItemBattles(priorPairs);
+  const family =
+    ([...dataset.families] as ArenaFamily[])
+      .map((candidateFamily) => {
+        const familyItems = (dataset.items as ArenaItem[]).filter((item) => item.family === candidateFamily);
+        const pairs = allLocalPairs(familyItems);
+        const availablePairs = pairs.filter(([left, right]) => !priorPairs.has(pairKeyClient(left.id, right.id)));
+        const averageBattles =
+          familyItems.reduce((sum, item) => sum + (seenItemBattles.get(item.id) || 0), 0) /
+          Math.max(1, familyItems.length);
+        return {
+          family: candidateFamily,
+          score: (availablePairs.length ? 0 : 10_000) + averageBattles * 100 + Math.random(),
+        };
+      })
+      .sort((left, right) => left.score - right.score)[0]?.family || "wall_planter";
+  const items = (dataset.items as ArenaItem[]).filter((item) => item.family === family);
+  const pairs = allLocalPairs(items);
+  const candidates = pairs.filter(([left, right]) => !priorPairs.has(pairKeyClient(left.id, right.id)));
+  const scoredPairs = (candidates.length ? candidates : pairs)
+    .map((pair) => {
+      const [left, right] = pair;
+      const leftBattles = seenItemBattles.get(left.id) || 0;
+      const rightBattles = seenItemBattles.get(right.id) || 0;
+      return {
+        pair,
+        score: Math.max(leftBattles, rightBattles) * 24 + Math.min(leftBattles, rightBattles) * 12 + Math.random(),
+      };
+    })
+    .sort((left, right) => left.score - right.score);
+  const selected = scoredPairs[0]?.pair || pairs[0];
+  if (!selected) throw new Error("At least two local items are required");
   const [left, right] = Math.random() > 0.5 ? selected : [selected[1], selected[0]];
   const hold: HoldChallenge = {
     challengeId: "local",
@@ -245,14 +269,6 @@ async function loadStats(): Promise<void> {
   }
 }
 
-function setFamily(value: FamilyChoice): void {
-  selectedFamily = value;
-  window.localStorage.setItem(FAMILY_KEY, value);
-  dom.familyButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.family === value);
-  });
-}
-
 function clearFeedback(): void {
   dom.feedbackPanel.classList.add("is-hidden");
   dom.holdPanel.classList.add("is-hidden");
@@ -283,7 +299,6 @@ async function loadBattle(): Promise<void> {
 
   try {
     const params = new URLSearchParams({
-      family: selectedFamily,
       session_id: sessionId(),
       seen_pairs: [...seenPairs()].slice(-500).join(","),
     });
@@ -419,13 +434,6 @@ dom.continueBattle.addEventListener("click", () => {
   loadBattle().catch(showVoteError);
 });
 
-dom.familyButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    setFamily(button.dataset.family as FamilyChoice);
-    loadBattle().catch(showVoteError);
-  });
-});
-
 dom.voteLeft.addEventListener("click", () => {
   if (currentBattle) startHold(currentBattle.left.id);
 });
@@ -439,6 +447,5 @@ dom.holdButton.addEventListener("pointerup", cancelHold);
 dom.holdButton.addEventListener("pointercancel", cancelHold);
 dom.holdButton.addEventListener("pointerleave", cancelHold);
 
-setFamily(selectedFamily);
 loadStats().catch(() => undefined);
 loadBattle().catch(showVoteError);

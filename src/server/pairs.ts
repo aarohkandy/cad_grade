@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ArenaItem } from "../shared/types";
+import type { ArenaFamily, ArenaItem } from "../shared/types";
 
 export interface ItemStatLike {
   item_id: string;
@@ -9,6 +9,7 @@ export interface ItemStatLike {
 
 export interface PairStatLike {
   pair_key: string;
+  family?: ArenaFamily | null;
   battle_count?: number | null;
 }
 
@@ -30,6 +31,56 @@ export function allPairs(items: ArenaItem[]): Array<[ArenaItem, ArenaItem]> {
   return pairs;
 }
 
+function battleCount(stat: ItemStatLike | undefined): number {
+  const value = Number(stat?.battle_count);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function eloValue(stat: ItemStatLike | undefined): number {
+  const value = Number(stat?.elo);
+  return Number.isFinite(value) ? value : 1200;
+}
+
+function pairBattles(pairStats: Map<string, PairStatLike> | undefined, leftId: string, rightId: string): number {
+  const value = Number(pairStats?.get(pairKey(leftId, rightId))?.battle_count);
+  return Number.isFinite(value) ? value : 0;
+}
+
+export function selectBattleFamily(input: {
+  items: ArenaItem[];
+  families: ArenaFamily[];
+  votedPairKeys?: Set<string>;
+  itemStats?: Map<string, ItemStatLike>;
+  pairStats?: Map<string, PairStatLike>;
+  random?: () => number;
+}): ArenaFamily {
+  const random = input.random ?? Math.random;
+  const votedPairKeys = input.votedPairKeys ?? new Set<string>();
+  const scored = input.families
+    .map((family) => {
+      const familyItems = input.items.filter((item) => item.family === family);
+      const pairs = allPairs(familyItems);
+      if (!pairs.length) return { family, score: Number.POSITIVE_INFINITY };
+
+      const availablePairCount = pairs.filter(([left, right]) => !votedPairKeys.has(pairKey(left.id, right.id))).length;
+      const itemBattleAverage =
+        familyItems.reduce((sum, item) => sum + battleCount(input.itemStats?.get(item.id)), 0) / familyItems.length;
+      const coveredPairs = pairs.filter(([left, right]) => pairBattles(input.pairStats, left.id, right.id) > 0).length;
+      const pairCoverageRatio = coveredPairs / pairs.length;
+
+      const exhaustedForSessionPenalty = availablePairCount > 0 ? 0 : 10_000;
+      const score = exhaustedForSessionPenalty + itemBattleAverage * 100 + pairCoverageRatio * 35 + random();
+      return { family, score };
+    })
+    .sort((left, right) => left.score - right.score);
+
+  const selected = scored[0];
+  if (!selected || !Number.isFinite(selected.score)) {
+    throw new Error("At least one family with two active items is required");
+  }
+  return selected.family;
+}
+
 export function selectBattlePair(input: {
   items: ArenaItem[];
   votedPairKeys?: Set<string>;
@@ -49,12 +100,13 @@ export function selectBattlePair(input: {
     const [left, right] = pair;
     const leftStat = input.itemStats?.get(left.id);
     const rightStat = input.itemStats?.get(right.id);
-    const pairStat = input.pairStats?.get(pairKey(left.id, right.id));
-    const leftElo = Number(leftStat?.elo ?? 1200);
-    const rightElo = Number(rightStat?.elo ?? 1200);
-    const pairBattles = Number(pairStat?.battle_count ?? 0);
-    const itemBattles = Number(leftStat?.battle_count ?? 0) + Number(rightStat?.battle_count ?? 0);
-    const score = pairBattles * 1000 + Math.abs(leftElo - rightElo) / 12 + itemBattles / 80 + random();
+    const leftBattles = battleCount(leftStat);
+    const rightBattles = battleCount(rightStat);
+    const repeatedPairPenalty = pairBattles(input.pairStats, left.id, right.id) * 420;
+    const exposurePenalty = Math.max(leftBattles, rightBattles) * 24 + Math.min(leftBattles, rightBattles) * 12;
+    const hasRankingSignal = leftBattles >= 4 && rightBattles >= 4;
+    const eloGapPenalty = Math.abs(eloValue(leftStat) - eloValue(rightStat)) / (hasRankingSignal ? 16 : 80);
+    const score = repeatedPairPenalty + exposurePenalty + eloGapPenalty + random();
     return { pair, score };
   });
 

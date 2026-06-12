@@ -20,7 +20,7 @@ no viewable STL cells.
 3. Add the production environment variables below.
 4. Deploy.
 5. Open `/api/health` and confirm `storage: "ok"` and `storageMode: "blob"`.
-6. Open `/api/battle?family=any` and confirm it returns two items.
+6. Open `/api/battle` and confirm it returns two automatically selected items.
 7. Submit one vote in the arena.
 8. Pull the vote through `/api/export` or `npm run pull:votes`.
 9. Keep periodic JSONL exports outside git for analysis/backups.
@@ -86,6 +86,17 @@ The app stores salted IP and user-agent hashes, not raw IP addresses or raw
 user agents. Internal Elo-like scoring is private and derived from accepted
 votes.
 
+## Battle Selection
+
+Visitors do not choose a model family. The server selects same-family battles
+automatically so the data stays useful:
+
+- balance average vote exposure per item across families
+- avoid pairs already seen by the current browser session when possible
+- prioritize under-sampled items
+- avoid over-repeating the same pair
+- prefer closer Elo matchups once both items have enough scoring history
+
 ## Export
 
 Admin export requires `ADMIN_EXPORT_TOKEN`:
@@ -122,7 +133,7 @@ ADMIN_EXPORT_TOKEN=... npm run pull:votes -- \
 
 ## Public API
 
-- `GET /api/battle?family=wall_planter|wall_hook|any`
+- `GET /api/battle`
 - `POST /api/vote`
 - `GET /api/stats`
 - `GET /api/export?format=json|csv`

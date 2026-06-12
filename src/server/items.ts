@@ -23,13 +23,6 @@ export function normalizeFamily(value: unknown): ArenaFamily | "any" {
   return "any";
 }
 
-export function chooseFamily(value: unknown, random = Math.random): ArenaFamily {
-  const requested = normalizeFamily(value);
-  if (requested !== "any") return requested;
-  const families: ArenaFamily[] = dataset.families.length ? dataset.families : ["wall_planter", "wall_hook"];
-  return families[Math.floor(random() * families.length)] || "wall_planter";
-}
-
 export function publicItem(item: ArenaItem): ArenaItem {
   return item;
 }

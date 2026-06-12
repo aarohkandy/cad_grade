@@ -1,7 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createHoldChallenge } from "../src/server/hold";
-import { activeItems, chooseFamily, dataset, itemsForFamily, publicItem } from "../src/server/items";
-import { battleId, selectBattlePair, type ItemStatLike, type PairStatLike } from "../src/server/pairs";
+import { activeItems, dataset, itemsForFamily, normalizeFamily, publicItem } from "../src/server/items";
+import {
+  battleId,
+  selectBattleFamily,
+  selectBattlePair,
+  type ItemStatLike,
+  type PairStatLike,
+} from "../src/server/pairs";
 import { firstQueryValue, methodAllowed, noStore } from "../src/server/http";
 import { readVoteSummary, storageMode } from "../src/server/voteStore";
 
@@ -9,13 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);
   if (!methodAllowed(req, res, ["GET"])) return;
 
-  const family = chooseFamily(firstQueryValue(req.query.family));
-  const familyItems = itemsForFamily(family);
-  if (familyItems.length < 2) {
-    res.status(404).json({ error: "not_enough_items" });
-    return;
-  }
-
+  const requestedFamily = normalizeFamily(firstQueryValue(req.query.family));
   const seenPairs = String(firstQueryValue(req.query.seen_pairs) || "")
     .split(",")
     .map((value) => value.trim())
@@ -31,11 +31,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       itemStats.set(stat.item_id, stat);
     }
     for (const pair of Object.values(summary.pairStats)) {
-      if (pair.family === family) pairStats.set(pair.pair_key, pair);
+      pairStats.set(pair.pair_key, pair);
     }
   } catch {
     itemStats.clear();
     pairStats.clear();
+  }
+
+  const family =
+    requestedFamily === "any"
+      ? selectBattleFamily({
+          items: activeItems,
+          families: dataset.families,
+          votedPairKeys,
+          itemStats,
+          pairStats,
+        })
+      : requestedFamily;
+  const familyItems = itemsForFamily(family);
+  if (familyItems.length < 2) {
+    res.status(404).json({ error: "not_enough_items" });
+    return;
   }
 
   const [left, right] = selectBattlePair({
