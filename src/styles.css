@@ -114,8 +114,7 @@ a {
   white-space: nowrap;
 }
 
-.nav-actions,
-.arena-controls {
+.nav-actions {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -124,7 +123,6 @@ a {
 }
 
 .nav-action,
-.ghost-action,
 .primary-action,
 .vote-action,
 .next-action {
@@ -152,8 +150,7 @@ a {
   box-shadow: 0 12px 36px rgba(223, 243, 142, 0.2);
 }
 
-.nav-action:hover,
-.ghost-action:hover {
+.nav-action:hover {
   border-color: rgba(223, 243, 142, 0.9);
   background: rgba(223, 243, 142, 0.18);
   color: var(--ink);
@@ -162,18 +159,6 @@ a {
 .primary-action:hover,
 .vote-action:hover {
   background: #eef8a6;
-}
-
-.arena-shell .ghost-action {
-  border-color: rgba(38, 82, 68, 0.24);
-  background: rgba(246, 255, 233, 0.68);
-  color: #2f6e3e;
-}
-
-.arena-shell .ghost-action:hover {
-  border-color: rgba(61, 122, 65, 0.42);
-  background: rgba(223, 243, 142, 0.58);
-  color: var(--leaf-ink);
 }
 
 .vote-action:disabled {
@@ -471,14 +456,9 @@ a {
     min-height: clamp(360px, 50svh, 500px);
   }
 
-  .arena-head,
-  .arena-controls {
+  .arena-head {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .arena-controls {
-    width: 100%;
   }
 
   .battle-grid {

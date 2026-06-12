@@ -34,9 +34,6 @@ app.innerHTML = `
         <p class="kicker">Public CAD grading</p>
         <h2>Pick the better generated model.</h2>
       </div>
-      <div class="arena-controls">
-        <button type="button" class="ghost-action" id="next-battle">Skip</button>
-      </div>
     </section>
 
     <section class="stat-row" aria-label="Public stats">
@@ -102,7 +99,6 @@ app.innerHTML = `
 const dom = {
   arena: document.querySelector("#arena") as HTMLElement,
   startNow: document.querySelector("#start-now") as HTMLButtonElement,
-  nextBattle: document.querySelector("#next-battle") as HTMLButtonElement,
   continueBattle: document.querySelector("#continue-battle") as HTMLButtonElement,
   totalVotes: document.querySelector("#total-votes") as HTMLElement,
   dataMode: document.querySelector("#data-mode") as HTMLElement,
@@ -424,10 +420,6 @@ function showVoteError(error: unknown): void {
 
 dom.startNow.addEventListener("click", () => {
   dom.arena.scrollIntoView({ behavior: "smooth" });
-});
-
-dom.nextBattle.addEventListener("click", () => {
-  loadBattle().catch(showVoteError);
 });
 
 dom.continueBattle.addEventListener("click", () => {
