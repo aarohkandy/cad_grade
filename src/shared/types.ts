@@ -55,7 +55,7 @@ export interface BattleResponse {
   stats: {
     itemCount: number;
     familyItemCount: number;
-    dataMode: "live" | "demo";
+    dataMode: "live" | "local";
   };
 }
 
@@ -76,7 +76,7 @@ export interface VoteResponse {
   acceptedForScoring: boolean;
   agreementPercent: number;
   agreementLabel: string;
-  dataMode: "live" | "demo";
+  dataMode: "live" | "local";
   qualityFlags: string[];
 }
 
@@ -91,5 +91,5 @@ export interface PublicStats {
     itemCount: number;
     voteCount: number;
   }>;
-  dataMode: "live" | "demo";
+  dataMode: "live" | "local";
 }

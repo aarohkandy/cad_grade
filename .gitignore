@@ -7,5 +7,7 @@ dist/
 coverage/
 playwright-report/
 test-results/
+exports/
+.local-data/
 *.log
 *.tsbuildinfo

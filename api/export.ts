@@ -1,22 +1,24 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { toCsv } from "../src/server/export";
 import { bearerOrHeaderToken, firstQueryValue, methodAllowed, noStore } from "../src/server/http";
-import { getSupabase } from "../src/server/supabase";
+import { dataset, itemById } from "../src/server/items";
+import { readVoteRecords, storageConfigured, summaryFromVotes } from "../src/server/voteStore";
 
-const TABLES = ["votes", "item_stats", "pair_stats"] as const;
+const TABLES = ["votes", "item_stats", "pair_stats", "quality_flags"] as const;
 type ExportTable = (typeof TABLES)[number];
 
 function tableFromQuery(value: string | undefined): ExportTable {
   return TABLES.includes(value as ExportTable) ? (value as ExportTable) : "votes";
 }
 
-async function fetchTable(table: ExportTable) {
-  const supabase = getSupabase();
-  if (!supabase) throw new Error("supabase_not_configured");
-  const orderColumn = table === "votes" ? "created_at" : "updated_at";
-  const { data, error } = await supabase.from(table).select("*").order(orderColumn, { ascending: false });
-  if (error) throw error;
-  return (data || []) as Array<Record<string, unknown>>;
+function rowsForTable(table: ExportTable, votes: Awaited<ReturnType<typeof readVoteRecords>>) {
+  const summary = summaryFromVotes(dataset.datasetId, dataset.families, votes, itemById);
+  if (table === "item_stats") return Object.values(summary.itemStats);
+  if (table === "pair_stats") return Object.values(summary.pairStats);
+  if (table === "quality_flags") {
+    return Object.entries(summary.qualityFlagCounts).map(([flag, count]) => ({ flag, count }));
+  }
+  return votes;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -32,27 +34,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(401).json({ error: "unauthorized" });
     return;
   }
+  if (!storageConfigured()) {
+    res.status(503).json({ error: "vote_storage_not_configured" });
+    return;
+  }
 
   try {
+    const date = firstQueryValue(req.query.date);
+    const limit = Number(firstQueryValue(req.query.limit) || 10_000);
+    const votes = await readVoteRecords({ date, limit });
     const format = firstQueryValue(req.query.format) === "csv" ? "csv" : "json";
+    const table = tableFromQuery(firstQueryValue(req.query.table));
+
     if (format === "csv") {
-      const table = tableFromQuery(firstQueryValue(req.query.table));
-      const rows = await fetchTable(table);
+      const rows = rowsForTable(table, votes);
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", `attachment; filename="${table}.csv"`);
-      res.status(200).send(toCsv(rows));
+      res.status(200).send(toCsv(rows as Array<Record<string, unknown>>));
       return;
     }
-    const [votes, itemStats, pairStats] = await Promise.all([
-      fetchTable("votes"),
-      fetchTable("item_stats"),
-      fetchTable("pair_stats"),
-    ]);
+
+    const summary = summaryFromVotes(dataset.datasetId, dataset.families, votes, itemById);
     res.status(200).json({
       exportedAtUtc: new Date().toISOString(),
+      date: date || null,
+      voteCount: votes.length,
       votes,
-      item_stats: itemStats,
-      pair_stats: pairStats,
+      item_stats: Object.values(summary.itemStats),
+      pair_stats: Object.values(summary.pairStats),
+      quality_flags: summary.qualityFlagCounts,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "export_failed";

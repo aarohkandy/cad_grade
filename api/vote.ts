@@ -1,108 +1,44 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { agreementPercent, updateElo } from "../src/server/elo";
+import { randomUUID } from "node:crypto";
+import { agreementPercent } from "../src/server/elo";
 import { safeHash } from "../src/server/hash";
 import { verifyHoldSubmission } from "../src/server/hold";
 import { clientIp, methodAllowed, noStore, readJsonBody } from "../src/server/http";
-import { itemById } from "../src/server/items";
+import { dataset, itemById } from "../src/server/items";
 import { pairKey } from "../src/server/pairs";
 import { qualityDecision } from "../src/server/quality";
-import { getSupabase } from "../src/server/supabase";
+import {
+  markSessionPair,
+  readVoteSummary,
+  sessionPairAlreadySeen,
+  sessionPairPath,
+  storageMode,
+  updateVoteSummary,
+  votePath,
+  writeVoteRecord,
+  type StoredPairStat,
+  type StoredVoteRecord,
+} from "../src/server/voteStore";
 import type { ArenaItem, VotePayload } from "../src/shared/types";
 
-interface DbItemStat {
-  item_id: string;
-  family: string;
-  elo: number;
-  wins: number;
-  losses: number;
-  battle_count: number;
-  updated_at?: string;
-}
-
-interface DbPairStat {
-  pair_key: string;
-  family: string;
-  item_a_id: string;
-  item_b_id: string;
-  item_a_wins: number;
-  item_b_wins: number;
-  battle_count: number;
-  updated_at?: string;
-}
-
-function defaultItemStat(item: ArenaItem): DbItemStat {
-  return {
-    item_id: item.id,
-    family: item.family,
-    elo: 1200,
-    wins: 0,
-    losses: 0,
-    battle_count: 0,
-  };
-}
-
-async function sessionAlreadyVotedPair(
-  supabase: SupabaseClient,
-  sessionId: string,
-  family: string,
-  leftId: string,
-  rightId: string,
-): Promise<boolean> {
-  if (!sessionId) return false;
-  const key = pairKey(leftId, rightId);
-  const { data, error } = await supabase
-    .from("votes")
-    .select("left_item_id,right_item_id")
-    .eq("session_id", sessionId)
-    .eq("family", family)
-    .limit(2000);
-  if (error) throw error;
-  return ((data || []) as Array<{ left_item_id: string; right_item_id: string }>).some(
-    (vote) => pairKey(vote.left_item_id, vote.right_item_id) === key,
-  );
-}
-
-async function ensureItemStats(
-  supabase: SupabaseClient,
-  winner: ArenaItem,
-  loser: ArenaItem,
-): Promise<Map<string, DbItemStat>> {
-  const ids = [winner.id, loser.id];
-  const { data, error } = await supabase.from("item_stats").select("*").in("item_id", ids);
-  if (error) throw error;
-  const stats = new Map<string, DbItemStat>();
-  for (const row of (data || []) as DbItemStat[]) stats.set(row.item_id, row);
-  const missing = [winner, loser].filter((item) => !stats.has(item.id));
-  if (missing.length) {
-    const rows = missing.map(defaultItemStat);
-    const { error: upsertError } = await supabase.from("item_stats").upsert(rows, { onConflict: "item_id" });
-    if (upsertError) throw upsertError;
-    for (const row of rows) stats.set(row.item_id, row);
-  }
-  return stats;
-}
-
-async function pairStat(supabase: SupabaseClient, family: string, leftId: string, rightId: string): Promise<DbPairStat> {
-  const key = pairKey(leftId, rightId);
-  const sorted = [leftId, rightId].sort();
-  const { data, error } = await supabase.from("pair_stats").select("*").eq("pair_key", key).maybeSingle();
-  if (error) throw error;
-  return (
-    (data as DbPairStat | null) || {
-      pair_key: key,
-      family,
-      item_a_id: sorted[0],
-      item_b_id: sorted[1],
-      item_a_wins: 0,
-      item_b_wins: 0,
-      battle_count: 0,
-    }
-  );
-}
-
-function winnerWins(pair: DbPairStat, winnerId: string): number {
+function winnerWins(pair: StoredPairStat | undefined, winnerId: string): number {
+  if (!pair) return 0;
   return winnerId === pair.item_a_id ? pair.item_a_wins : pair.item_b_wins;
+}
+
+function publicAgreement(input: {
+  pair: StoredPairStat | undefined;
+  winner: ArenaItem;
+  loser: ArenaItem;
+  winnerElo?: number | null;
+  loserElo?: number | null;
+}): number {
+  return agreementPercent({
+    winnerWins: winnerWins(input.pair, input.winner.id),
+    battleCount: input.pair?.battle_count || 0,
+    winnerElo: input.winnerElo,
+    loserElo: input.loserElo,
+  });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -122,30 +58,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(400).json({ error: "cross_family_vote" });
       return;
     }
-    const loser = winner.id === left.id ? right : left;
-    const family = left.family;
-    const hold = verifyHoldSubmission(payload.hold);
-    const supabase = getSupabase();
 
-    if (!supabase) {
-      res.status(200).json({
-        saved: false,
-        acceptedForScoring: false,
-        agreementPercent: 50,
-        agreementLabel: "Demo mode: set Supabase env vars to save votes.",
-        dataMode: "demo",
-        qualityFlags: ["supabase_not_configured"],
-      });
+    const mode = storageMode();
+    if (mode === "unconfigured") {
+      res.status(503).json({ error: "vote_storage_not_configured" });
       return;
     }
 
-    const duplicatePair = await sessionAlreadyVotedPair(
-      supabase,
-      payload.session_id,
-      family,
-      left.id,
-      right.id,
-    );
+    const loser = winner.id === left.id ? right : left;
+    const family = left.family;
+    const hold = verifyHoldSubmission(payload.hold);
+    const sessionHash = safeHash(payload.session_id || "missing-session");
+    const markerPath = sessionPairPath(sessionHash, family, left.id, right.id);
+    const duplicatePair = await sessionPairAlreadySeen(markerPath);
     const quality = qualityDecision({
       payload,
       holdPassed: hold.valid,
@@ -154,8 +79,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const qualityFlags = [...new Set([...hold.flags, ...quality.qualityFlags])];
     const ipHash = safeHash(clientIp(req));
     const userAgentHash = safeHash(String(req.headers["user-agent"] || "unknown"));
+    const createdAt = new Date().toISOString();
+    const id = randomUUID();
+    const path = votePath(createdAt, id);
 
-    const { error: insertError } = await supabase.from("votes").insert({
+    const record: StoredVoteRecord = {
+      id,
+      created_at: createdAt,
+      dataset_id: dataset.datasetId,
       battle_id: payload.battle_id,
       family,
       left_item_id: left.id,
@@ -184,58 +115,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         winner_item_id: winner.id,
         loser_item_id: loser.id,
       },
-    });
-    if (insertError) throw insertError;
+      storage: {
+        mode,
+        path,
+      },
+    };
 
-    const stats = await ensureItemStats(supabase, winner, loser);
-    const beforeWinner = stats.get(winner.id) || defaultItemStat(winner);
-    const beforeLoser = stats.get(loser.id) || defaultItemStat(loser);
-    let currentPair = await pairStat(supabase, family, left.id, right.id);
-    let winnerElo = beforeWinner.elo;
-    let loserElo = beforeLoser.elo;
-
-    if (quality.acceptedForScoring) {
-      const updated = updateElo(beforeWinner, beforeLoser);
-      winnerElo = updated.winnerElo;
-      loserElo = updated.loserElo;
-      const now = new Date().toISOString();
-      const updatedWinner: DbItemStat = {
-        ...beforeWinner,
-        elo: winnerElo,
-        wins: beforeWinner.wins + 1,
-        battle_count: beforeWinner.battle_count + 1,
-        updated_at: now,
-      };
-      const updatedLoser: DbItemStat = {
-        ...beforeLoser,
-        elo: loserElo,
-        losses: beforeLoser.losses + 1,
-        battle_count: beforeLoser.battle_count + 1,
-        updated_at: now,
-      };
-      const { error: itemError } = await supabase
-        .from("item_stats")
-        .upsert([updatedWinner, updatedLoser], { onConflict: "item_id" });
-      if (itemError) throw itemError;
-
-      currentPair = {
-        ...currentPair,
-        item_a_wins: currentPair.item_a_wins + (winner.id === currentPair.item_a_id ? 1 : 0),
-        item_b_wins: currentPair.item_b_wins + (winner.id === currentPair.item_b_id ? 1 : 0),
-        battle_count: currentPair.battle_count + 1,
-        updated_at: now,
-      };
-      const { error: pairError } = await supabase
-        .from("pair_stats")
-        .upsert(currentPair, { onConflict: "pair_key" });
-      if (pairError) throw pairError;
+    await writeVoteRecord(record);
+    if (!duplicatePair) {
+      await markSessionPair(markerPath, {
+        created_at: createdAt,
+        session_hash: sessionHash,
+        family,
+        pair_key: pairKey(left.id, right.id),
+        vote_id: id,
+      });
     }
 
-    const percent = agreementPercent({
-      winnerWins: winnerWins(currentPair, winner.id),
-      battleCount: currentPair.battle_count,
-      winnerElo,
-      loserElo,
+    let summary = await readVoteSummary(dataset.datasetId, dataset.families);
+    try {
+      summary = await updateVoteSummary(dataset.datasetId, dataset.families, record, winner, loser);
+    } catch (error) {
+      console.error(error);
+    }
+
+    const pair = summary.pairStats[pairKey(left.id, right.id)];
+    const percent = publicAgreement({
+      pair,
+      winner,
+      loser,
+      winnerElo: summary.itemStats[winner.id]?.elo,
+      loserElo: summary.itemStats[loser.id]?.elo,
     });
 
     res.status(200).json({
@@ -243,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       acceptedForScoring: quality.acceptedForScoring,
       agreementPercent: percent,
       agreementLabel: `${percent}% of the arena is with you on this one.`,
-      dataMode: "live",
+      dataMode: mode === "blob" ? "live" : "local",
       qualityFlags,
     });
   } catch (error) {

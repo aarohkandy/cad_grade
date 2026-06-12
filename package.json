@@ -12,11 +12,12 @@
     "test:watch": "vitest",
     "dataset": "node scripts/build-dataset.mjs",
     "check:dataset": "node scripts/check-dataset.mjs",
+    "pull:votes": "node scripts/pull-votes.mjs",
     "playwright": "node scripts/browser-smoke.mjs",
     "playwright:test": "playwright test"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.50.0",
+    "@vercel/blob": "^2.4.0",
     "three": "^0.165.0"
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ import type { ArenaFamily, ArenaItem, BattleResponse, HoldChallenge, PublicStats
 
 const SESSION_KEY = "capybara-arena-session";
 const FAMILY_KEY = "capybara-arena-family";
+const SEEN_PAIRS_KEY = "capybara-arena-seen-pairs";
 
 type FamilyChoice = ArenaFamily | "any";
 
@@ -51,7 +52,7 @@ app.innerHTML = `
     <section class="stat-row" aria-label="Public stats">
       <div><span>Total votes</span><strong id="total-votes">0</strong></div>
       <div><span>Models</span><strong id="item-count">${dataset.itemCount}</strong></div>
-      <div><span>Data mode</span><strong id="data-mode">demo</strong></div>
+      <div><span>Storage</span><strong id="data-mode">local</strong></div>
     </section>
 
     <section class="battle-grid" aria-live="polite">
@@ -155,6 +156,25 @@ function sessionId(): string {
   return value;
 }
 
+function pairKeyClient(leftId: string, rightId: string): string {
+  return [leftId, rightId].sort().join("__");
+}
+
+function seenPairs(): Set<string> {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SEEN_PAIRS_KEY) || "[]") as string[];
+    return new Set(parsed.filter((value) => typeof value === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+function rememberPair(leftId: string, rightId: string): void {
+  const pairs = seenPairs();
+  pairs.add(pairKeyClient(leftId, rightId));
+  window.localStorage.setItem(SEEN_PAIRS_KEY, JSON.stringify([...pairs].slice(-700)));
+}
+
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${url} returned ${response.status}`);
@@ -180,9 +200,20 @@ function localBattle(): CurrentBattle {
         : "wall_planter"
       : selectedFamily;
   const items = (dataset.items as ArenaItem[]).filter((item) => item.family === family);
-  const leftIndex = Math.floor(Math.random() * items.length);
-  let rightIndex = Math.floor(Math.random() * items.length);
-  while (rightIndex === leftIndex) rightIndex = Math.floor(Math.random() * items.length);
+  const priorPairs = seenPairs();
+  const availablePairs: Array<[ArenaItem, ArenaItem]> = [];
+  for (let leftIndex = 0; leftIndex < items.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < items.length; rightIndex += 1) {
+      const left = items[leftIndex];
+      const right = items[rightIndex];
+      if (!priorPairs.has(pairKeyClient(left.id, right.id))) availablePairs.push([left, right]);
+    }
+  }
+  const pairs = availablePairs.length ? availablePairs : items.flatMap((left, leftIndex) =>
+    items.slice(leftIndex + 1).map((right) => [left, right] as [ArenaItem, ArenaItem]),
+  );
+  const selected = pairs[Math.floor(Math.random() * pairs.length)];
+  const [left, right] = Math.random() > 0.5 ? selected : [selected[1], selected[0]];
   const hold: HoldChallenge = {
     challengeId: "local",
     targetMs: 900,
@@ -193,14 +224,14 @@ function localBattle(): CurrentBattle {
     battleId: `local-${Date.now()}`,
     datasetId: dataset.datasetId,
     family,
-    left: items[leftIndex],
-    right: items[rightIndex],
+    left,
+    right,
     hold,
     localOnly: true,
     stats: {
       itemCount: dataset.itemCount,
       familyItemCount: items.length,
-      dataMode: "demo",
+      dataMode: "local",
     },
   };
 }
@@ -212,7 +243,7 @@ async function loadStats(): Promise<void> {
     dom.dataMode.textContent = stats.dataMode;
   } catch {
     dom.totalVotes.textContent = "0";
-    dom.dataMode.textContent = "demo";
+    dom.dataMode.textContent = "local";
   }
 }
 
@@ -253,7 +284,11 @@ async function loadBattle(): Promise<void> {
   dom.rightTitle.textContent = "Loading";
 
   try {
-    const params = new URLSearchParams({ family: selectedFamily, session_id: sessionId() });
+    const params = new URLSearchParams({
+      family: selectedFamily,
+      session_id: sessionId(),
+      seen_pairs: [...seenPairs()].slice(-500).join(","),
+    });
     currentBattle = await getJson<CurrentBattle>(`/api/battle?${params}`);
   } catch {
     currentBattle = localBattle();
@@ -333,12 +368,12 @@ async function finishHold(heldMs: number): Promise<void> {
   dom.holdLabel.textContent = "Saving";
   const response = currentBattle.localOnly
     ? ({
-        saved: false,
+        saved: true,
         acceptedForScoring: false,
         agreementPercent: Math.round(52 + Math.random() * 36),
-        agreementLabel: "Demo mode: set Supabase env vars to save votes.",
-        dataMode: "demo",
-        qualityFlags: ["local_demo"],
+        agreementLabel: "Vote held locally. Deploy with Blob connected to collect public votes.",
+        dataMode: "local",
+        qualityFlags: ["local_preview"],
       } satisfies VoteResponse)
     : await postJson<VoteResponse>("/api/vote", {
         battle_id: currentBattle.battleId,
@@ -355,6 +390,7 @@ async function finishHold(heldMs: number): Promise<void> {
         },
       });
 
+  rememberPair(currentBattle.left.id, currentBattle.right.id);
   dom.holdButton.disabled = false;
   dom.holdPanel.classList.add("is-hidden");
   dom.feedbackPanel.classList.remove("is-hidden");

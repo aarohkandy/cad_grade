@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createHoldChallenge } from "../src/server/hold";
 import { activeItems, chooseFamily, dataset, itemsForFamily, publicItem } from "../src/server/items";
-import { battleId, pairKey, selectBattlePair, type ItemStatLike, type PairStatLike } from "../src/server/pairs";
-import { getSupabase } from "../src/server/supabase";
+import { battleId, selectBattlePair, type ItemStatLike, type PairStatLike } from "../src/server/pairs";
 import { firstQueryValue, methodAllowed, noStore } from "../src/server/http";
+import { readVoteSummary, storageMode } from "../src/server/voteStore";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);
@@ -16,47 +16,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const sessionId = String(firstQueryValue(req.query.session_id) || "").slice(0, 160);
-  const votedPairKeys = new Set<string>();
+  const seenPairs = String(firstQueryValue(req.query.seen_pairs) || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 500);
+  const votedPairKeys = new Set(seenPairs);
   const itemStats = new Map<string, ItemStatLike>();
   const pairStats = new Map<string, PairStatLike>();
-  const supabase = getSupabase();
 
-  if (supabase) {
-    try {
-      if (sessionId) {
-        const { data: votes } = await supabase
-          .from("votes")
-          .select("left_item_id,right_item_id")
-          .eq("session_id", sessionId)
-          .eq("family", family)
-          .limit(2000);
-        for (const vote of (votes || []) as Array<{ left_item_id: string; right_item_id: string }>) {
-          votedPairKeys.add(pairKey(vote.left_item_id, vote.right_item_id));
-        }
-      }
-
-      const itemIds = familyItems.map((item) => item.id);
-      const { data: stats } = await supabase
-        .from("item_stats")
-        .select("item_id,elo,battle_count")
-        .in("item_id", itemIds);
-      for (const stat of (stats || []) as ItemStatLike[]) {
-        itemStats.set(stat.item_id, stat);
-      }
-
-      const { data: pairs } = await supabase
-        .from("pair_stats")
-        .select("pair_key,battle_count")
-        .eq("family", family);
-      for (const pair of (pairs || []) as PairStatLike[]) {
-        pairStats.set(pair.pair_key, pair);
-      }
-    } catch {
-      votedPairKeys.clear();
-      itemStats.clear();
-      pairStats.clear();
+  try {
+    const summary = await readVoteSummary(dataset.datasetId, dataset.families);
+    for (const stat of Object.values(summary.itemStats)) {
+      itemStats.set(stat.item_id, stat);
     }
+    for (const pair of Object.values(summary.pairStats)) {
+      if (pair.family === family) pairStats.set(pair.pair_key, pair);
+    }
+  } catch {
+    itemStats.clear();
+    pairStats.clear();
   }
 
   const [left, right] = selectBattlePair({
@@ -76,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     stats: {
       itemCount: activeItems.length,
       familyItemCount: familyItems.length,
-      dataMode: supabase ? "live" : "demo",
+      dataMode: storageMode() === "blob" ? "live" : "local",
     },
   });
 }

@@ -1,28 +1,32 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { dataset } from "../src/server/items";
 import { methodAllowed, noStore } from "../src/server/http";
-import { getSupabase, supabaseConfigured } from "../src/server/supabase";
+import { readVoteSummary, storageMode } from "../src/server/voteStore";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);
   if (!methodAllowed(req, res, ["GET"])) return;
-  const supabase = getSupabase();
-  let supabaseStatus: "not_configured" | "ok" | "error" = supabaseConfigured() ? "error" : "not_configured";
-  let supabaseMessage = "";
-  if (supabase) {
-    const { error } = await supabase.from("item_stats").select("item_id").limit(1);
-    if (error) {
-      supabaseMessage = error.message;
-    } else {
-      supabaseStatus = "ok";
+
+  const mode = storageMode();
+  let storage: "ok" | "not_configured" | "error" = mode === "unconfigured" ? "not_configured" : "ok";
+  let storageMessage = "";
+
+  if (mode !== "unconfigured") {
+    try {
+      await readVoteSummary(dataset.datasetId, dataset.families);
+    } catch (error) {
+      storage = "error";
+      storageMessage = error instanceof Error ? error.message : "storage_error";
     }
   }
-  res.status(200).json({
-    ok: true,
+
+  res.status(storage === "error" ? 503 : 200).json({
+    ok: storage !== "error",
     app: "capybara-arena",
     datasetId: dataset.datasetId,
     itemCount: dataset.itemCount,
-    supabase: supabaseStatus,
-    supabaseMessage,
+    storage,
+    storageMode: mode,
+    storageMessage,
   });
 }
