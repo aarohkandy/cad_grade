@@ -70,6 +70,7 @@ a {
 }
 
 .top-bar {
+  position: relative;
   width: min(1280px, 100%);
   min-height: 58px;
   margin: 0 auto;
@@ -81,19 +82,23 @@ a {
   backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
 }
 
 .brand-lockup {
+  position: absolute;
+  left: 50%;
+  max-width: calc(100% - 310px);
   min-width: 0;
+  transform: translateX(-50%);
   color: var(--ink);
   text-decoration: none;
 }
 
 .brand-word {
   display: block;
-  max-width: 54vw;
+  max-width: 100%;
   overflow: hidden;
   color: white;
   font-family: var(--mono);
@@ -503,6 +508,13 @@ a {
   .top-bar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .brand-lockup {
+    position: static;
+    max-width: 100%;
+    transform: none;
+    text-align: center;
   }
 
   .nav-actions {
