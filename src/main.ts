@@ -32,7 +32,6 @@ app.innerHTML = `
     <section class="stat-row" aria-label="Public stats">
       <div><span>Total votes</span><strong id="total-votes">0</strong></div>
       <div><span>Models</span><strong id="item-count">${dataset.itemCount}</strong></div>
-      <div><span>Storage</span><strong id="data-mode">local</strong></div>
     </section>
 
     <section class="battle-grid" aria-live="polite">
@@ -92,7 +91,6 @@ const dom = {
   startNow: document.querySelector("#start-now") as HTMLButtonElement,
   continueBattle: document.querySelector("#continue-battle") as HTMLButtonElement,
   totalVotes: document.querySelector("#total-votes") as HTMLElement,
-  dataMode: document.querySelector("#data-mode") as HTMLElement,
   leftCanvas: document.querySelector("#left-canvas") as HTMLCanvasElement,
   rightCanvas: document.querySelector("#right-canvas") as HTMLCanvasElement,
   leftTitle: document.querySelector("#left-title") as HTMLElement,
@@ -247,10 +245,8 @@ async function loadStats(): Promise<void> {
   try {
     const stats = await getJson<PublicStats>("/api/stats");
     dom.totalVotes.textContent = String(stats.totalVotes);
-    dom.dataMode.textContent = stats.dataMode;
   } catch {
     dom.totalVotes.textContent = "0";
-    dom.dataMode.textContent = "local";
   }
 }
 
