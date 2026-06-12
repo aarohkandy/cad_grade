@@ -1,0 +1,95 @@
+export type ArenaFamily = "wall_planter" | "wall_hook";
+
+export interface ArenaItem {
+  id: string;
+  family: ArenaFamily;
+  familyLabel: string;
+  active: boolean;
+  title: string;
+  seedId: string;
+  prompt: string;
+  specificityLevel: number | null;
+  repetition: number;
+  experimentId: string;
+  modelName: string;
+  provider: string;
+  latencyMs: number | null;
+  validation: {
+    valid?: boolean;
+    confidence?: number;
+    brief_reason?: string;
+    issues?: string[];
+  } | null;
+  tags: string[];
+  stlUrl: string;
+  previewUrl: string;
+  sourceHash: string;
+}
+
+export interface DatasetPayload {
+  datasetId: string;
+  generatedAtUtc: string;
+  itemCount: number;
+  families: ArenaFamily[];
+  items: ArenaItem[];
+}
+
+export interface HoldChallenge {
+  challengeId: string;
+  targetMs: number;
+  issuedAt: number;
+  token: string;
+}
+
+export interface HoldSubmission extends HoldChallenge {
+  heldMs: number;
+}
+
+export interface BattleResponse {
+  battleId: string;
+  datasetId: string;
+  family: ArenaFamily;
+  left: ArenaItem;
+  right: ArenaItem;
+  hold: HoldChallenge;
+  stats: {
+    itemCount: number;
+    familyItemCount: number;
+    dataMode: "live" | "demo";
+  };
+}
+
+export interface VotePayload {
+  battle_id: string;
+  left_item_id: string;
+  right_item_id: string;
+  winner_item_id: string;
+  started_at: string;
+  models_loaded_at: string;
+  voted_at: string;
+  session_id: string;
+  hold: HoldSubmission;
+}
+
+export interface VoteResponse {
+  saved: boolean;
+  acceptedForScoring: boolean;
+  agreementPercent: number;
+  agreementLabel: string;
+  dataMode: "live" | "demo";
+  qualityFlags: string[];
+}
+
+export interface PublicStats {
+  datasetId: string;
+  itemCount: number;
+  totalVotes: number;
+  acceptedVotes: number;
+  families: Array<{
+    family: ArenaFamily;
+    label: string;
+    itemCount: number;
+    voteCount: number;
+  }>;
+  dataMode: "live" | "demo";
+}
