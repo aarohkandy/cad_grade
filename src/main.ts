@@ -1,7 +1,7 @@
 import "./styles.css";
 import dataset from "./data/items.generated.json";
 import { StlViewer } from "./client/stlViewer";
-import type { ArenaFamily, ArenaItem, BattleResponse, HoldChallenge, PublicStats, VoteResponse } from "./shared/types";
+import type { ArenaFamily, ArenaItem, BattleResponse, HoldChallenge, VoteResponse } from "./shared/types";
 
 const SESSION_KEY = "capybara-arena-session";
 const SEEN_PAIRS_KEY = "capybara-arena-seen-pairs";
@@ -30,7 +30,7 @@ app.innerHTML = `
 
   <main class="arena-shell" id="arena">
     <section class="stat-row" aria-label="Public stats">
-      <div><span>Total votes</span><strong id="total-votes">0</strong></div>
+      <div><span>Arena status</span><strong id="arena-status">Live</strong></div>
     </section>
 
     <section class="battle-grid" aria-live="polite">
@@ -89,7 +89,7 @@ const dom = {
   arena: document.querySelector("#arena") as HTMLElement,
   startNow: document.querySelector("#start-now") as HTMLButtonElement,
   continueBattle: document.querySelector("#continue-battle") as HTMLButtonElement,
-  totalVotes: document.querySelector("#total-votes") as HTMLElement,
+  arenaStatus: document.querySelector("#arena-status") as HTMLElement,
   leftCanvas: document.querySelector("#left-canvas") as HTMLCanvasElement,
   rightCanvas: document.querySelector("#right-canvas") as HTMLCanvasElement,
   leftTitle: document.querySelector("#left-title") as HTMLElement,
@@ -240,13 +240,8 @@ function localBattle(): CurrentBattle {
   };
 }
 
-async function loadStats(): Promise<void> {
-  try {
-    const stats = await getJson<PublicStats>("/api/stats");
-    dom.totalVotes.textContent = String(stats.totalVotes);
-  } catch {
-    dom.totalVotes.textContent = "0";
-  }
+function markArenaLive(): void {
+  dom.arenaStatus.textContent = "Live";
 }
 
 function clearFeedback(): void {
@@ -389,7 +384,7 @@ async function finishHold(heldMs: number): Promise<void> {
   dom.feedbackCopy.textContent = response.agreementLabel;
   revealPrompt(dom.leftReveal, currentBattle.left);
   revealPrompt(dom.rightReveal, currentBattle.right);
-  await loadStats();
+  markArenaLive();
 }
 
 function showVoteError(error: unknown): void {
@@ -421,5 +416,5 @@ dom.holdButton.addEventListener("pointerup", cancelHold);
 dom.holdButton.addEventListener("pointercancel", cancelHold);
 dom.holdButton.addEventListener("pointerleave", cancelHold);
 
-loadStats().catch(() => undefined);
+markArenaLive();
 loadBattle().catch(showVoteError);
