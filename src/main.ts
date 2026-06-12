@@ -31,7 +31,6 @@ app.innerHTML = `
   <main class="arena-shell" id="arena">
     <section class="stat-row" aria-label="Public stats">
       <div><span>Total votes</span><strong id="total-votes">0</strong></div>
-      <div><span>Models</span><strong id="item-count">${dataset.itemCount}</strong></div>
     </section>
 
     <section class="battle-grid" aria-live="polite">
