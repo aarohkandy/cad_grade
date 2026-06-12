@@ -1,6 +1,7 @@
 :root {
   color-scheme: dark;
   --ink: #f8fff3;
+  --leaf-ink: #143126;
   --lime: #dff38e;
   --mint: #7ee3b3;
   --blue: #45c8e8;
@@ -32,8 +33,9 @@ body {
   color: var(--ink);
   font-family: var(--sans);
   background:
-    linear-gradient(180deg, rgba(4, 15, 20, 0.2), rgba(4, 14, 17, 0.92)),
-    #07151a;
+    radial-gradient(circle at 12% 30%, rgba(126, 227, 179, 0.28), transparent 30rem),
+    radial-gradient(circle at 88% 70%, rgba(223, 243, 142, 0.28), transparent 28rem),
+    linear-gradient(180deg, #07151a 0%, #0d2f2d 34%, #7fbf80 100%);
 }
 
 button,
@@ -162,6 +164,18 @@ a {
   background: #eef8a6;
 }
 
+.arena-shell .ghost-action {
+  border-color: rgba(38, 82, 68, 0.24);
+  background: rgba(246, 255, 233, 0.68);
+  color: #2f6e3e;
+}
+
+.arena-shell .ghost-action:hover {
+  border-color: rgba(61, 122, 65, 0.42);
+  background: rgba(223, 243, 142, 0.58);
+  color: var(--leaf-ink);
+}
+
 .vote-action:disabled {
   cursor: wait;
   opacity: 0.62;
@@ -198,11 +212,21 @@ a {
 .arena-shell {
   width: min(100% - 28px, 1680px);
   margin: -36px auto 0;
-  padding: 0 0 46px;
+  padding: 14px 14px 46px;
   display: grid;
   gap: 14px;
   position: relative;
   z-index: 2;
+  border: 1px solid rgba(223, 243, 142, 0.46);
+  border-radius: 12px 12px 0 0;
+  background:
+    linear-gradient(rgba(20, 49, 38, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 49, 38, 0.055) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(201, 244, 214, 0.95), rgba(179, 226, 157, 0.94) 52%, rgba(108, 174, 118, 0.95));
+  background-size: 28px 28px, 28px 28px, auto;
+  box-shadow:
+    0 -24px 56px rgba(6, 18, 26, 0.34),
+    0 32px 90px rgba(7, 36, 32, 0.36);
 }
 
 .arena-head,
@@ -211,9 +235,9 @@ a {
 .feedback-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
+  background: rgba(245, 255, 232, 0.78);
+  box-shadow: 0 16px 42px rgba(21, 67, 50, 0.18);
+  backdrop-filter: blur(14px);
 }
 
 .arena-head {
@@ -233,7 +257,7 @@ a {
 }
 
 .kicker {
-  color: var(--lime);
+  color: #3d7a41;
   font-family: var(--mono);
   font-size: 12px;
   font-weight: 900;
@@ -244,7 +268,7 @@ a {
 .feedback-panel h2,
 .hold-panel h2 {
   margin-top: 4px;
-  color: white;
+  color: var(--leaf-ink);
   font-family: var(--mono);
   font-size: clamp(24px, 3vw, 38px);
   line-height: 1.02;
@@ -255,9 +279,9 @@ a {
   grid-template-columns: repeat(3, minmax(92px, 1fr));
   gap: 4px;
   padding: 4px;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(38, 82, 68, 0.2);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(12, 45, 45, 0.12);
 }
 
 .segmented button {
@@ -265,7 +289,7 @@ a {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: rgba(248, 255, 243, 0.7);
+  color: rgba(20, 49, 38, 0.76);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 12px;
@@ -282,7 +306,7 @@ a {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
-  background: var(--line);
+  background: rgba(38, 82, 68, 0.18);
 }
 
 .stat-row div {
@@ -290,21 +314,21 @@ a {
   display: grid;
   align-content: center;
   gap: 5px;
-  background: var(--panel-strong);
+  background: rgba(246, 255, 233, 0.66);
   padding: 14px 16px;
 }
 
 .stat-row span,
 .panel-top p,
 .reveal strong {
-  color: rgba(248, 255, 243, 0.66);
+  color: rgba(20, 49, 38, 0.62);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .stat-row strong {
-  color: white;
+  color: var(--leaf-ink);
   font-family: var(--mono);
   font-size: 26px;
 }
@@ -319,10 +343,10 @@ a {
   min-width: 0;
   display: grid;
   gap: 12px;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(38, 82, 68, 0.2);
   border-radius: 8px;
-  background: rgba(7, 18, 24, 0.84);
-  box-shadow: var(--shadow);
+  background: rgba(245, 255, 232, 0.74);
+  box-shadow: 0 16px 42px rgba(21, 67, 50, 0.18);
   padding: 14px;
 }
 
@@ -341,7 +365,7 @@ a {
 
 .panel-top h3 {
   margin-top: 3px;
-  color: white;
+  color: var(--leaf-ink);
   font-family: var(--mono);
   font-size: 24px;
   line-height: 1.05;
@@ -352,9 +376,9 @@ a {
   min-height: 28px;
   display: inline-flex;
   align-items: center;
-  border: 1px solid rgba(223, 243, 142, 0.35);
+  border: 1px solid rgba(61, 122, 65, 0.32);
   border-radius: 7px;
-  color: var(--lime);
+  color: #2f6e3e;
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 900;
@@ -400,7 +424,7 @@ a {
   min-height: 0;
   display: grid;
   gap: 5px;
-  color: rgba(248, 255, 243, 0.86);
+  color: rgba(20, 49, 38, 0.86);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -426,8 +450,8 @@ a {
   overflow: hidden;
   border: 1px solid rgba(223, 243, 142, 0.86);
   border-radius: 8px;
-  background: rgba(223, 243, 142, 0.12);
-  color: white;
+  background: rgba(72, 158, 102, 0.14);
+  color: var(--leaf-ink);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 18px;
@@ -456,7 +480,7 @@ a {
 .feedback-panel p {
   max-width: 720px;
   margin: 0;
-  color: rgba(248, 255, 243, 0.8);
+  color: rgba(20, 49, 38, 0.8);
   font-size: 15px;
   line-height: 1.5;
 }
