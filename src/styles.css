@@ -317,24 +317,6 @@ a {
   line-height: 1.05;
 }
 
-.panel-top span {
-  max-width: 46%;
-  min-height: 28px;
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid rgba(61, 122, 65, 0.32);
-  border-radius: 7px;
-  color: #2f6e3e;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 900;
-  overflow: hidden;
-  padding: 0 9px;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 .viewer-frame {
   position: relative;
   min-height: min(58svh, 680px);
@@ -498,10 +480,6 @@ a {
   .panel-top {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .panel-top span {
-    max-width: 100%;
   }
 
   .viewer-frame {

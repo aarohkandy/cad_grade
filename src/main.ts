@@ -42,7 +42,6 @@ app.innerHTML = `
             <p>Model A</p>
             <h3 id="left-title">Loading</h3>
           </div>
-          <span id="left-badge">3D</span>
         </div>
         <div class="viewer-frame">
           <canvas id="left-canvas"></canvas>
@@ -58,7 +57,6 @@ app.innerHTML = `
             <p>Model B</p>
             <h3 id="right-title">Loading</h3>
           </div>
-          <span id="right-badge">3D</span>
         </div>
         <div class="viewer-frame">
           <canvas id="right-canvas"></canvas>
@@ -101,8 +99,6 @@ const dom = {
   rightTitle: document.querySelector("#right-title") as HTMLElement,
   leftStatus: document.querySelector("#left-status") as HTMLElement,
   rightStatus: document.querySelector("#right-status") as HTMLElement,
-  leftBadge: document.querySelector("#left-badge") as HTMLElement,
-  rightBadge: document.querySelector("#right-badge") as HTMLElement,
   voteLeft: document.querySelector("#vote-left") as HTMLButtonElement,
   voteRight: document.querySelector("#vote-right") as HTMLButtonElement,
   leftReveal: document.querySelector("#left-reveal") as HTMLElement,
@@ -298,8 +294,6 @@ async function loadBattle(): Promise<void> {
 
   dom.leftTitle.textContent = currentBattle.left.familyLabel;
   dom.rightTitle.textContent = currentBattle.right.familyLabel;
-  dom.leftBadge.textContent = currentBattle.left.seedId.replace(/^[a-z]+_/, "").replaceAll("_", " ");
-  dom.rightBadge.textContent = currentBattle.right.seedId.replace(/^[a-z]+_/, "").replaceAll("_", " ");
 
   leftViewer?.dispose();
   rightViewer?.dispose();
