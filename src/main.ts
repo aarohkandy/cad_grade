@@ -27,8 +27,8 @@ app.innerHTML = `
       </div>
     </nav>
     <main class="hero-center">
-      <p>choose better</p>
-      <h1>cad capybaras</h1>
+      <p>enter the</p>
+      <h1>cad arena</h1>
     </main>
   </header>
 

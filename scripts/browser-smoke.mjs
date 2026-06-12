@@ -59,13 +59,24 @@ async function sampleCanvas(page, selector) {
   });
 }
 
+async function waitForNonBlankCanvas(page, selector) {
+  const deadline = Date.now() + 20_000;
+  let latest = { nonTransparent: 0, colorSum: 0 };
+  while (Date.now() < deadline) {
+    latest = await sampleCanvas(page, selector);
+    if (latest.nonTransparent >= 500 && latest.colorSum > 10_000) return latest;
+    await sleep(250);
+  }
+  return latest;
+}
+
 async function checkViewport(browser, name, viewport) {
   const page = await browser.newPage({ viewport });
   await page.goto(BASE_URL, { waitUntil: "networkidle" });
   await page.locator("#arena").scrollIntoViewIfNeeded();
   await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
-  const left = await sampleCanvas(page, "#left-canvas");
-  const right = await sampleCanvas(page, "#right-canvas");
+  const left = await waitForNonBlankCanvas(page, "#left-canvas");
+  const right = await waitForNonBlankCanvas(page, "#right-canvas");
   if (left.nonTransparent < 500 || right.nonTransparent < 500) {
     throw new Error(`${name} canvas sample was blank: ${JSON.stringify({ left, right })}`);
   }
