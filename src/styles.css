@@ -179,7 +179,6 @@ a {
   font-family: var(--mono);
 }
 
-.hero-center p,
 .hero-center h1 {
   max-width: 100%;
   margin: 0;
@@ -189,11 +188,6 @@ a {
   text-shadow:
     0 5px 0 rgba(5, 19, 27, 0.22),
     0 22px 54px rgba(0, 0, 0, 0.28);
-}
-
-.hero-center p {
-  font-size: clamp(28px, min(5.6vw, 6.6svh), 62px);
-  line-height: 0.96;
 }
 
 .hero-center h1 {
