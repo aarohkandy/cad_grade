@@ -43,14 +43,14 @@ a {
 
 .hero {
   position: relative;
-  min-height: 88svh;
+  min-height: clamp(380px, 50svh, 560px);
   overflow: hidden;
-  padding: 24px;
+  padding: 22px;
   display: grid;
   grid-template-rows: auto 1fr;
   background:
-    linear-gradient(180deg, rgba(5, 26, 35, 0.02), rgba(5, 15, 21, 0.2)),
-    var(--hero-image) center bottom / cover no-repeat,
+    linear-gradient(180deg, rgba(5, 26, 35, 0.02), rgba(5, 15, 21, 0.34)),
+    var(--hero-image) center 56% / cover no-repeat,
     #058caf;
   isolation: isolate;
 }
@@ -62,7 +62,7 @@ a {
   z-index: -1;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(2, 12, 19, 0.1) 0%, rgba(3, 14, 19, 0.02) 42%, rgba(2, 8, 13, 0.38) 100%),
+    linear-gradient(180deg, rgba(2, 12, 19, 0.1) 0%, rgba(3, 14, 19, 0.02) 38%, rgba(2, 8, 13, 0.56) 100%),
     linear-gradient(90deg, rgba(4, 11, 16, 0.2) 0%, rgba(4, 11, 16, 0.02) 50%, rgba(4, 11, 16, 0.18) 100%),
     linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
@@ -165,7 +165,7 @@ a {
 .hero-center {
   width: min(1100px, 100%);
   margin: 0 auto;
-  padding: clamp(46px, 7svh, 96px) 0 clamp(170px, 22svh, 270px);
+  padding: clamp(34px, 5svh, 64px) 0 clamp(54px, 8svh, 92px);
   display: grid;
   place-content: center;
   justify-items: center;
@@ -187,21 +187,23 @@ a {
 }
 
 .hero-center p {
-  font-size: clamp(34px, min(7vw, 8.4svh), 78px);
+  font-size: clamp(28px, min(5.6vw, 6.6svh), 62px);
   line-height: 0.96;
 }
 
 .hero-center h1 {
-  font-size: clamp(38px, min(8.4vw, 9.8svh), 98px);
+  font-size: clamp(34px, min(6.8vw, 7.8svh), 76px);
   line-height: 0.9;
 }
 
 .arena-shell {
   width: min(100% - 28px, 1680px);
-  margin: 0 auto;
-  padding: 24px 0 46px;
+  margin: -36px auto 0;
+  padding: 0 0 46px;
   display: grid;
   gap: 14px;
+  position: relative;
+  z-index: 2;
 }
 
 .arena-head,
@@ -470,7 +472,7 @@ a {
 
 @media (max-width: 980px) {
   .hero {
-    min-height: 78svh;
+    min-height: clamp(360px, 50svh, 500px);
   }
 
   .arena-head,
@@ -517,7 +519,11 @@ a {
   }
 
   .hero-center {
-    padding: 50px 0 150px;
+    padding: 36px 0 70px;
+  }
+
+  .arena-shell {
+    margin-top: -28px;
   }
 
   .stat-row {
