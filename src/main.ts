@@ -24,7 +24,6 @@ app.innerHTML = `
       </a>
       <div class="nav-actions">
         <button class="nav-action primary-action" id="start-now" type="button">Start now</button>
-        <a class="nav-action" href="https://github.com/aarohkandy/cad_grade" rel="noreferrer" target="_blank">GitHub</a>
       </div>
     </nav>
     <main class="hero-center">
