@@ -35,6 +35,7 @@ function vote(overrides: Partial<StoredVoteRecord> = {}): StoredVoteRecord {
     right_item_id: "b",
     winner_item_id: "a",
     loser_item_id: "b",
+    vote_result: "winner",
     session_id: "session",
     started_at: "2026-06-12T13:59:55.000Z",
     models_loaded_at: "2026-06-12T13:59:56.000Z",
@@ -56,6 +57,7 @@ function vote(overrides: Partial<StoredVoteRecord> = {}): StoredVoteRecord {
       right_item_id: "b",
       winner_item_id: "a",
       loser_item_id: "b",
+      vote_result: "winner",
     },
     storage: {
       mode: "local",
@@ -78,12 +80,44 @@ describe("vote store helpers", () => {
   it("updates accepted vote stats without exposing raw identifiers", () => {
     const winner = item("a");
     const loser = item("b");
-    const summary = applyVoteToSummary(emptySummary("dataset", ["wall_planter", "wall_hook"]), vote(), winner, loser);
+    const summary = applyVoteToSummary(emptySummary("dataset", ["wall_planter", "wall_hook"]), vote(), winner, loser, winner, loser);
     expect(summary.totalVotes).toBe(1);
     expect(summary.acceptedVotes).toBe(1);
     expect(summary.itemStats.a.wins).toBe(1);
     expect(summary.itemStats.b.losses).toBe(1);
     expect(summary.pairStats.a__b.item_a_wins).toBe(1);
+  });
+
+  it("counts accepted draw votes without moving Elo", () => {
+    const left = item("a");
+    const right = item("b");
+    const summary = applyVoteToSummary(
+      emptySummary("dataset", ["wall_planter", "wall_hook"]),
+      vote({
+        winner_item_id: null,
+        loser_item_id: null,
+        vote_result: "draw",
+        raw_payload: {
+          battle_id: "battle",
+          left_item_id: "a",
+          right_item_id: "b",
+          winner_item_id: null,
+          loser_item_id: null,
+          vote_result: "draw",
+        },
+      }),
+      left,
+      right,
+      null,
+      null,
+    );
+
+    expect(summary.acceptedVotes).toBe(1);
+    expect(summary.itemStats.a.draws).toBe(1);
+    expect(summary.itemStats.b.draws).toBe(1);
+    expect(summary.itemStats.a.elo).toBe(1200);
+    expect(summary.itemStats.b.elo).toBe(1200);
+    expect(summary.pairStats.a__b.draw_count).toBe(1);
   });
 
   it("can derive a summary from exported raw votes", () => {

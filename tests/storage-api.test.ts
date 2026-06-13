@@ -7,6 +7,7 @@ import statsHandler from "../api/stats";
 import voteHandler from "../api/vote";
 import { createHoldChallenge } from "../src/server/hold";
 import { dataset } from "../src/server/items";
+import type { VoteResponse } from "../src/shared/types";
 
 function mockResponse() {
   const response = {
@@ -69,6 +70,7 @@ describe("local storage api flow", () => {
           left_item_id: left.id,
           right_item_id: right.id,
           winner_item_id: left.id,
+          vote_result: "winner",
           started_at: new Date(now - 6000).toISOString(),
           models_loaded_at: new Date(now - 5000).toISOString(),
           voted_at: new Date(now).toISOString(),
@@ -119,6 +121,7 @@ describe("local storage api flow", () => {
           left_item_id: left.id,
           right_item_id: right.id,
           winner_item_id: right.id,
+          vote_result: "winner",
           started_at: new Date(now - 6000).toISOString(),
           models_loaded_at: new Date(now - 5000).toISOString(),
           voted_at: new Date(now).toISOString(),
@@ -134,5 +137,43 @@ describe("local storage api flow", () => {
       acceptedForScoring: true,
       qualityFlags: [],
     });
+  });
+
+  it("saves draw votes as similarity judgments", async () => {
+    const items = dataset.items.filter((item) => item.family === "wall_hook");
+    const [left, right] = items.slice(2);
+    const now = Date.now();
+    const voteResponse = mockResponse();
+
+    await voteHandler(
+      {
+        method: "POST",
+        headers: { "user-agent": "vitest" },
+        socket: { remoteAddress: "127.0.0.1" },
+        body: {
+          battle_id: "battle-draw",
+          left_item_id: left.id,
+          right_item_id: right.id,
+          winner_item_id: null,
+          vote_result: "draw",
+          started_at: new Date(now - 6000).toISOString(),
+          models_loaded_at: new Date(now - 5000).toISOString(),
+          voted_at: new Date(now).toISOString(),
+          session_id: "session-draw-1234567890",
+        },
+      } as never,
+      voteResponse as never,
+    );
+
+    expect(voteResponse.statusCode).toBe(200);
+    expect(voteResponse.body).toMatchObject({
+      saved: true,
+      acceptedForScoring: true,
+    });
+    expect((voteResponse.body as VoteResponse).agreementLabel.toLowerCase()).toContain("similar");
+
+    const statsResponse = mockResponse();
+    await statsHandler({ method: "GET", headers: {}, query: {} } as never, statsResponse as never);
+    expect(statsResponse.body).toMatchObject({ totalVotes: 1, acceptedVotes: 1 });
   });
 });

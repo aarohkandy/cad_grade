@@ -15,6 +15,8 @@ interface CurrentBattle extends BattleResponse {
   localOnly?: boolean;
 }
 
+type VoteChoice = string | "draw";
+
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Missing app root");
 
@@ -52,6 +54,10 @@ app.innerHTML = `
         </div>
         <button type="button" class="vote-action" id="vote-left" disabled>Choose A</button>
       </article>
+
+      <div class="draw-column" aria-label="Draw vote">
+        <button type="button" class="draw-action" id="vote-draw" disabled>Same / similar</button>
+      </div>
 
       <article class="model-panel" data-side="right">
         <div class="panel-top">
@@ -101,6 +107,7 @@ const dom = {
   rightStatus: document.querySelector("#right-status") as HTMLElement,
   voteLeft: document.querySelector("#vote-left") as HTMLButtonElement,
   voteRight: document.querySelector("#vote-right") as HTMLButtonElement,
+  voteDraw: document.querySelector("#vote-draw") as HTMLButtonElement,
   holdPanel: document.querySelector("#hold-panel") as HTMLElement,
   holdButton: document.querySelector("#hold-button") as HTMLButtonElement,
   holdFill: document.querySelector("#hold-fill") as HTMLElement,
@@ -111,7 +118,7 @@ const dom = {
 };
 
 let currentBattle: CurrentBattle | null = null;
-let selectedWinnerId: string | null = null;
+let selectedChoice: VoteChoice | null = null;
 let battleStartedAt = "";
 let modelsLoadedAt = "";
 let leftViewer: StlViewer | null = null;
@@ -274,7 +281,7 @@ function shouldVerifyVote(): boolean {
 function clearFeedback(): void {
   dom.feedbackPanel.classList.add("is-hidden");
   dom.holdPanel.classList.add("is-hidden");
-  selectedWinnerId = null;
+  selectedChoice = null;
 }
 
 async function loadBattle(): Promise<void> {
@@ -283,6 +290,7 @@ async function loadBattle(): Promise<void> {
   modelsLoadedAt = "";
   dom.voteLeft.disabled = true;
   dom.voteRight.disabled = true;
+  dom.voteDraw.disabled = true;
   dom.leftStatus.textContent = "Loading STL";
   dom.rightStatus.textContent = "Loading STL";
   dom.leftStatus.classList.remove("is-hidden");
@@ -318,6 +326,7 @@ async function loadBattle(): Promise<void> {
     dom.rightStatus.classList.add("is-hidden");
     dom.voteLeft.disabled = false;
     dom.voteRight.disabled = false;
+    dom.voteDraw.disabled = false;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load STL";
     dom.leftStatus.textContent = message;
@@ -325,9 +334,9 @@ async function loadBattle(): Promise<void> {
   }
 }
 
-function startHold(winnerId: string): void {
+function startHold(choice: VoteChoice): void {
   if (!currentBattle) return;
-  selectedWinnerId = winnerId;
+  selectedChoice = choice;
   dom.holdPanel.classList.remove("is-hidden");
   dom.holdLabel.textContent = "Hold to verify";
   dom.holdFill.style.transform = "scaleX(0)";
@@ -348,7 +357,7 @@ function updateHoldProgress(): void {
 }
 
 function beginHold(): void {
-  if (!currentBattle || !selectedWinnerId) return;
+  if (!currentBattle || !selectedChoice) return;
   holdStartedAt = performance.now();
   dom.holdButton.classList.add("holding");
   cancelAnimationFrame(holdFrame);
@@ -364,11 +373,14 @@ function cancelHold(): void {
   if (elapsed < 1) dom.holdFill.style.transform = "scaleX(0)";
 }
 
-async function submitVote(winnerId: string, heldMs: number | null): Promise<void> {
+async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<void> {
   if (!currentBattle) return;
+  const isDraw = choice === "draw";
+  const winnerId = isDraw ? null : choice;
   const hold = heldMs === null ? null : { ...currentBattle.hold, heldMs: Math.round(heldMs) };
   dom.voteLeft.disabled = true;
   dom.voteRight.disabled = true;
+  dom.voteDraw.disabled = true;
   dom.holdButton.disabled = true;
   if (hold) dom.holdLabel.textContent = "Saving";
   const votedAt = new Date().toISOString();
@@ -381,7 +393,9 @@ async function submitVote(winnerId: string, heldMs: number | null): Promise<void
         saved: true,
         acceptedForScoring: false,
         agreementPercent: Math.round(52 + Math.random() * 36),
-        agreementLabel: "Vote held locally. Deploy with Blob connected to collect public votes.",
+        agreementLabel: isDraw
+          ? "Similarity vote saved locally. Deploy with Blob connected to collect public votes."
+          : "Vote held locally. Deploy with Blob connected to collect public votes.",
         dataMode: "local",
         qualityFlags: ["local_preview"],
       } satisfies VoteResponse)
@@ -390,6 +404,7 @@ async function submitVote(winnerId: string, heldMs: number | null): Promise<void
         left_item_id: left.id,
         right_item_id: right.id,
         winner_item_id: winnerId,
+        vote_result: isDraw ? "draw" : "winner",
         started_at: battleStartedAt,
         models_loaded_at: modelsLoadedAt || new Date().toISOString(),
         voted_at: votedAt,
@@ -408,24 +423,25 @@ async function submitVote(winnerId: string, heldMs: number | null): Promise<void
 }
 
 async function finishHold(heldMs: number): Promise<void> {
-  if (!selectedWinnerId) return;
-  await submitVote(selectedWinnerId, heldMs);
+  if (!selectedChoice) return;
+  await submitVote(selectedChoice, heldMs);
 }
 
-async function chooseWinner(winnerId: string): Promise<void> {
+async function chooseVote(choice: VoteChoice): Promise<void> {
   if (!currentBattle) return;
-  selectedWinnerId = winnerId;
+  selectedChoice = choice;
   if (shouldVerifyVote()) {
-    startHold(winnerId);
+    startHold(choice);
     return;
   }
-  await submitVote(winnerId, null);
+  await submitVote(choice, null);
 }
 
 function showVoteError(error: unknown): void {
   dom.holdButton.disabled = false;
   dom.voteLeft.disabled = false;
   dom.voteRight.disabled = false;
+  dom.voteDraw.disabled = false;
   dom.holdLabel.textContent = "Try again";
   dom.feedbackPanel.classList.remove("is-hidden");
   dom.feedbackTitle.textContent = "Vote did not save";
@@ -441,11 +457,15 @@ dom.continueBattle.addEventListener("click", () => {
 });
 
 dom.voteLeft.addEventListener("click", () => {
-  if (currentBattle) chooseWinner(currentBattle.left.id).catch(showVoteError);
+  if (currentBattle) chooseVote(currentBattle.left.id).catch(showVoteError);
 });
 
 dom.voteRight.addEventListener("click", () => {
-  if (currentBattle) chooseWinner(currentBattle.right.id).catch(showVoteError);
+  if (currentBattle) chooseVote(currentBattle.right.id).catch(showVoteError);
+});
+
+dom.voteDraw.addEventListener("click", () => {
+  if (currentBattle) chooseVote("draw").catch(showVoteError);
 });
 
 dom.holdButton.addEventListener("pointerdown", beginHold);

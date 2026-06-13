@@ -62,7 +62,8 @@ export interface VotePayload {
   battle_id: string;
   left_item_id: string;
   right_item_id: string;
-  winner_item_id: string;
+  winner_item_id?: string | null;
+  vote_result?: "winner" | "draw";
   started_at: string;
   models_loaded_at: string;
   voted_at: string;

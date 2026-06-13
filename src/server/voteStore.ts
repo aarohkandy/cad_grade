@@ -29,8 +29,9 @@ export interface StoredVoteRecord {
   family: ArenaFamily;
   left_item_id: string;
   right_item_id: string;
-  winner_item_id: string;
-  loser_item_id: string;
+  winner_item_id: string | null;
+  loser_item_id: string | null;
+  vote_result: "winner" | "draw";
   session_id: string;
   started_at: string;
   models_loaded_at: string;
@@ -50,8 +51,9 @@ export interface StoredVoteRecord {
     battle_id: string;
     left_item_id: string;
     right_item_id: string;
-    winner_item_id: string;
-    loser_item_id: string;
+    winner_item_id: string | null;
+    loser_item_id: string | null;
+    vote_result: "winner" | "draw";
   };
   storage: {
     mode: StorageMode;
@@ -65,6 +67,7 @@ export interface StoredItemStat {
   elo: number;
   wins: number;
   losses: number;
+  draws: number;
   battle_count: number;
   updated_at: string;
 }
@@ -76,6 +79,7 @@ export interface StoredPairStat {
   item_b_id: string;
   item_a_wins: number;
   item_b_wins: number;
+  draw_count: number;
   battle_count: number;
   updated_at: string;
 }
@@ -157,6 +161,7 @@ function defaultItemStat(item: ArenaItem, updatedAt: string): StoredItemStat {
     elo: 1200,
     wins: 0,
     losses: 0,
+    draws: 0,
     battle_count: 0,
     updated_at: updatedAt,
   };
@@ -171,6 +176,7 @@ function defaultPairStat(family: ArenaFamily, leftId: string, rightId: string, u
     item_b_id: itemB,
     item_a_wins: 0,
     item_b_wins: 0,
+    draw_count: 0,
     battle_count: 0,
     updated_at: updatedAt,
   };
@@ -179,8 +185,10 @@ function defaultPairStat(family: ArenaFamily, leftId: string, rightId: string, u
 export function applyVoteToSummary(
   summary: VoteSummary,
   vote: StoredVoteRecord,
-  winner: ArenaItem,
-  loser: ArenaItem,
+  left: ArenaItem,
+  right: ArenaItem,
+  winner: ArenaItem | null,
+  loser: ArenaItem | null,
 ): VoteSummary {
   const next: VoteSummary = structuredClone(summary);
   const updatedAt = vote.created_at;
@@ -203,6 +211,33 @@ export function applyVoteToSummary(
   next.acceptedVotes += 1;
   next.families[vote.family].acceptedVotes += 1;
 
+  const key = pairKey(vote.left_item_id, vote.right_item_id);
+  const pair = next.pairStats[key] || defaultPairStat(vote.family, vote.left_item_id, vote.right_item_id, updatedAt);
+
+  if (vote.vote_result === "draw" || !winner || !loser) {
+    const leftBefore = next.itemStats[left.id] || defaultItemStat(left, updatedAt);
+    const rightBefore = next.itemStats[right.id] || defaultItemStat(right, updatedAt);
+    next.itemStats[left.id] = {
+      ...leftBefore,
+      draws: (leftBefore.draws || 0) + 1,
+      battle_count: leftBefore.battle_count + 1,
+      updated_at: updatedAt,
+    };
+    next.itemStats[right.id] = {
+      ...rightBefore,
+      draws: (rightBefore.draws || 0) + 1,
+      battle_count: rightBefore.battle_count + 1,
+      updated_at: updatedAt,
+    };
+    next.pairStats[key] = {
+      ...pair,
+      draw_count: (pair.draw_count || 0) + 1,
+      battle_count: pair.battle_count + 1,
+      updated_at: updatedAt,
+    };
+    return next;
+  }
+
   const winnerBefore = next.itemStats[winner.id] || defaultItemStat(winner, updatedAt);
   const loserBefore = next.itemStats[loser.id] || defaultItemStat(loser, updatedAt);
   const elo = updateElo(winnerBefore, loserBefore);
@@ -222,8 +257,6 @@ export function applyVoteToSummary(
     updated_at: updatedAt,
   };
 
-  const key = pairKey(vote.left_item_id, vote.right_item_id);
-  const pair = next.pairStats[key] || defaultPairStat(vote.family, vote.left_item_id, vote.right_item_id, updatedAt);
   next.pairStats[key] = {
     ...pair,
     item_a_wins: pair.item_a_wins + (vote.winner_item_id === pair.item_a_id ? 1 : 0),
@@ -244,9 +277,11 @@ export function summaryFromVotes(
   return [...votes]
     .sort((left, right) => left.created_at.localeCompare(right.created_at))
     .reduce((summary, vote) => {
-      const winner = itemLookup(vote.winner_item_id);
-      const loser = itemLookup(vote.loser_item_id);
-      return winner && loser ? applyVoteToSummary(summary, vote, winner, loser) : summary;
+      const left = itemLookup(vote.left_item_id);
+      const right = itemLookup(vote.right_item_id);
+      const winner = vote.winner_item_id ? itemLookup(vote.winner_item_id) || null : null;
+      const loser = vote.loser_item_id ? itemLookup(vote.loser_item_id) || null : null;
+      return left && right ? applyVoteToSummary(summary, vote, left, right, winner, loser) : summary;
     }, emptySummary(datasetId, families));
 }
 
@@ -395,14 +430,16 @@ export async function updateVoteSummary(
   datasetId: string,
   families: ArenaFamily[],
   vote: StoredVoteRecord,
-  winner: ArenaItem,
-  loser: ArenaItem,
+  left: ArenaItem,
+  right: ArenaItem,
+  winner: ArenaItem | null,
+  loser: ArenaItem | null,
 ): Promise<VoteSummary> {
   const mode = storageMode();
   if (mode === "unconfigured") throw new Error("vote_storage_not_configured");
   if (mode === "local") {
     const current = (await readLocalJson<VoteSummary>(SUMMARY_PATH)) || emptySummary(datasetId, families);
-    const next = applyVoteToSummary(current, vote, winner, loser);
+    const next = applyVoteToSummary(current, vote, left, right, winner, loser);
     await writeLocalJson(SUMMARY_PATH, next, true);
     return next;
   }
@@ -410,7 +447,7 @@ export async function updateVoteSummary(
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const result = await readBlobJson<VoteSummary>(SUMMARY_PATH);
     const current = result.value || emptySummary(datasetId, families);
-    const next = applyVoteToSummary(current, vote, winner, loser);
+    const next = applyVoteToSummary(current, vote, left, right, winner, loser);
     try {
       await writeBlobJson(SUMMARY_PATH, next, {
         allowOverwrite: true,
@@ -424,7 +461,7 @@ export async function updateVoteSummary(
   }
 
   const current = await readVoteSummary(datasetId, families);
-  const next = applyVoteToSummary(current, vote, winner, loser);
+  const next = applyVoteToSummary(current, vote, left, right, winner, loser);
   await writeBlobJson(SUMMARY_PATH, next, { allowOverwrite: true });
   return next;
 }

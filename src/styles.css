@@ -125,6 +125,7 @@ a {
 .nav-action,
 .primary-action,
 .vote-action,
+.draw-action,
 .next-action {
   min-height: 40px;
   display: inline-flex;
@@ -157,11 +158,13 @@ a {
 }
 
 .primary-action:hover,
-.vote-action:hover {
+.vote-action:hover,
+.draw-action:hover {
   background: #eef8a6;
 }
 
-.vote-action:disabled {
+.vote-action:disabled,
+.draw-action:disabled {
   cursor: wait;
   opacity: 0.62;
 }
@@ -280,8 +283,24 @@ a {
 
 .battle-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 14px;
+}
+
+.draw-column {
+  min-width: 126px;
+  display: grid;
+  place-items: center;
+}
+
+.draw-action {
+  min-width: 126px;
+  min-height: 58px;
+  border-color: rgba(69, 200, 232, 0.55);
+  background: rgba(5, 28, 32, 0.76);
+  color: var(--ink);
+  box-shadow: 0 16px 42px rgba(11, 70, 74, 0.18);
+  text-align: center;
 }
 
 .model-panel {
@@ -410,6 +429,14 @@ a {
 
   .battle-grid {
     grid-template-columns: 1fr;
+  }
+
+  .draw-column {
+    min-width: 0;
+  }
+
+  .draw-action {
+    width: 100%;
   }
 
   .viewer-frame {

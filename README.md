@@ -1,9 +1,9 @@
 # Capybara Arena
 
 Capybara Arena is a public CAD grading game for Cadybara-generated models. It
-shows two same-family STL models, lets a visitor choose the better model, and
-stores append-only preference data in private Vercel Blob objects for export and
-offline analysis.
+shows two same-family STL models, lets a visitor choose the better model or mark
+the pair as similar, and stores append-only preference data in private Vercel
+Blob objects for export and offline analysis.
 
 The first public dataset contains 40 renderable hosted Cadybara outputs:
 
