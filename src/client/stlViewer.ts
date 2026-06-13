@@ -9,6 +9,7 @@ export class StlViewer {
   private controls: OrbitControls;
   private root = new THREE.Group();
   private frame = 0;
+  private lastFrameMs = 0;
   private disposed = false;
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -30,8 +31,7 @@ export class StlViewer {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
     this.controls.screenSpacePanning = true;
-    this.controls.autoRotate = true;
-    this.controls.autoRotateSpeed = 0.7;
+    this.controls.autoRotate = false;
 
     this.scene.add(this.root);
     this.scene.add(new THREE.HemisphereLight(0xeafff4, 0x25382d, 1.1));
@@ -100,8 +100,11 @@ export class StlViewer {
     this.camera.updateProjectionMatrix();
   };
 
-  private animate = (): void => {
+  private animate = (time = 0): void => {
     if (this.disposed) return;
+    const deltaMs = this.lastFrameMs ? Math.min(40, time - this.lastFrameMs) : 16;
+    this.lastFrameMs = time;
+    this.root.rotation.z += deltaMs * 0.00055;
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
     this.frame = requestAnimationFrame(this.animate);

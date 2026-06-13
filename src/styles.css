@@ -265,8 +265,7 @@ a {
 }
 
 .stat-row span,
-.panel-top p,
-.reveal strong {
+.panel-top p {
   color: rgba(20, 49, 38, 0.62);
   font-size: 12px;
   font-weight: 800;
@@ -346,23 +345,6 @@ a {
   font-family: var(--mono);
   font-weight: 900;
   pointer-events: none;
-}
-
-.reveal {
-  min-height: 0;
-  display: grid;
-  gap: 5px;
-  color: rgba(20, 49, 38, 0.86);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.reveal:empty {
-  display: none;
-}
-
-.reveal span {
-  display: block;
 }
 
 .hold-panel,

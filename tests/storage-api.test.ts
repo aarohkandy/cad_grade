@@ -102,4 +102,37 @@ describe("local storage api flow", () => {
     expect(exportResponse.statusCode).toBe(200);
     expect(exportResponse.body).toMatchObject({ voteCount: 1 });
   });
+
+  it("accepts a human-paced vote without a hold challenge", async () => {
+    const items = dataset.items.filter((item) => item.family === "wall_hook");
+    const [left, right] = items;
+    const now = Date.now();
+    const voteResponse = mockResponse();
+
+    await voteHandler(
+      {
+        method: "POST",
+        headers: { "user-agent": "vitest" },
+        socket: { remoteAddress: "127.0.0.1" },
+        body: {
+          battle_id: "battle-no-hold",
+          left_item_id: left.id,
+          right_item_id: right.id,
+          winner_item_id: right.id,
+          started_at: new Date(now - 6000).toISOString(),
+          models_loaded_at: new Date(now - 5000).toISOString(),
+          voted_at: new Date(now).toISOString(),
+          session_id: "session-no-hold-1234567890",
+        },
+      } as never,
+      voteResponse as never,
+    );
+
+    expect(voteResponse.statusCode).toBe(200);
+    expect(voteResponse.body).toMatchObject({
+      saved: true,
+      acceptedForScoring: true,
+      qualityFlags: [],
+    });
+  });
 });

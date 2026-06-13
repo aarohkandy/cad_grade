@@ -1,5 +1,9 @@
 import type { VotePayload } from "../shared/types";
 
+const FAST_VOTE_MS = 1200;
+const FAST_LOAD_MS = 300;
+const FAST_AFTER_LOAD_MS = 900;
+
 function timestampMs(value: string): number | null {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -17,6 +21,7 @@ export function voteTiming(payload: VotePayload): { elapsedMs: number | null; lo
 
 export function qualityDecision(input: {
   payload: VotePayload;
+  holdSubmitted: boolean;
   holdPassed: boolean;
   duplicatePair: boolean;
 }): {
@@ -27,22 +32,31 @@ export function qualityDecision(input: {
   acceptedForScoring: boolean;
 } {
   const { elapsedMs, loadMs } = voteTiming(input.payload);
+  const loaded = timestampMs(input.payload.models_loaded_at);
+  const voted = timestampMs(input.payload.voted_at);
+  const voteAfterLoadMs = loaded !== null && voted !== null ? Math.max(0, voted - loaded) : null;
   const qualityFlags: string[] = [];
-  const tooFast = elapsedMs !== null && elapsedMs < 2500;
+  const tooFast = elapsedMs !== null && elapsedMs < FAST_VOTE_MS;
+  const modelsLoadedTooFast = loadMs !== null && loadMs < FAST_LOAD_MS;
+  const votedAfterLoadTooFast = voteAfterLoadMs !== null && voteAfterLoadMs < FAST_AFTER_LOAD_MS;
+  const weakSession = !input.payload.session_id || input.payload.session_id.length < 12;
+  const holdRequired = tooFast || modelsLoadedTooFast || votedAfterLoadTooFast || weakSession;
   if (tooFast) qualityFlags.push("too_fast");
-  if (loadMs !== null && loadMs < 350) qualityFlags.push("models_loaded_too_fast");
-  if (!input.holdPassed) qualityFlags.push("hold_failed");
+  if (modelsLoadedTooFast) qualityFlags.push("models_loaded_too_fast");
+  if (votedAfterLoadTooFast) qualityFlags.push("vote_after_load_too_fast");
+  if (holdRequired && !input.holdSubmitted) qualityFlags.push("hold_required");
+  if (input.holdSubmitted && !input.holdPassed) qualityFlags.push("hold_failed");
   if (input.duplicatePair) qualityFlags.push("duplicate_pair");
-  if (!input.payload.session_id || input.payload.session_id.length < 12) qualityFlags.push("weak_session");
+  if (weakSession) qualityFlags.push("weak_session");
   return {
     elapsedMs,
     loadMs,
     tooFast,
     qualityFlags,
     acceptedForScoring:
-      input.holdPassed &&
+      ((!tooFast && !modelsLoadedTooFast && !votedAfterLoadTooFast) || input.holdPassed) &&
       !input.duplicatePair &&
-      !tooFast &&
-      !qualityFlags.includes("weak_session"),
+      !weakSession &&
+      !(input.holdSubmitted && !input.holdPassed),
   };
 }

@@ -5,6 +5,11 @@ import type { ArenaFamily, ArenaItem, BattleResponse, HoldChallenge, VoteRespons
 
 const SESSION_KEY = "capybara-arena-session";
 const SEEN_PAIRS_KEY = "capybara-arena-seen-pairs";
+const VOTE_HISTORY_KEY = "capybara-arena-vote-history";
+const FAST_CHOICE_MS = 1200;
+const FAST_LOADED_CHOICE_MS = 900;
+const RAPID_VOTE_WINDOW_MS = 10000;
+const RAPID_VOTE_LIMIT = 6;
 
 interface CurrentBattle extends BattleResponse {
   localOnly?: boolean;
@@ -46,7 +51,6 @@ app.innerHTML = `
           <div class="viewer-status" id="left-status">Loading STL</div>
         </div>
         <button type="button" class="vote-action" id="vote-left" disabled>Choose A</button>
-        <div class="reveal" id="left-reveal"></div>
       </article>
 
       <article class="model-panel" data-side="right">
@@ -61,18 +65,17 @@ app.innerHTML = `
           <div class="viewer-status" id="right-status">Loading STL</div>
         </div>
         <button type="button" class="vote-action" id="vote-right" disabled>Choose B</button>
-        <div class="reveal" id="right-reveal"></div>
       </article>
     </section>
 
     <section class="hold-panel is-hidden" id="hold-panel" aria-label="Hold to verify">
       <div>
-        <p class="kicker">Hold to verify</p>
-        <h2 id="hold-title">Lock in your vote</h2>
+        <p class="kicker">Quick check</p>
+        <h2 id="hold-title">Hold to verify</h2>
       </div>
       <button type="button" id="hold-button" class="hold-button">
         <span id="hold-fill"></span>
-        <strong id="hold-label">Hold</strong>
+        <strong id="hold-label">Hold to verify</strong>
       </button>
     </section>
 
@@ -98,8 +101,6 @@ const dom = {
   rightStatus: document.querySelector("#right-status") as HTMLElement,
   voteLeft: document.querySelector("#vote-left") as HTMLButtonElement,
   voteRight: document.querySelector("#vote-right") as HTMLButtonElement,
-  leftReveal: document.querySelector("#left-reveal") as HTMLElement,
-  rightReveal: document.querySelector("#right-reveal") as HTMLElement,
   holdPanel: document.querySelector("#hold-panel") as HTMLElement,
   holdButton: document.querySelector("#hold-button") as HTMLButtonElement,
   holdFill: document.querySelector("#hold-fill") as HTMLElement,
@@ -143,6 +144,19 @@ function rememberPair(leftId: string, rightId: string): void {
   const pairs = seenPairs();
   pairs.add(pairKeyClient(leftId, rightId));
   window.localStorage.setItem(SEEN_PAIRS_KEY, JSON.stringify([...pairs].slice(-700)));
+}
+
+function recentVoteTimes(now = Date.now()): number[] {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(VOTE_HISTORY_KEY) || "[]") as number[];
+    return parsed.filter((value) => Number.isFinite(value) && now - value < RAPID_VOTE_WINDOW_MS);
+  } catch {
+    return [];
+  }
+}
+
+function rememberVoteTime(now = Date.now()): void {
+  window.localStorage.setItem(VOTE_HISTORY_KEY, JSON.stringify([...recentVoteTimes(now), now].slice(-20)));
 }
 
 function allLocalPairs(items: ArenaItem[]): Array<[ArenaItem, ArenaItem]> {
@@ -244,19 +258,23 @@ function markArenaLive(): void {
   dom.arenaStatus.textContent = "Live";
 }
 
+function shouldVerifyVote(): boolean {
+  const now = Date.now();
+  const started = Date.parse(battleStartedAt);
+  const loaded = Date.parse(modelsLoadedAt);
+  const battleElapsedMs = Number.isFinite(started) ? now - started : Number.POSITIVE_INFINITY;
+  const loadedElapsedMs = Number.isFinite(loaded) ? now - loaded : Number.POSITIVE_INFINITY;
+  return (
+    battleElapsedMs < FAST_CHOICE_MS ||
+    loadedElapsedMs < FAST_LOADED_CHOICE_MS ||
+    recentVoteTimes(now).length >= RAPID_VOTE_LIMIT
+  );
+}
+
 function clearFeedback(): void {
   dom.feedbackPanel.classList.add("is-hidden");
   dom.holdPanel.classList.add("is-hidden");
-  dom.leftReveal.textContent = "";
-  dom.rightReveal.textContent = "";
   selectedWinnerId = null;
-}
-
-function revealPrompt(target: HTMLElement, item: ArenaItem): void {
-  target.innerHTML = `
-    <strong>${item.familyLabel} prompt ${item.specificityLevel ?? "?"}/10</strong>
-    <span>${item.prompt}</span>
-  `;
 }
 
 async function loadBattle(): Promise<void> {
@@ -311,7 +329,7 @@ function startHold(winnerId: string): void {
   if (!currentBattle) return;
   selectedWinnerId = winnerId;
   dom.holdPanel.classList.remove("is-hidden");
-  dom.holdLabel.textContent = `Hold ${Math.round(currentBattle.hold.targetMs / 100) / 10}s`;
+  dom.holdLabel.textContent = "Hold to verify";
   dom.holdFill.style.transform = "scaleX(0)";
   dom.holdButton.focus();
   dom.holdPanel.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -346,12 +364,18 @@ function cancelHold(): void {
   if (elapsed < 1) dom.holdFill.style.transform = "scaleX(0)";
 }
 
-async function finishHold(heldMs: number): Promise<void> {
-  if (!currentBattle || !selectedWinnerId) return;
+async function submitVote(winnerId: string, heldMs: number | null): Promise<void> {
+  if (!currentBattle) return;
+  const hold = heldMs === null ? null : { ...currentBattle.hold, heldMs: Math.round(heldMs) };
+  dom.voteLeft.disabled = true;
+  dom.voteRight.disabled = true;
+  dom.holdButton.disabled = true;
+  if (hold) dom.holdLabel.textContent = "Saving";
+  const votedAt = new Date().toISOString();
+  const left = currentBattle.left;
+  const right = currentBattle.right;
   cancelAnimationFrame(holdFrame);
   dom.holdButton.classList.remove("holding");
-  dom.holdButton.disabled = true;
-  dom.holdLabel.textContent = "Saving";
   const response = currentBattle.localOnly
     ? ({
         saved: true,
@@ -363,32 +387,45 @@ async function finishHold(heldMs: number): Promise<void> {
       } satisfies VoteResponse)
     : await postJson<VoteResponse>("/api/vote", {
         battle_id: currentBattle.battleId,
-        left_item_id: currentBattle.left.id,
-        right_item_id: currentBattle.right.id,
-        winner_item_id: selectedWinnerId,
+        left_item_id: left.id,
+        right_item_id: right.id,
+        winner_item_id: winnerId,
         started_at: battleStartedAt,
         models_loaded_at: modelsLoadedAt || new Date().toISOString(),
-        voted_at: new Date().toISOString(),
+        voted_at: votedAt,
         session_id: sessionId(),
-        hold: {
-          ...currentBattle.hold,
-          heldMs: Math.round(heldMs),
-        },
+        hold,
       });
 
-  rememberPair(currentBattle.left.id, currentBattle.right.id);
+  rememberVoteTime();
+  rememberPair(left.id, right.id);
   dom.holdButton.disabled = false;
   dom.holdPanel.classList.add("is-hidden");
   dom.feedbackPanel.classList.remove("is-hidden");
   dom.feedbackTitle.textContent = response.acceptedForScoring ? "Vote saved" : "Vote saved with flags";
   dom.feedbackCopy.textContent = response.agreementLabel;
-  revealPrompt(dom.leftReveal, currentBattle.left);
-  revealPrompt(dom.rightReveal, currentBattle.right);
   markArenaLive();
+}
+
+async function finishHold(heldMs: number): Promise<void> {
+  if (!selectedWinnerId) return;
+  await submitVote(selectedWinnerId, heldMs);
+}
+
+async function chooseWinner(winnerId: string): Promise<void> {
+  if (!currentBattle) return;
+  selectedWinnerId = winnerId;
+  if (shouldVerifyVote()) {
+    startHold(winnerId);
+    return;
+  }
+  await submitVote(winnerId, null);
 }
 
 function showVoteError(error: unknown): void {
   dom.holdButton.disabled = false;
+  dom.voteLeft.disabled = false;
+  dom.voteRight.disabled = false;
   dom.holdLabel.textContent = "Try again";
   dom.feedbackPanel.classList.remove("is-hidden");
   dom.feedbackTitle.textContent = "Vote did not save";
@@ -404,11 +441,11 @@ dom.continueBattle.addEventListener("click", () => {
 });
 
 dom.voteLeft.addEventListener("click", () => {
-  if (currentBattle) startHold(currentBattle.left.id);
+  if (currentBattle) chooseWinner(currentBattle.left.id).catch(showVoteError);
 });
 
 dom.voteRight.addEventListener("click", () => {
-  if (currentBattle) startHold(currentBattle.right.id);
+  if (currentBattle) chooseWinner(currentBattle.right.id).catch(showVoteError);
 });
 
 dom.holdButton.addEventListener("pointerdown", beginHold);

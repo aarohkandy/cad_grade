@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import { createHoldChallenge } from "../src/server/hold";
+import { qualityDecision } from "../src/server/quality";
+import type { VotePayload } from "../src/shared/types";
+
+function payload(overrides: Partial<VotePayload> = {}): VotePayload {
+  return {
+    battle_id: "battle",
+    left_item_id: "left",
+    right_item_id: "right",
+    winner_item_id: "left",
+    started_at: "2026-06-12T12:00:00.000Z",
+    models_loaded_at: "2026-06-12T12:00:01.000Z",
+    voted_at: "2026-06-12T12:00:05.000Z",
+    session_id: "session-1234567890",
+    ...overrides,
+  };
+}
+
+describe("vote quality", () => {
+  it("accepts normal human-paced votes without a hold challenge", () => {
+    const quality = qualityDecision({
+      payload: payload(),
+      holdSubmitted: false,
+      holdPassed: false,
+      duplicatePair: false,
+    });
+
+    expect(quality.acceptedForScoring).toBe(true);
+    expect(quality.qualityFlags).not.toContain("hold_required");
+    expect(quality.qualityFlags).not.toContain("hold_failed");
+  });
+
+  it("requires hold verification for very fast votes", () => {
+    const quality = qualityDecision({
+      payload: payload({ voted_at: "2026-06-12T12:00:00.800Z" }),
+      holdSubmitted: false,
+      holdPassed: false,
+      duplicatePair: false,
+    });
+
+    expect(quality.acceptedForScoring).toBe(false);
+    expect(quality.qualityFlags).toContain("too_fast");
+    expect(quality.qualityFlags).toContain("hold_required");
+  });
+
+  it("can accept a fast vote after a valid hold check", () => {
+    const hold = createHoldChallenge("secret", 0, () => 0);
+    const quality = qualityDecision({
+      payload: payload({
+        voted_at: "2026-06-12T12:00:00.800Z",
+        hold: { ...hold, heldMs: hold.targetMs },
+      }),
+      holdSubmitted: true,
+      holdPassed: true,
+      duplicatePair: false,
+    });
+
+    expect(quality.acceptedForScoring).toBe(true);
+    expect(quality.qualityFlags).toContain("too_fast");
+    expect(quality.qualityFlags).not.toContain("hold_required");
+    expect(quality.qualityFlags).not.toContain("hold_failed");
+  });
+});

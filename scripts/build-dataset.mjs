@@ -138,7 +138,6 @@ async function build() {
       active: true,
       title: displayName(row.seed_id, row.repetition),
       seedId: row.seed_id,
-      prompt: row.seed_text,
       specificityLevel: specificity(row.seed_id),
       repetition: row.repetition,
       experimentId: row.experiment_id,

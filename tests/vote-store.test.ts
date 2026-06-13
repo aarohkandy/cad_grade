@@ -10,7 +10,6 @@ function item(id: string): ArenaItem {
     active: true,
     title: id,
     seedId: id,
-    prompt: "prompt",
     specificityLevel: 1,
     repetition: 0,
     experimentId: "exp",

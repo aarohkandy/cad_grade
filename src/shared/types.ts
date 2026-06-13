@@ -7,7 +7,6 @@ export interface ArenaItem {
   active: boolean;
   title: string;
   seedId: string;
-  prompt: string;
   specificityLevel: number | null;
   repetition: number;
   experimentId: string;
@@ -68,7 +67,7 @@ export interface VotePayload {
   models_loaded_at: string;
   voted_at: string;
   session_id: string;
-  hold: HoldSubmission;
+  hold?: HoldSubmission | null;
 }
 
 export interface VoteResponse {

@@ -67,12 +67,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const loser = winner.id === left.id ? right : left;
     const family = left.family;
-    const hold = verifyHoldSubmission(payload.hold);
+    const holdSubmitted = Boolean(payload.hold);
+    const hold = holdSubmitted ? verifyHoldSubmission(payload.hold) : { valid: false, flags: [] };
     const sessionHash = safeHash(payload.session_id || "missing-session");
     const markerPath = sessionPairPath(sessionHash, family, left.id, right.id);
     const duplicatePair = await sessionPairAlreadySeen(markerPath);
     const quality = qualityDecision({
       payload,
+      holdSubmitted,
       holdPassed: hold.valid,
       duplicatePair,
     });

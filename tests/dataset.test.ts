@@ -17,6 +17,7 @@ describe("dataset", () => {
     for (const item of dataset.items) {
       expect(ids.has(item.id)).toBe(false);
       ids.add(item.id);
+      expect("prompt" in item).toBe(false);
       expect(existsSync(path.join(appRoot, "public", item.stlUrl.replace(/^\//, "")))).toBe(true);
       expect(existsSync(path.join(appRoot, "public", item.previewUrl.replace(/^\//, "")))).toBe(true);
     }
