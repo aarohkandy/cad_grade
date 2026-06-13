@@ -79,6 +79,8 @@ export class StlViewer {
     mesh.receiveShadow = true;
     this.addEdges(mesh);
     this.root.add(mesh);
+    this.root.rotation.set(0, 0, 0);
+    this.lastFrameMs = 0;
     this.fitCamera();
   }
 
@@ -144,7 +146,7 @@ export class StlViewer {
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 1);
     const distance = maxDim / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
-    this.camera.position.set(center.x + distance * 0.85, center.y - distance * 1.25, center.z + distance * 0.95);
+    this.camera.position.set(center.x, center.y - distance * 1.65, center.z + distance * 0.34);
     this.camera.near = Math.max(distance / 120, 0.1);
     this.camera.far = distance * 24;
     this.camera.updateProjectionMatrix();

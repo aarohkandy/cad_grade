@@ -33,9 +33,14 @@ body {
   color: var(--ink);
   font-family: var(--sans);
   background:
-    radial-gradient(circle at 12% 30%, rgba(126, 227, 179, 0.28), transparent 30rem),
-    radial-gradient(circle at 88% 70%, rgba(223, 243, 142, 0.28), transparent 28rem),
-    linear-gradient(180deg, #07151a 0%, #0d2f2d 34%, #7fbf80 100%);
+    linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+    radial-gradient(circle at 18% 22%, rgba(126, 227, 179, 0.22), transparent 32rem),
+    radial-gradient(circle at 84% 64%, rgba(223, 243, 142, 0.2), transparent 30rem),
+    linear-gradient(180deg, rgba(4, 20, 28, 0.06) 0%, rgba(4, 19, 24, 0.52) 48%, rgba(8, 42, 33, 0.76) 100%),
+    var(--hero-image) center 56% / cover fixed no-repeat,
+    #0b312b;
+  background-size: 4px 4px, 4px 4px, auto, auto, auto, cover, auto;
 }
 
 button,
@@ -210,8 +215,9 @@ a {
   background:
     linear-gradient(rgba(20, 49, 38, 0.055) 1px, transparent 1px),
     linear-gradient(90deg, rgba(20, 49, 38, 0.055) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(201, 244, 214, 0.95), rgba(179, 226, 157, 0.94) 52%, rgba(108, 174, 118, 0.95));
+    linear-gradient(180deg, rgba(222, 255, 218, 0.82), rgba(180, 229, 159, 0.74) 52%, rgba(103, 171, 118, 0.72));
   background-size: 28px 28px, 28px 28px, auto;
+  backdrop-filter: blur(10px) saturate(1.08);
   box-shadow:
     0 -24px 56px rgba(6, 18, 26, 0.34),
     0 32px 90px rgba(7, 36, 32, 0.36);
