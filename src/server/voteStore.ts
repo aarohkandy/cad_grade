@@ -281,7 +281,7 @@ async function blobClient() {
 }
 
 function isMissingBlob(error: unknown): boolean {
-  return error instanceof Error && /not found|404/i.test(error.message);
+  return error instanceof Error && /not found|does not exist|404/i.test(error.message);
 }
 
 function isBlobPreconditionFailed(error: unknown): boolean {
