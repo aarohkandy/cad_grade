@@ -72,7 +72,9 @@ async function waitForNonBlankCanvas(page, selector) {
 
 async function checkViewport(browser, name, viewport) {
   const page = await browser.newPage({ viewport });
-  await page.goto(BASE_URL, { waitUntil: "networkidle" });
+  page.setDefaultTimeout(30_000);
+  await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.locator("#arena").waitFor({ state: "visible" });
   await page.locator("#arena").scrollIntoViewIfNeeded();
   await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
   const left = await waitForNonBlankCanvas(page, "#left-canvas");

@@ -8,6 +8,7 @@ const SOURCE_ROOT = path.resolve(APP_ROOT, "..");
 const DATASET_ROOT = path.join(APP_ROOT, "public", "dataset", "v1");
 const PUBLIC_DATA_PATH = path.join(APP_ROOT, "public", "data", "items.json");
 const SOURCE_DATA_PATH = path.join(APP_ROOT, "src", "data", "items.generated.json");
+const SOURCE_TS_DATA_PATH = path.join(APP_ROOT, "src", "data", "items.generated.ts");
 
 const SOURCES = [
   "projects/cadybara-online-testing/workspace/runs/cadybara_online_smoke_reps2_manual/results.jsonl",
@@ -173,6 +174,17 @@ async function build() {
   await mkdir(path.dirname(SOURCE_DATA_PATH), { recursive: true });
   await writeFile(PUBLIC_DATA_PATH, `${JSON.stringify(payload, null, 2)}\n`);
   await writeFile(SOURCE_DATA_PATH, `${JSON.stringify(payload, null, 2)}\n`);
+  await writeFile(
+    SOURCE_TS_DATA_PATH,
+    [
+      'import type { DatasetPayload } from "../shared/types";',
+      "",
+      `const dataset = ${JSON.stringify(payload, null, 2)} as unknown as DatasetPayload;`,
+      "",
+      "export default dataset;",
+      "",
+    ].join("\n"),
+  );
 
   const byFamily = items.reduce((counts, item) => {
     counts[item.family] = (counts[item.family] || 0) + 1;

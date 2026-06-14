@@ -1,0 +1,1215 @@
+import type { DatasetPayload } from "../shared/types";
+
+const dataset = {
+  "datasetId": "cadybara-hosted-renderable-v1",
+  "generatedAtUtc": "2026-06-12T05:12:03.295Z",
+  "itemCount": 40,
+  "families": [
+    "wall_hook",
+    "wall_planter"
+  ],
+  "items": [
+    {
+      "id": "wall_hook-hook-01-minimal-r0-52596089e3",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "minimal 1",
+      "seedId": "hook_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 0,
+      "experimentId": "cadybara_online_hook_20260611_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 95779,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A curved wall-mounted hook with a rectangular back plate and swept circular profile was successfully implemented.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r0-52596089e3/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r0-52596089e3/preview.png",
+      "sourceHash": "52596089e3"
+    },
+    {
+      "id": "wall_hook-hook-01-minimal-r1-2e563bf7fd",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "minimal 2",
+      "seedId": "hook_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 1,
+      "experimentId": "cadybara_online_hook_20260611_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 64892,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a wall-mounted hook with a back plate, screw holes, and a curved arm as requested.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r1-2e563bf7fd/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r1-2e563bf7fd/preview.png",
+      "sourceHash": "2e563bf7fd"
+    },
+    {
+      "id": "wall_hook-hook-01-minimal-r2-a0999681fc",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "minimal 3",
+      "seedId": "hook_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 2,
+      "experimentId": "cadybara_online_hook_20260611_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 61948,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A curved wall-mounted hook with a 40x80mm backplate, counterbored screw holes, and a swept hook profile was successfully generated.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r2-a0999681fc/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r2-a0999681fc/preview.png",
+      "sourceHash": "a0999681fc"
+    },
+    {
+      "id": "wall_hook-hook-03-clear-r0-cfd0760374",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "clear 1",
+      "seedId": "hook_03_clear",
+      "specificityLevel": 3,
+      "repetition": 0,
+      "experimentId": "cadybara_online_hook_20260611_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 100005,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The script successfully generates a wall-mounted hook with a back plate, mounting holes, and a curved hook arm.",
+        "attempt_count": 4,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r0-cfd0760374/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r0-cfd0760374/preview.png",
+      "sourceHash": "cfd0760374"
+    },
+    {
+      "id": "wall_hook-hook-03-clear-r1-25cc4758f9",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "clear 2",
+      "seedId": "hook_03_clear",
+      "specificityLevel": 3,
+      "repetition": 1,
+      "experimentId": "cadybara_online_hook_20260611_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 64741,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A single-piece wall-mounted hook with a filleted back plate, two mounting holes, and a swept hook arm was successfully generated.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r1-25cc4758f9/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r1-25cc4758f9/preview.png",
+      "sourceHash": "25cc4758f9"
+    },
+    {
+      "id": "wall_hook-hook-03-clear-r2-6ec2ddec84",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "clear 3",
+      "seedId": "hook_03_clear",
+      "specificityLevel": 3,
+      "repetition": 2,
+      "experimentId": "cadybara_online_hook_20260611_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 94687,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A single-piece wall-mounted hook with a flanged back plate, mounting holes, and a swept spline hook was successfully generated.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r2-6ec2ddec84/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r2-6ec2ddec84/preview.png",
+      "sourceHash": "6ec2ddec84"
+    },
+    {
+      "id": "wall_hook-hook-05-printable-r0-fbf9d4de0d",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "printable 1",
+      "seedId": "hook_05_printable",
+      "specificityLevel": 5,
+      "repetition": 0,
+      "experimentId": "cadybara_online_hook_20260611_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 73079,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a wall hook with a rectangular base, screw holes, and a swept circular hook profile using a threePointArc path.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r0-fbf9d4de0d/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r0-fbf9d4de0d/preview.png",
+      "sourceHash": "fbf9d4de0d"
+    },
+    {
+      "id": "wall_hook-hook-10-full-r0-0c5d404fb2",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "full 1",
+      "seedId": "hook_10_full",
+      "specificityLevel": 10,
+      "repetition": 0,
+      "experimentId": "cadybara_online_hook_20260611_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 70287,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully implements the rounded backplate with countersunk holes, a swept hook with a pill-shaped profile, and a supporting rib as a single solid.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-10-full-r0-0c5d404fb2/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-10-full-r0-0c5d404fb2/preview.png",
+      "sourceHash": "0c5d404fb2"
+    },
+    {
+      "id": "wall_hook-hook-10-full-r1-9f7faeec72",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "full 2",
+      "seedId": "hook_10_full",
+      "specificityLevel": 10,
+      "repetition": 1,
+      "experimentId": "cadybara_online_hook_20260611_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 168865,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The model correctly implements a 90x38x6mm backplate with countersunk holes, a 55mm curved hook, and a supporting rib as a single manifold solid.",
+        "attempt_count": 3,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-10-full-r1-9f7faeec72/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-10-full-r1-9f7faeec72/preview.png",
+      "sourceHash": "9f7faeec72"
+    },
+    {
+      "id": "wall_hook-hook-10-full-r2-d419fecba7",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "full 3",
+      "seedId": "hook_10_full",
+      "specificityLevel": 10,
+      "repetition": 2,
+      "experimentId": "cadybara_online_hook_20260611_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 106420,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The script implements the 90x38x6mm plate, countersunk holes, and a swept hook with a support rib as a single solid.",
+        "attempt_count": 3,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-10-full-r2-d419fecba7/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-10-full-r2-d419fecba7/preview.png",
+      "sourceHash": "d419fecba7"
+    },
+    {
+      "id": "wall_planter-planter-01-minimal-r0-6885247118",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "minimal 1",
+      "seedId": "planter_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_reps2",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 36230,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Modular assembly with planter body, inner basket, and mounting bracket was successfully implemented and fits the design brief.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r0-6885247118/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r0-6885247118/preview.png",
+      "sourceHash": "6885247118"
+    },
+    {
+      "id": "wall_planter-planter-01-minimal-r0-7ca244e2f4",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "minimal 1",
+      "seedId": "planter_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_blind_extra",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 64006,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a multi-part assembly consisting of a faceted outer shell with mounting holes and a matching inner liner with drainage holes.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r0-7ca244e2f4/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r0-7ca244e2f4/preview.png",
+      "sourceHash": "7ca244e2f4"
+    },
+    {
+      "id": "wall_planter-planter-01-minimal-r0-ffb2d88f87",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "minimal 1",
+      "seedId": "planter_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 75865,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A wall-mounted hexagonal planter with a flat back, drainage hole, and mounting holes was successfully created.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r0-ffb2d88f87/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r0-ffb2d88f87/preview.png",
+      "sourceHash": "ffb2d88f87"
+    },
+    {
+      "id": "wall_planter-planter-01-minimal-r1-35cc4a5b08",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "minimal 2",
+      "seedId": "planter_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 1,
+      "experimentId": "cadybara_online_smoke_reps2",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 45612,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The wall-mounted planter assembly correctly implements the French cleat system and drainage reservoir with the specified 0.3mm clearances.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r1-35cc4a5b08/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r1-35cc4a5b08/preview.png",
+      "sourceHash": "35cc4a5b08"
+    },
+    {
+      "id": "wall_planter-planter-01-minimal-r1-ff37e670de",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "minimal 2",
+      "seedId": "planter_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 1,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 113419,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A wall-mounted tapered planter with hollow interior, drainage hole, and integrated mounting bracket was successfully generated.",
+        "attempt_count": 4,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r1-ff37e670de/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r1-ff37e670de/preview.png",
+      "sourceHash": "ff37e670de"
+    },
+    {
+      "id": "wall_planter-planter-01-minimal-r2-d021f08b72",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "minimal 3",
+      "seedId": "planter_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 2,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 104341,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The wall-mounted planter assembly is correctly implemented with a tapered main body and a removable perforated tray as per the design brief.",
+        "attempt_count": 3,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r2-d021f08b72/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-01-minimal-r2-d021f08b72/preview.png",
+      "sourceHash": "d021f08b72"
+    },
+    {
+      "id": "wall_planter-planter-03-mounting-r0-4e0317fabc",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "mounting 1",
+      "seedId": "planter_03_mounting",
+      "specificityLevel": 3,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_reps2",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 40267,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A hexagonal wall-mounted planter with a tapered internal cavity and a functional keyhole slot has been correctly implemented.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r0-4e0317fabc/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r0-4e0317fabc/preview.png",
+      "sourceHash": "4e0317fabc"
+    },
+    {
+      "id": "wall_planter-planter-03-mounting-r0-7790903eb7",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "mounting 1",
+      "seedId": "planter_03_mounting",
+      "specificityLevel": 3,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_blind_extra",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 54914,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Teardrop-shaped wall planter implemented with a tapered cavity, drainage hole, and keyhole mounting slot.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r0-7790903eb7/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r0-7790903eb7/preview.png",
+      "sourceHash": "7790903eb7"
+    },
+    {
+      "id": "wall_planter-planter-03-mounting-r0-9eb4d9d5d7",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "mounting 1",
+      "seedId": "planter_03_mounting",
+      "specificityLevel": 3,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 142144,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A wall-mounted planter with a conical body, flat back, and functional keyhole slot was successfully generated.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r0-9eb4d9d5d7/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r0-9eb4d9d5d7/preview.png",
+      "sourceHash": "9eb4d9d5d7"
+    },
+    {
+      "id": "wall_planter-planter-03-mounting-r1-04980cf815",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "mounting 2",
+      "seedId": "planter_03_mounting",
+      "specificityLevel": 3,
+      "repetition": 1,
+      "experimentId": "cadybara_online_smoke_reps2",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 39950,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully implements the 120x100x110mm hexagonal planter with a tapered internal cavity, keyhole mounting slot, and back-face alignment lip as specified.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r1-04980cf815/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r1-04980cf815/preview.png",
+      "sourceHash": "04980cf815"
+    },
+    {
+      "id": "wall_planter-planter-03-mounting-r1-576a8b30c0",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "mounting 2",
+      "seedId": "planter_03_mounting",
+      "specificityLevel": 3,
+      "repetition": 1,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 34629,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The wall-mounted planter correctly implements the tapered cavity, flat rear face, and keyhole mounting slot as specified.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r1-576a8b30c0/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r1-576a8b30c0/preview.png",
+      "sourceHash": "576a8b30c0"
+    },
+    {
+      "id": "wall_planter-planter-03-mounting-r2-46b116ae3d",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "mounting 3",
+      "seedId": "planter_03_mounting",
+      "specificityLevel": 3,
+      "repetition": 2,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 112501,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully implements a wall-mounted lofted planter with a flat back, internal hollowing, a drainage hole, and a keyhole mounting slot.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r2-46b116ae3d/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-03-mounting-r2-46b116ae3d/preview.png",
+      "sourceHash": "46b116ae3d"
+    },
+    {
+      "id": "wall_planter-planter-05-shape-r0-02d56e7cf1",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "shape 1",
+      "seedId": "planter_05_shape",
+      "specificityLevel": 5,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_blind_extra",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 60684,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The cylindrical planter with a flat back and keyhole slot was successfully implemented using Boolean operations and correctly assigned to the 'result' variable.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r0-02d56e7cf1/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r0-02d56e7cf1/preview.png",
+      "sourceHash": "02d56e7cf1"
+    },
+    {
+      "id": "wall_planter-planter-05-shape-r0-3416162ec4",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "shape 1",
+      "seedId": "planter_05_shape",
+      "specificityLevel": 5,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 91414,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A cylindrical wall-mounted planter with a flat back, hollow interior, and integrated keyhole slot was successfully implemented.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r0-3416162ec4/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r0-3416162ec4/preview.png",
+      "sourceHash": "3416162ec4"
+    },
+    {
+      "id": "wall_planter-planter-05-shape-r0-5a5f87dd50",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "shape 1",
+      "seedId": "planter_05_shape",
+      "specificityLevel": 5,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_reps2",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 82012,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A wall-mounted planter with a flat back, hollow interior, and keyhole mounting slot was successfully created using boolean cuts.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r0-5a5f87dd50/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r0-5a5f87dd50/preview.png",
+      "sourceHash": "5a5f87dd50"
+    },
+    {
+      "id": "wall_planter-planter-05-shape-r1-5fa1817b05",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "shape 2",
+      "seedId": "planter_05_shape",
+      "specificityLevel": 5,
+      "repetition": 1,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 78728,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A cylindrical planter with a flattened back, hollow interior, keyhole mounting slot, and drainage hole was successfully implemented.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r1-5fa1817b05/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r1-5fa1817b05/preview.png",
+      "sourceHash": "5fa1817b05"
+    },
+    {
+      "id": "wall_planter-planter-05-shape-r1-9a2a9f5823",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "shape 2",
+      "seedId": "planter_05_shape",
+      "specificityLevel": 5,
+      "repetition": 1,
+      "experimentId": "cadybara_online_smoke_reps2",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 62207,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a cylindrical wall-mounted planter with a flat back and a keyhole mounting slot as specified.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r1-9a2a9f5823/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r1-9a2a9f5823/preview.png",
+      "sourceHash": "9a2a9f5823"
+    },
+    {
+      "id": "wall_planter-planter-05-shape-r2-2c87128d7a",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "shape 3",
+      "seedId": "planter_05_shape",
+      "specificityLevel": 5,
+      "repetition": 2,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 127110,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a cylindrical planter with a flat back, hollow interior, and functional 2-part keyhole slot for wall mounting.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r2-2c87128d7a/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-05-shape-r2-2c87128d7a/preview.png",
+      "sourceHash": "2c87128d7a"
+    },
+    {
+      "id": "wall_planter-planter-07-thickness-r0-4a86a32b80",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "thickness 1",
+      "seedId": "planter_07_thickness",
+      "specificityLevel": 7,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_reps2",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 71029,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A cylindrical wall-mounted planter with a flat back, 90x80mm dimensions, and a centered mounting hole was correctly implemented.",
+        "attempt_count": 3,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r0-4a86a32b80/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r0-4a86a32b80/preview.png",
+      "sourceHash": "4a86a32b80"
+    },
+    {
+      "id": "wall_planter-planter-07-thickness-r0-711c1b761a",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "thickness 1",
+      "seedId": "planter_07_thickness",
+      "specificityLevel": 7,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_blind_extra",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 52730,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A 90mm tall cylindrical planter with 80mm OD, 3mm wall thickness, and a #8 screw clearance hole was successfully generated.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r0-711c1b761a/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r0-711c1b761a/preview.png",
+      "sourceHash": "711c1b761a"
+    },
+    {
+      "id": "wall_planter-planter-07-thickness-r0-cb2909fbf9",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "thickness 1",
+      "seedId": "planter_07_thickness",
+      "specificityLevel": 7,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 138756,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A D-shaped wall-mounted planter was successfully created with accurate dimensions and an integrated #8 screw mounting hole.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r0-cb2909fbf9/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r0-cb2909fbf9/preview.png",
+      "sourceHash": "cb2909fbf9"
+    },
+    {
+      "id": "wall_planter-planter-07-thickness-r1-60eac8fcc4",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "thickness 2",
+      "seedId": "planter_07_thickness",
+      "specificityLevel": 7,
+      "repetition": 1,
+      "experimentId": "cadybara_online_smoke_reps2",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 96329,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The script successfully generates a 90mm tall hollowed planter with a flat back at X=35 and a 4.5mm diameter mounting hole.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r1-60eac8fcc4/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r1-60eac8fcc4/preview.png",
+      "sourceHash": "60eac8fcc4"
+    },
+    {
+      "id": "wall_planter-planter-07-thickness-r1-61d057b1bb",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "thickness 2",
+      "seedId": "planter_07_thickness",
+      "specificityLevel": 7,
+      "repetition": 1,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 35357,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Cyllindrical planter with flat back, interior cavity, and #8 screw hole correctly implemented according to specifications.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r1-61d057b1bb/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r1-61d057b1bb/preview.png",
+      "sourceHash": "61d057b1bb"
+    },
+    {
+      "id": "wall_planter-planter-07-thickness-r2-b234dbbdcc",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "thickness 3",
+      "seedId": "planter_07_thickness",
+      "specificityLevel": 7,
+      "repetition": 2,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 47422,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A manifold cylindrical planter with a flat mounting back and a 4.5mm hole was successfully created and assigned to the result variable.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r2-b234dbbdcc/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-07-thickness-r2-b234dbbdcc/preview.png",
+      "sourceHash": "b234dbbdcc"
+    },
+    {
+      "id": "wall_planter-planter-10-full-r0-31f7e700c3",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "full 1",
+      "seedId": "planter_10_full",
+      "specificityLevel": 10,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_blind_extra",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 98052,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code correctly implements the cylindrical body, matching the specified dimensions, drainage holes, tangent back panel with keyhole slot, and applies fillets to all external edges except the top rim.",
+        "attempt_count": 3,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r0-31f7e700c3/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r0-31f7e700c3/preview.png",
+      "sourceHash": "31f7e700c3"
+    },
+    {
+      "id": "wall_planter-planter-10-full-r0-68c05889f0",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "full 1",
+      "seedId": "planter_10_full",
+      "specificityLevel": 10,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 75558,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A wall-mounted cylindrical planter with a 4mm back panel, drainage holes, and a keyhole mounting slot was successfully implemented as a single unioned solid.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r0-68c05889f0/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r0-68c05889f0/preview.png",
+      "sourceHash": "68c05889f0"
+    },
+    {
+      "id": "wall_planter-planter-10-full-r0-c84f02b3d9",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "full 1",
+      "seedId": "planter_10_full",
+      "specificityLevel": 10,
+      "repetition": 0,
+      "experimentId": "cadybara_online_smoke_reps2",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 42624,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The wall-mounted planter was correctly implemented as a single unioned solid with the specified cylinder, backplate, drainage system, and keyhole mounting slot.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r0-c84f02b3d9/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r0-c84f02b3d9/preview.png",
+      "sourceHash": "c84f02b3d9"
+    },
+    {
+      "id": "wall_planter-planter-10-full-r1-8ddff48639",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "full 2",
+      "seedId": "planter_10_full",
+      "specificityLevel": 10,
+      "repetition": 1,
+      "experimentId": "cadybara_online_smoke_reps2",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 36137,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The wall-mounted planter was correctly implemented with the specified dimensions, tangency, drainage, and keyhole mounting features as a single solid.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r1-8ddff48639/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r1-8ddff48639/preview.png",
+      "sourceHash": "8ddff48639"
+    },
+    {
+      "id": "wall_planter-planter-10-full-r1-91d6c67c0d",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "full 2",
+      "seedId": "planter_10_full",
+      "specificityLevel": 10,
+      "repetition": 1,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 177412,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The 3D-printable wall-mounted planter was successfully implemented as a single watertight solid with drainage holes, a keyhole slot, and filleted edges.",
+        "attempt_count": 4,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r1-91d6c67c0d/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r1-91d6c67c0d/preview.png",
+      "sourceHash": "91d6c67c0d"
+    },
+    {
+      "id": "wall_planter-planter-10-full-r2-97c6a20780",
+      "family": "wall_planter",
+      "familyLabel": "Wall planter",
+      "active": true,
+      "title": "full 3",
+      "seedId": "planter_10_full",
+      "specificityLevel": 10,
+      "repetition": 2,
+      "experimentId": "cadybara_online_smoke_blind_20260608_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 81438,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a single watertight solid with all specified features including drainage holes, the keyhole slot, and requested fillets while correctly positioning the back panel tangentially.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "planter",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r2-97c6a20780/model.stl",
+      "previewUrl": "/dataset/v1/wall_planter/wall_planter-planter-10-full-r2-97c6a20780/preview.png",
+      "sourceHash": "97c6a20780"
+    }
+  ]
+} as unknown as DatasetPayload;
+
+export default dataset;
