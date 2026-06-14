@@ -126,6 +126,58 @@ The app stores salted IP and user-agent hashes, not raw IP addresses or raw
 user agents. Internal Elo-like scoring is private and derived from accepted
 votes.
 
+## Local Backups And Analysis
+
+For production, local backup files under `exports/live-backups/` are the durable
+source of truth. Vercel Blob is the live collection buffer.
+
+Pull all raw vote blobs, save local snapshots, update daily deduped JSONL files,
+run analysis, and safely prune already-backed-up raw vote blobs older than the
+current UTC hour:
+
+```bash
+npm run backup:live -- \
+  --url https://cadbattle.vercel.app \
+  --out exports/live-backups \
+  --prune completed-hour
+```
+
+The backup command never deletes `derived/v1/stats-summary.json`,
+`session-pairs/v1/*`, current-hour votes, or anything outside `votes/v1/`.
+Deletion only happens after the snapshot and daily JSONL files verify.
+
+To rebuild the boss/team analysis dashboard from local backups:
+
+```bash
+npm run process:data
+```
+
+Outputs:
+
+- `exports/analysis/latest/index.html`
+- `exports/analysis/latest/summary.md`
+- CSV and JSON files for items, pairs, sessions, coverage gaps, anomalies, and
+  raw-vs-clean rankings
+
+Install the hourly Windows backup task:
+
+```powershell
+npm run backup:install-hourly
+```
+
+Remove it:
+
+```powershell
+npm run backup:uninstall-hourly
+```
+
+Before sharing widely, run a browser-level production vote and confirm it lands
+locally:
+
+```bash
+npm run backup:test-click
+```
+
 ## Battle Selection
 
 Visitors do not choose a model family. The server selects same-family battles
