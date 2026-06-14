@@ -1,20 +1,15 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Buffer } from "node:buffer";
-import battleHandler from "./api/battle";
-import exportHandler from "./api/export";
-import healthHandler from "./api/health";
-import statsHandler from "./api/stats";
-import voteHandler from "./api/vote";
 import { defineConfig, type Connect, type Plugin } from "vite";
 
 type ApiHandler = (req: IncomingMessage & { body?: unknown; query?: Record<string, string | string[]> }, res: ServerResponse) => Promise<void>;
 
-const apiHandlers: Record<string, ApiHandler> = {
-  "/api/battle": battleHandler as ApiHandler,
-  "/api/export": exportHandler as ApiHandler,
-  "/api/health": healthHandler as ApiHandler,
-  "/api/stats": statsHandler as ApiHandler,
-  "/api/vote": voteHandler as ApiHandler,
+const apiModules: Record<string, () => Promise<{ default: ApiHandler }>> = {
+  "/api/battle": () => import("./api/battle") as Promise<{ default: ApiHandler }>,
+  "/api/export": () => import("./api/export") as Promise<{ default: ApiHandler }>,
+  "/api/health": () => import("./api/health") as Promise<{ default: ApiHandler }>,
+  "/api/stats": () => import("./api/stats") as Promise<{ default: ApiHandler }>,
+  "/api/vote": () => import("./api/vote") as Promise<{ default: ApiHandler }>,
 };
 
 function queryObject(params: URLSearchParams): Record<string, string | string[]> {
@@ -77,13 +72,14 @@ function vercelResponse(res: ServerResponse): ServerResponse {
 function localApiMiddleware(): Connect.NextHandleFunction {
   return async (req, res, next) => {
     const url = new URL(req.url || "/", "http://127.0.0.1");
-    const handler = apiHandlers[url.pathname];
-    if (!handler) {
+    const loadHandler = apiModules[url.pathname];
+    if (!loadHandler) {
       next();
       return;
     }
 
     try {
+      const { default: handler } = await loadHandler();
       const apiReq = req as IncomingMessage & { body?: unknown; query?: Record<string, string | string[]> };
       apiReq.query = queryObject(url.searchParams);
       apiReq.body = await readBody(req);

@@ -26,10 +26,9 @@ function deploymentUrl(value) {
 
 const args = readArgs(process.argv.slice(2));
 const baseUrl = deploymentUrl(args.url || process.env.CAPYBARA_ARENA_URL || process.env.VERCEL_URL);
-const token = args.token || process.env.ADMIN_EXPORT_TOKEN;
 
-if (!baseUrl || !token) {
-  console.error("Usage: ADMIN_EXPORT_TOKEN=... node scripts/pull-votes.mjs --url https://your-app.vercel.app [--date YYYY-MM-DD] [--out exports/votes.jsonl]");
+if (!baseUrl) {
+  console.error("Usage: node scripts/pull-votes.mjs --url https://your-app.vercel.app [--date YYYY-MM-DD] [--out exports/votes.jsonl]");
   process.exit(1);
 }
 
@@ -38,11 +37,7 @@ endpoint.searchParams.set("format", "json");
 if (args.date) endpoint.searchParams.set("date", args.date);
 if (args.limit) endpoint.searchParams.set("limit", args.limit);
 
-const response = await fetch(endpoint, {
-  headers: {
-    "x-admin-token": token,
-  },
-});
+const response = await fetch(endpoint);
 
 if (!response.ok) {
   const body = await response.text();

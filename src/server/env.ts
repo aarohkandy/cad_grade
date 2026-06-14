@@ -2,7 +2,6 @@ import type { StorageMode } from "./voteStore";
 
 export const REQUIRED_PRODUCTION_ENV = [
   "BLOB_READ_WRITE_TOKEN",
-  "ADMIN_EXPORT_TOKEN",
   "IP_HASH_SALT",
   "HOLD_VERIFY_SECRET",
 ] as const;

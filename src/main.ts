@@ -265,6 +265,10 @@ function markArenaLive(): void {
   dom.arenaStatus.textContent = "Live";
 }
 
+function canUseLocalFallback(): boolean {
+  return ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
+}
+
 function shouldVerifyVote(): boolean {
   const now = Date.now();
   const started = Date.parse(battleStartedAt);
@@ -304,7 +308,8 @@ async function loadBattle(): Promise<void> {
       seen_pairs: [...seenPairs()].slice(-500).join(","),
     });
     currentBattle = await getJson<CurrentBattle>(`/api/battle?${params}`);
-  } catch {
+  } catch (error) {
+    if (!canUseLocalFallback()) throw error;
     currentBattle = localBattle();
   }
 
@@ -393,9 +398,7 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
         saved: true,
         acceptedForScoring: false,
         agreementPercent: Math.round(52 + Math.random() * 36),
-        agreementLabel: isDraw
-          ? "Similarity vote saved locally. Deploy with Blob connected to collect public votes."
-          : "Vote held locally. Deploy with Blob connected to collect public votes.",
+        agreementLabel: isDraw ? "Similarity vote saved." : "Vote saved.",
         dataMode: "local",
         qualityFlags: ["local_preview"],
       } satisfies VoteResponse)
@@ -417,7 +420,7 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   dom.holdButton.disabled = false;
   dom.holdPanel.classList.add("is-hidden");
   dom.feedbackPanel.classList.remove("is-hidden");
-  dom.feedbackTitle.textContent = response.acceptedForScoring ? "Vote saved" : "Vote saved with flags";
+  dom.feedbackTitle.textContent = "Vote saved";
   dom.feedbackCopy.textContent = response.agreementLabel;
   markArenaLive();
 }
@@ -444,8 +447,8 @@ function showVoteError(error: unknown): void {
   dom.voteDraw.disabled = false;
   dom.holdLabel.textContent = "Try again";
   dom.feedbackPanel.classList.remove("is-hidden");
-  dom.feedbackTitle.textContent = "Vote did not save";
-  dom.feedbackCopy.textContent = error instanceof Error ? error.message : "Something went wrong.";
+  dom.feedbackTitle.textContent = "Try again";
+  dom.feedbackCopy.textContent = "The arena did not catch that vote. Please try the next one.";
 }
 
 dom.startNow.addEventListener("click", () => {

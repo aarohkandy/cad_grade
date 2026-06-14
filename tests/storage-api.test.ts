@@ -40,14 +40,12 @@ describe("local storage api flow", () => {
   beforeEach(async () => {
     tempDir = await mkdtemp(join(tmpdir(), "capybara-arena-"));
     process.env.LOCAL_VOTE_DIR = tempDir;
-    process.env.ADMIN_EXPORT_TOKEN = "admin-secret";
     process.env.IP_HASH_SALT = "hash-secret";
     process.env.HOLD_VERIFY_SECRET = "hold-secret";
   });
 
   afterEach(async () => {
     delete process.env.LOCAL_VOTE_DIR;
-    delete process.env.ADMIN_EXPORT_TOKEN;
     delete process.env.IP_HASH_SALT;
     delete process.env.HOLD_VERIFY_SECRET;
     if (tempDir) await rm(tempDir, { recursive: true, force: true });
@@ -96,7 +94,7 @@ describe("local storage api flow", () => {
     await exportHandler(
       {
         method: "GET",
-        headers: { "x-admin-token": "admin-secret" },
+        headers: {},
         query: { format: "json" },
       } as never,
       exportResponse as never,

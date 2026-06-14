@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import handler from "../api/export";
 
 function mockResponse() {
@@ -26,16 +26,11 @@ function mockResponse() {
   return response;
 }
 
-describe("export api auth", () => {
-  afterEach(() => {
-    delete process.env.ADMIN_EXPORT_TOKEN;
-  });
-
-  it("rejects missing admin token", async () => {
-    process.env.ADMIN_EXPORT_TOKEN = "secret";
+describe("export api", () => {
+  it("allows unlisted export pulls", async () => {
     const response = mockResponse();
     await handler({ method: "GET", headers: {}, query: {} } as never, response as never);
-    expect(response.statusCode).toBe(401);
-    expect(response.body).toEqual({ error: "unauthorized" });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({ voteCount: expect.any(Number) });
   });
 });

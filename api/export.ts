@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { toCsv } from "../src/server/export";
-import { bearerOrHeaderToken, firstQueryValue, methodAllowed, noStore } from "../src/server/http";
+import { firstQueryValue, methodAllowed, noStore } from "../src/server/http";
 import { dataset, itemById } from "../src/server/items";
 import { readVoteRecords, storageConfigured, summaryFromVotes } from "../src/server/voteStore";
 
@@ -25,15 +25,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);
   if (!methodAllowed(req, res, ["GET"])) return;
 
-  const adminToken = process.env.ADMIN_EXPORT_TOKEN;
-  if (!adminToken) {
-    res.status(503).json({ error: "admin_export_not_configured" });
-    return;
-  }
-  if (bearerOrHeaderToken(req) !== adminToken) {
-    res.status(401).json({ error: "unauthorized" });
-    return;
-  }
   if (!storageConfigured()) {
     res.status(503).json({ error: "vote_storage_not_configured" });
     return;

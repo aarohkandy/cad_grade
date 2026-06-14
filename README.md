@@ -31,8 +31,7 @@ no viewable STL cells.
 
 ```bash
 npm run check:production -- \
-  --url https://YOUR_DEPLOYMENT \
-  --token YOUR_ADMIN_EXPORT_TOKEN
+  --url https://YOUR_DEPLOYMENT
 ```
 
 9. Open `/api/battle` and confirm it returns two automatically selected items.
@@ -58,7 +57,7 @@ This repo is set up for Vercel GitHub deploys:
   for public traffic.
 
 The only required manual Vercel pieces are the Blob store attachment and the
-four secret environment variables.
+three environment variables below.
 
 ## Environment
 
@@ -66,14 +65,12 @@ Set these in Vercel Project Settings -> Environment Variables:
 
 ```text
 BLOB_READ_WRITE_TOKEN
-ADMIN_EXPORT_TOKEN
 IP_HASH_SALT
 HOLD_VERIFY_SECRET
 ```
 
-`BLOB_READ_WRITE_TOKEN` is created when Vercel Blob is attached. The admin
-token can be any long random secret. `IP_HASH_SALT` and `HOLD_VERIFY_SECRET`
-should also be long random secrets.
+`BLOB_READ_WRITE_TOKEN` is created when Vercel Blob is attached.
+`IP_HASH_SALT` and `HOLD_VERIFY_SECRET` can be any long random secrets.
 
 Generate local secret values with Node:
 
@@ -98,14 +95,13 @@ npm run dev
 `http://127.0.0.1:5173`. Local API votes are written to the ignored
 `.local-data/blob` folder by default.
 
-To match Vercel's runtime locally, or to enable admin export from dev, set
-`LOCAL_VOTE_DIR` and `ADMIN_EXPORT_TOKEN` before starting the server.
+To match Vercel's runtime locally, set `LOCAL_VOTE_DIR` before starting the
+server.
 
 PowerShell example:
 
 ```powershell
 $env:LOCAL_VOTE_DIR=".local-data/blob"
-$env:ADMIN_EXPORT_TOKEN="local-secret"
 $env:IP_HASH_SALT="local-hash-salt"
 $env:HOLD_VERIFY_SECRET="local-hold-secret"
 npm run dev
@@ -143,33 +139,31 @@ automatically so the data stays useful:
 
 ## Export
 
-Admin export requires `ADMIN_EXPORT_TOKEN`:
+Export is intentionally unlisted but not locked behind login. Anyone who knows
+the endpoint can pull it, so do not link it in the UI.
 
 ```bash
-curl -H "x-admin-token: $ADMIN_EXPORT_TOKEN" \
-  "https://YOUR_DEPLOYMENT/api/export?format=json"
+curl "https://YOUR_DEPLOYMENT/api/export?format=json"
 ```
 
 Limit to one day when pulling often:
 
 ```bash
-curl -H "x-admin-token: $ADMIN_EXPORT_TOKEN" \
-  "https://YOUR_DEPLOYMENT/api/export?format=json&date=2026-06-12"
+curl "https://YOUR_DEPLOYMENT/api/export?format=json&date=2026-06-12"
 ```
 
 CSV export supports `table=votes`, `table=item_stats`, `table=pair_stats`, or
 `table=quality_flags`:
 
 ```bash
-curl -H "x-admin-token: $ADMIN_EXPORT_TOKEN" \
-  "https://YOUR_DEPLOYMENT/api/export?format=csv&table=votes" \
+curl "https://YOUR_DEPLOYMENT/api/export?format=csv&table=votes" \
   > votes.csv
 ```
 
 The pull helper writes JSONL:
 
 ```bash
-ADMIN_EXPORT_TOKEN=... npm run pull:votes -- \
+npm run pull:votes -- \
   --url https://YOUR_DEPLOYMENT \
   --date 2026-06-12 \
   --out exports/votes-2026-06-12.jsonl
@@ -178,7 +172,7 @@ ADMIN_EXPORT_TOKEN=... npm run pull:votes -- \
 For launch/testing sessions, pull a full timestamped snapshot:
 
 ```bash
-ADMIN_EXPORT_TOKEN=... npm run pull:data -- \
+npm run pull:data -- \
   --url https://YOUR_DEPLOYMENT \
   --out exports/vercel-test
 ```
@@ -188,7 +182,7 @@ for votes, item stats, pair stats, and quality flags. To keep polling while
 people test:
 
 ```bash
-ADMIN_EXPORT_TOKEN=... npm run pull:data -- \
+npm run pull:data -- \
   --url https://YOUR_DEPLOYMENT \
   --out exports/vercel-test \
   --watch 30

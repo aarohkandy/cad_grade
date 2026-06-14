@@ -54,9 +54,8 @@ async function writeJson(path, value) {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-async function pullOnce({ baseUrl, token, date, limit, outDir }) {
+async function pullOnce({ baseUrl, date, limit, outDir }) {
   await mkdir(outDir, { recursive: true });
-  const adminHeaders = { "x-admin-token": token };
 
   const health = await fetchJson(apiUrl(baseUrl, "/api/health"));
   const stats = await fetchJson(apiUrl(baseUrl, "/api/stats"));
@@ -66,7 +65,6 @@ async function pullOnce({ baseUrl, token, date, limit, outDir }) {
       date,
       limit,
     }),
-    { headers: adminHeaders },
   );
 
   await writeJson(join(outDir, "health.json"), health);
@@ -85,7 +83,6 @@ async function pullOnce({ baseUrl, token, date, limit, outDir }) {
         date,
         limit,
       }),
-      { headers: adminHeaders },
     );
     await writeFile(join(outDir, `${table}.csv`), csv, "utf8");
   }
@@ -113,11 +110,10 @@ async function sleep(ms) {
 
 const args = readArgs(process.argv.slice(2));
 const baseUrl = deploymentUrl(args.url || process.env.CAPYBARA_ARENA_URL || process.env.VERCEL_URL);
-const token = args.token || process.env.ADMIN_EXPORT_TOKEN;
 
-if (!baseUrl || !token) {
+if (!baseUrl) {
   console.error(
-    "Usage: ADMIN_EXPORT_TOKEN=... npm run pull:data -- --url https://your-app.vercel.app [--date YYYY-MM-DD] [--limit 10000] [--out exports/live] [--watch 30]",
+    "Usage: npm run pull:data -- --url https://your-app.vercel.app [--date YYYY-MM-DD] [--limit 10000] [--out exports/live] [--watch 30]",
   );
   process.exit(1);
 }
@@ -132,12 +128,12 @@ if (watchSeconds > 0) {
   while (true) {
     const outDir = join(baseOut, timestampSlug());
     try {
-      await pullOnce({ baseUrl, token, date, limit, outDir });
+      await pullOnce({ baseUrl, date, limit, outDir });
     } catch (error) {
       console.error(error instanceof Error ? error.message : error);
     }
     await sleep(watchSeconds * 1000);
   }
 } else {
-  await pullOnce({ baseUrl, token, date, limit, outDir: baseOut });
+  await pullOnce({ baseUrl, date, limit, outDir: baseOut });
 }

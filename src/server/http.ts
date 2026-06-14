@@ -26,10 +26,3 @@ export function clientIp(req: VercelRequest): string {
   const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
   return String(value || req.socket.remoteAddress || "unknown").split(",")[0].trim();
 }
-
-export function bearerOrHeaderToken(req: VercelRequest): string {
-  const headerToken = req.headers["x-admin-token"];
-  if (headerToken) return Array.isArray(headerToken) ? headerToken[0] : headerToken;
-  const authorization = req.headers.authorization || "";
-  return authorization.toLowerCase().startsWith("bearer ") ? authorization.slice(7).trim() : "";
-}

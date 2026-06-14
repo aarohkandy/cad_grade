@@ -4,7 +4,6 @@ import { missingProductionEnv, storageReadyForPublicTraffic } from "../src/serve
 import { storageMode } from "../src/server/voteStore";
 
 const ENV_KEYS = [
-  "ADMIN_EXPORT_TOKEN",
   "BLOB_READ_WRITE_TOKEN",
   "BLOB_STORE_ID",
   "HOLD_VERIFY_SECRET",
@@ -69,7 +68,6 @@ describe("production environment readiness", () => {
     process.env.VERCEL = "1";
     process.env.VERCEL_ENV = "production";
     process.env.BLOB_READ_WRITE_TOKEN = "blob-secret";
-    process.env.ADMIN_EXPORT_TOKEN = "admin-secret";
     process.env.IP_HASH_SALT = "hash-secret";
     process.env.HOLD_VERIFY_SECRET = "hold-secret";
 

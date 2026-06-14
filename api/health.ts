@@ -35,7 +35,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     storageMessage,
     runtime,
     vercelEnv: process.env.VERCEL_ENV || null,
-    exportConfigured: Boolean(process.env.ADMIN_EXPORT_TOKEN),
     missingEnv,
   });
 }

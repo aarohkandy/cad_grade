@@ -1,14 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
-import {
-  BlobNotFoundError,
-  BlobPreconditionFailedError,
-  get,
-  head,
-  list,
-  put,
-} from "@vercel/blob";
 import { updateElo } from "./elo";
 import { hasBlobCredentials, isVercelRuntime } from "./env";
 import { pairKey } from "./pairs";
@@ -284,8 +276,16 @@ export function summaryFromVotes(
     }, emptySummary(datasetId, families));
 }
 
+async function blobClient() {
+  return import("@vercel/blob");
+}
+
 function isMissingBlob(error: unknown): boolean {
-  return error instanceof BlobNotFoundError || (error instanceof Error && /not found|404/i.test(error.message));
+  return error instanceof Error && /not found|404/i.test(error.message);
+}
+
+function isBlobPreconditionFailed(error: unknown): boolean {
+  return error instanceof Error && /precondition|if-?match|already exists|412/i.test(error.message);
 }
 
 function localRoot(): string {
@@ -347,6 +347,7 @@ async function localJsonByPrefix<T>(prefix: string): Promise<T[]> {
 
 async function readBlobJson<T>(pathname: string): Promise<SummaryReadResult & { value?: T }> {
   try {
+    const { get } = await blobClient();
     const result = await get(pathname, { access: "private", useCache: false });
     if (!result || result.statusCode !== 200 || !result.stream) return { summary: null };
     const text = await new Response(result.stream).text();
@@ -362,6 +363,7 @@ async function readBlobJson<T>(pathname: string): Promise<SummaryReadResult & { 
 }
 
 async function writeBlobJson(pathname: string, value: unknown, options: { allowOverwrite: boolean; ifMatch?: string }) {
+  const { put } = await blobClient();
   await put(pathname, JSON.stringify(value, null, 2), {
     access: "private",
     addRandomSuffix: false,
@@ -398,6 +400,7 @@ export async function sessionPairAlreadySeen(pathname: string): Promise<boolean>
   if (mode === "unconfigured") return false;
   if (mode === "blob") {
     try {
+      const { head } = await blobClient();
       await head(pathname);
       return true;
     } catch (error) {
@@ -418,7 +421,7 @@ export async function markSessionPair(pathname: string, value: unknown): Promise
     }
     await writeLocalJson(pathname, value, false);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST" || error instanceof BlobPreconditionFailedError) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST" || isBlobPreconditionFailed(error)) {
       return;
     }
     throw error;
@@ -454,7 +457,7 @@ export async function updateVoteSummary(
       });
       return next;
     } catch (error) {
-      if (error instanceof BlobPreconditionFailedError) continue;
+      if (isBlobPreconditionFailed(error)) continue;
       throw error;
     }
   }
@@ -480,6 +483,7 @@ export async function readVoteRecords(options: { date?: string; limit?: number }
   const records: StoredVoteRecord[] = [];
   let cursor: string | undefined;
   do {
+    const { list } = await blobClient();
     const page = await list({ prefix, limit: Math.min(1000, limit - records.length), cursor });
     const rows = await Promise.all(
       page.blobs.map(async (blob) => {

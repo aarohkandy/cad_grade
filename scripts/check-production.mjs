@@ -45,11 +45,10 @@ function pass(message) {
 
 const args = readArgs(process.argv.slice(2));
 const baseUrl = deploymentUrl(args.url || process.env.CAPYBARA_ARENA_URL || process.env.VERCEL_URL);
-const token = args.token || process.env.ADMIN_EXPORT_TOKEN;
 const writeTestVote = args["write-test-vote"] === "true";
 
 if (!baseUrl) {
-  console.error("Usage: npm run check:production -- --url https://your-app.vercel.app [--token ADMIN_EXPORT_TOKEN] [--write-test-vote]");
+  console.error("Usage: npm run check:production -- --url https://your-app.vercel.app [--write-test-vote]");
   process.exit(1);
 }
 
@@ -82,30 +81,14 @@ if (!stats.response.ok) {
   pass(`/api/stats live with ${stats.body.totalVotes} total votes`);
 }
 
-const unauthExport = await fetchJson(`${baseUrl}/api/export?format=json&limit=1`);
-if (unauthExport.response.status !== 401) {
-  fail("/api/export should reject missing admin token", {
-    status: unauthExport.response.status,
-    body: unauthExport.body,
+const exportCheck = await fetchJson(`${baseUrl}/api/export?format=json&limit=1`);
+if (!exportCheck.response.ok || typeof exportCheck.body?.voteCount !== "number") {
+  fail("/api/export did not return data", {
+    status: exportCheck.response.status,
+    body: exportCheck.body,
   });
 } else {
-  pass("/api/export rejects missing admin token");
-}
-
-if (token) {
-  const authedExport = await fetchJson(`${baseUrl}/api/export?format=json&limit=1`, {
-    headers: { "x-admin-token": token },
-  });
-  if (!authedExport.response.ok || typeof authedExport.body?.voteCount !== "number") {
-    fail("/api/export did not return admin data", {
-      status: authedExport.response.status,
-      body: authedExport.body,
-    });
-  } else {
-    pass(`/api/export works with token; returned ${authedExport.body.voteCount} votes`);
-  }
-} else {
-  console.warn("WARN Skipping authenticated export check; pass --token or ADMIN_EXPORT_TOKEN.");
+  pass(`/api/export returned ${exportCheck.body.voteCount} votes`);
 }
 
 if (writeTestVote) {
