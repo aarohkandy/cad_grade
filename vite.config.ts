@@ -1,6 +1,122 @@
-import { defineConfig } from "vite";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { Buffer } from "node:buffer";
+import battleHandler from "./api/battle";
+import exportHandler from "./api/export";
+import healthHandler from "./api/health";
+import statsHandler from "./api/stats";
+import voteHandler from "./api/vote";
+import { defineConfig, type Connect, type Plugin } from "vite";
+
+type ApiHandler = (req: IncomingMessage & { body?: unknown; query?: Record<string, string | string[]> }, res: ServerResponse) => Promise<void>;
+
+const apiHandlers: Record<string, ApiHandler> = {
+  "/api/battle": battleHandler as ApiHandler,
+  "/api/export": exportHandler as ApiHandler,
+  "/api/health": healthHandler as ApiHandler,
+  "/api/stats": statsHandler as ApiHandler,
+  "/api/vote": voteHandler as ApiHandler,
+};
+
+function queryObject(params: URLSearchParams): Record<string, string | string[]> {
+  const query: Record<string, string | string[]> = {};
+  for (const [key, value] of params.entries()) {
+    const current = query[key];
+    if (Array.isArray(current)) {
+      current.push(value);
+    } else if (typeof current === "string") {
+      query[key] = [current, value];
+    } else {
+      query[key] = value;
+    }
+  }
+  return query;
+}
+
+async function readBody(req: IncomingMessage): Promise<unknown> {
+  if (req.method === "GET" || req.method === "HEAD") return undefined;
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  if (!chunks.length) return undefined;
+  const body = Buffer.concat(chunks).toString("utf8");
+  const contentType = String(req.headers["content-type"] || "");
+  return contentType.includes("application/json") ? JSON.parse(body) : body;
+}
+
+function vercelResponse(res: ServerResponse): ServerResponse {
+  const response = res as ServerResponse & {
+    status: (code: number) => ServerResponse;
+    json: (payload: unknown) => ServerResponse;
+    send: (payload: unknown) => ServerResponse;
+  };
+
+  response.status = (code: number) => {
+    res.statusCode = code;
+    return response;
+  };
+  response.json = (payload: unknown) => {
+    if (!res.headersSent) res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.end(JSON.stringify(payload));
+    return response;
+  };
+  response.send = (payload: unknown) => {
+    if (payload === undefined || payload === null) {
+      res.end("");
+    } else if (Buffer.isBuffer(payload) || typeof payload === "string") {
+      res.end(payload);
+    } else {
+      response.json(payload);
+    }
+    return response;
+  };
+
+  return response;
+}
+
+function localApiMiddleware(): Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    const url = new URL(req.url || "/", "http://127.0.0.1");
+    const handler = apiHandlers[url.pathname];
+    if (!handler) {
+      next();
+      return;
+    }
+
+    try {
+      const apiReq = req as IncomingMessage & { body?: unknown; query?: Record<string, string | string[]> };
+      apiReq.query = queryObject(url.searchParams);
+      apiReq.body = await readBody(req);
+      await handler(apiReq, vercelResponse(res));
+    } catch (error) {
+      if (!res.headersSent) {
+        res.statusCode = 500;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+      }
+      res.end(
+        JSON.stringify({
+          error: "local_api_failed",
+          message: error instanceof Error ? error.message : "unknown_error",
+        }),
+      );
+    }
+  };
+}
+
+function localApiPlugin(): Plugin {
+  return {
+    name: "capybara-local-api",
+    configureServer(server) {
+      server.middlewares.use(localApiMiddleware());
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(localApiMiddleware());
+    },
+  };
+}
 
 export default defineConfig({
+  plugins: [localApiPlugin()],
   build: {
     rollupOptions: {
       output: {

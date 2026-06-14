@@ -53,9 +53,12 @@ npm run build
 npm run dev
 ```
 
-`npm run dev` starts the Vite frontend. To exercise the API routes locally, run
-the app through Vercel's local dev server with `LOCAL_VOTE_DIR` and
-`ADMIN_EXPORT_TOKEN` set.
+`npm run dev` starts the Vite frontend and local API middleware on
+`http://127.0.0.1:5173`. Local API votes are written to the ignored
+`.local-data/blob` folder by default.
+
+To match Vercel's runtime locally, or to enable admin export from dev, set
+`LOCAL_VOTE_DIR` and `ADMIN_EXPORT_TOKEN` before starting the server.
 
 PowerShell example:
 
