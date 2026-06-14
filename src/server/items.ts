@@ -1,4 +1,4 @@
-import datasetJson from "../data/items.generated";
+import datasetJson from "../data/items.generated.js";
 import type { ArenaFamily, ArenaItem, DatasetPayload } from "../shared/types";
 
 export const dataset = datasetJson as DatasetPayload;

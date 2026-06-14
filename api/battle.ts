@@ -1,15 +1,15 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createHoldChallenge } from "../src/server/hold";
-import { activeItems, dataset, itemsForFamily, normalizeFamily, publicItem } from "../src/server/items";
+import { createHoldChallenge } from "../src/server/hold.js";
+import { activeItems, dataset, itemsForFamily, normalizeFamily, publicItem } from "../src/server/items.js";
 import {
   battleId,
   selectBattleFamily,
   selectBattlePair,
   type ItemStatLike,
   type PairStatLike,
-} from "../src/server/pairs";
-import { firstQueryValue, methodAllowed, noStore } from "../src/server/http";
-import { readVoteSummary, storageMode } from "../src/server/voteStore";
+} from "../src/server/pairs.js";
+import { firstQueryValue, methodAllowed, noStore } from "../src/server/http.js";
+import { readVoteSummary, storageMode } from "../src/server/voteStore.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);

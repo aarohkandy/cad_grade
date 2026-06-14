@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { dataset, familyLabels } from "../src/server/items";
-import { methodAllowed, noStore } from "../src/server/http";
-import { readVoteSummary, storageMode } from "../src/server/voteStore";
+import { dataset, familyLabels } from "../src/server/items.js";
+import { methodAllowed, noStore } from "../src/server/http.js";
+import { readVoteSummary, storageMode } from "../src/server/voteStore.js";
 import type { PublicStats } from "../src/shared/types";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

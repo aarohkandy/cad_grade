@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
-import { updateElo } from "./elo";
-import { hasBlobCredentials, isVercelRuntime } from "./env";
-import { pairKey } from "./pairs";
+import { updateElo } from "./elo.js";
+import { hasBlobCredentials, isVercelRuntime } from "./env.js";
+import { pairKey } from "./pairs.js";
 import type { ArenaFamily, ArenaItem } from "../shared/types";
 
 export const VOTES_PREFIX = "votes/v1";

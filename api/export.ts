@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { toCsv } from "../src/server/export";
-import { firstQueryValue, methodAllowed, noStore } from "../src/server/http";
-import { dataset, itemById } from "../src/server/items";
-import { readVoteRecords, storageConfigured, summaryFromVotes } from "../src/server/voteStore";
+import { toCsv } from "../src/server/export.js";
+import { firstQueryValue, methodAllowed, noStore } from "../src/server/http.js";
+import { dataset, itemById } from "../src/server/items.js";
+import { readVoteRecords, storageConfigured, summaryFromVotes } from "../src/server/voteStore.js";
 
 const TABLES = ["votes", "item_stats", "pair_stats", "quality_flags"] as const;
 type ExportTable = (typeof TABLES)[number];

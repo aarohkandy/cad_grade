@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isVercelRuntime, missingProductionEnv, storageReadyForPublicTraffic } from "../src/server/env";
-import { dataset } from "../src/server/items";
-import { methodAllowed, noStore } from "../src/server/http";
-import { readVoteSummary, storageMode } from "../src/server/voteStore";
+import { isVercelRuntime, missingProductionEnv, storageReadyForPublicTraffic } from "../src/server/env.js";
+import { dataset } from "../src/server/items.js";
+import { methodAllowed, noStore } from "../src/server/http.js";
+import { readVoteSummary, storageMode } from "../src/server/voteStore.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);

@@ -1,13 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomUUID } from "node:crypto";
-import { agreementPercent } from "../src/server/elo";
-import { isVercelRuntime, missingProductionEnv, productionVoteEnvReady } from "../src/server/env";
-import { safeHash } from "../src/server/hash";
-import { verifyHoldSubmission } from "../src/server/hold";
-import { clientIp, methodAllowed, noStore, readJsonBody } from "../src/server/http";
-import { dataset, itemById } from "../src/server/items";
-import { pairKey } from "../src/server/pairs";
-import { qualityDecision } from "../src/server/quality";
+import { agreementPercent } from "../src/server/elo.js";
+import { isVercelRuntime, missingProductionEnv, productionVoteEnvReady } from "../src/server/env.js";
+import { safeHash } from "../src/server/hash.js";
+import { verifyHoldSubmission } from "../src/server/hold.js";
+import { clientIp, methodAllowed, noStore, readJsonBody } from "../src/server/http.js";
+import { dataset, itemById } from "../src/server/items.js";
+import { pairKey } from "../src/server/pairs.js";
+import { qualityDecision } from "../src/server/quality.js";
 import {
   markSessionPair,
   readVoteSummary,
@@ -19,7 +19,7 @@ import {
   writeVoteRecord,
   type StoredPairStat,
   type StoredVoteRecord,
-} from "../src/server/voteStore";
+} from "../src/server/voteStore.js";
 import type { ArenaItem, VotePayload } from "../src/shared/types";
 
 function winnerWins(pair: StoredPairStat | undefined, winnerId: string): number {
