@@ -13,6 +13,7 @@
     "dataset": "node scripts/build-dataset.mjs",
     "check:dataset": "node scripts/check-dataset.mjs",
     "check:production": "node scripts/check-production.mjs",
+    "pull:data": "node scripts/pull-data.mjs",
     "pull:votes": "node scripts/pull-votes.mjs",
     "playwright": "node scripts/browser-smoke.mjs",
     "playwright:test": "playwright test"

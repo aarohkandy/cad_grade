@@ -175,6 +175,25 @@ ADMIN_EXPORT_TOKEN=... npm run pull:votes -- \
   --out exports/votes-2026-06-12.jsonl
 ```
 
+For launch/testing sessions, pull a full timestamped snapshot:
+
+```bash
+ADMIN_EXPORT_TOKEN=... npm run pull:data -- \
+  --url https://YOUR_DEPLOYMENT \
+  --out exports/vercel-test
+```
+
+That writes `health.json`, `stats.json`, `export.json`, `votes.jsonl`, and CSVs
+for votes, item stats, pair stats, and quality flags. To keep polling while
+people test:
+
+```bash
+ADMIN_EXPORT_TOKEN=... npm run pull:data -- \
+  --url https://YOUR_DEPLOYMENT \
+  --out exports/vercel-test \
+  --watch 30
+```
+
 ## Public API
 
 - `GET /api/battle`
