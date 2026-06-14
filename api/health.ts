@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { isVercelRuntime, missingProductionEnv, storageReadyForPublicTraffic } from "../src/server/env";
 import { dataset } from "../src/server/items";
 import { methodAllowed, noStore } from "../src/server/http";
 import { readVoteSummary, storageMode } from "../src/server/voteStore";
@@ -19,14 +20,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       storageMessage = error instanceof Error ? error.message : "storage_error";
     }
   }
+  const runtime = isVercelRuntime() ? "vercel" : "local";
+  const missingEnv = runtime === "vercel" ? missingProductionEnv() : [];
+  const ready = storage !== "error" && storageReadyForPublicTraffic(mode);
 
   res.status(storage === "error" ? 503 : 200).json({
     ok: storage !== "error",
+    ready,
     app: "capybara-arena",
     datasetId: dataset.datasetId,
     itemCount: dataset.itemCount,
     storage,
     storageMode: mode,
     storageMessage,
+    runtime,
+    vercelEnv: process.env.VERCEL_ENV || null,
+    exportConfigured: Boolean(process.env.ADMIN_EXPORT_TOKEN),
+    missingEnv,
   });
 }

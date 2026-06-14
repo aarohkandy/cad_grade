@@ -10,6 +10,7 @@ import {
   put,
 } from "@vercel/blob";
 import { updateElo } from "./elo";
+import { hasBlobCredentials, isVercelRuntime } from "./env";
 import { pairKey } from "./pairs";
 import type { ArenaFamily, ArenaItem } from "../shared/types";
 
@@ -108,10 +109,8 @@ interface SummaryReadResult {
 }
 
 export function storageMode(): StorageMode {
-  if (process.env.BLOB_READ_WRITE_TOKEN || (process.env.VERCEL_OIDC_TOKEN && process.env.BLOB_STORE_ID)) {
-    return "blob";
-  }
-  if (process.env.LOCAL_VOTE_DIR || !process.env.VERCEL) return "local";
+  if (hasBlobCredentials()) return "blob";
+  if (!isVercelRuntime()) return "local";
   return "unconfigured";
 }
 

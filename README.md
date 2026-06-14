@@ -16,14 +16,49 @@ no viewable STL cells.
 ## Production Checklist
 
 1. Import `https://github.com/aarohkandy/cad_grade` into Vercel.
-2. Create or attach a Vercel Blob store to the project.
-3. Add the production environment variables below.
-4. Deploy.
-5. Open `/api/health` and confirm `storage: "ok"` and `storageMode: "blob"`.
-6. Open `/api/battle` and confirm it returns two automatically selected items.
-7. Submit one vote in the arena.
-8. Pull the vote through `/api/export` or `npm run pull:votes`.
-9. Keep periodic JSONL exports outside git for analysis/backups.
+2. Keep Vercel's root directory at the repository root.
+3. Create or attach a Vercel Blob store to the project.
+4. Add the production environment variables below for Production, Preview, and
+   Development unless you intentionally want Preview isolated.
+5. Make sure `LOCAL_VOTE_DIR` is not set in Vercel.
+6. Deploy from the GitHub `main` branch.
+7. Open `/api/health` and confirm:
+   - `ready: true`
+   - `storage: "ok"`
+   - `storageMode: "blob"`
+   - `missingEnv: []`
+8. Run the production checker:
+
+```bash
+npm run check:production -- \
+  --url https://YOUR_DEPLOYMENT \
+  --token YOUR_ADMIN_EXPORT_TOKEN
+```
+
+9. Open `/api/battle` and confirm it returns two automatically selected items.
+10. Share the Vercel URL.
+11. Pull votes through `/api/export` or `npm run pull:votes`.
+12. Keep periodic JSONL exports outside git for analysis/backups.
+
+Do not put production secrets in GitHub. GitHub contains the app, assets, API
+routes, CI, and Vercel project config; Vercel owns the secret values and Blob
+store connection.
+
+## GitHub And Vercel
+
+This repo is set up for Vercel GitHub deploys:
+
+- `vercel.json` sets `npm ci`, `npm run build`, `dist`, clean URLs, cache
+  headers for public dataset assets, and basic browser security headers.
+- API routes live in `api/*.ts` and are deployed as Vercel Functions.
+- Static assets and the public dataset live under `public/`.
+- `.github/workflows/ci.yml` runs dataset validation, tests, and production
+  build on pushes and pull requests.
+- `npm run check:production` verifies that the deployed URL is actually ready
+  for public traffic.
+
+The only required manual Vercel pieces are the Blob store attachment and the
+four secret environment variables.
 
 ## Environment
 
@@ -39,6 +74,12 @@ HOLD_VERIFY_SECRET
 `BLOB_READ_WRITE_TOKEN` is created when Vercel Blob is attached. The admin
 token can be any long random secret. `IP_HASH_SALT` and `HOLD_VERIFY_SECRET`
 should also be long random secrets.
+
+Generate local secret values with Node:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
 For local serverless API testing, `LOCAL_VOTE_DIR` can point at a private local
 folder. Do not set `LOCAL_VOTE_DIR` in Vercel production.
@@ -67,7 +108,7 @@ $env:LOCAL_VOTE_DIR=".local-data/blob"
 $env:ADMIN_EXPORT_TOKEN="local-secret"
 $env:IP_HASH_SALT="local-hash-salt"
 $env:HOLD_VERIFY_SECRET="local-hold-secret"
-npx vercel dev --listen 127.0.0.1:3000
+npm run dev
 ```
 
 ## Data Storage

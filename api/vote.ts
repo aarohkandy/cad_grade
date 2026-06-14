@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomUUID } from "node:crypto";
 import { agreementPercent } from "../src/server/elo";
+import { isVercelRuntime, missingProductionEnv, productionVoteEnvReady } from "../src/server/env";
 import { safeHash } from "../src/server/hash";
 import { verifyHoldSubmission } from "../src/server/hold";
 import { clientIp, methodAllowed, noStore, readJsonBody } from "../src/server/http";
@@ -68,6 +69,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const mode = storageMode();
     if (mode === "unconfigured") {
       res.status(503).json({ error: "vote_storage_not_configured" });
+      return;
+    }
+    if (isVercelRuntime() && !productionVoteEnvReady()) {
+      res.status(503).json({
+        error: "production_env_not_configured",
+        missingEnv: missingProductionEnv(),
+      });
       return;
     }
 
