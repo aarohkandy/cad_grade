@@ -45,6 +45,7 @@ try {
   if (!String(feedback || "").toLowerCase().includes("vote saved")) {
     throw new Error(`Unexpected feedback title: ${feedback}`);
   }
+  await page.locator("#vote-left:not([disabled])").waitFor({ timeout: 20_000 });
 } finally {
   await browser.close();
 }

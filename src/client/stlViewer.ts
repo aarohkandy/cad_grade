@@ -146,11 +146,11 @@ export class StlViewer {
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 1);
     const distance = maxDim / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
-    this.camera.position.set(center.x, center.y - distance * 1.65, center.z + distance * 0.34);
+    this.camera.position.set(center.x + distance * 0.18, center.y - distance * 1.04, center.z + distance * 1.18);
     this.camera.near = Math.max(distance / 120, 0.1);
     this.camera.far = distance * 24;
     this.camera.updateProjectionMatrix();
-    this.controls.target.copy(center);
+    this.controls.target.set(center.x, center.y, center.z);
     this.controls.update();
 
     const floor = this.scene.getObjectByName("floor-grid");

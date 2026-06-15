@@ -322,6 +322,31 @@ a {
   background: rgba(245, 255, 232, 0.74);
   box-shadow: 0 16px 42px rgba(21, 67, 50, 0.18);
   padding: 14px;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.model-panel.is-ready {
+  cursor: pointer;
+}
+
+.model-panel.is-ready:hover,
+.model-panel.is-ready:focus-visible {
+  border-color: rgba(223, 243, 142, 0.74);
+  box-shadow:
+    0 16px 42px rgba(21, 67, 50, 0.22),
+    0 0 0 3px rgba(223, 243, 142, 0.18);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.model-panel.is-voting {
+  border-color: rgba(223, 243, 142, 0.95);
+  box-shadow:
+    0 20px 52px rgba(21, 67, 50, 0.26),
+    0 0 0 4px rgba(223, 243, 142, 0.26);
 }
 
 .panel-top {
@@ -424,8 +449,43 @@ a {
   line-height: 1.5;
 }
 
+.feedback-panel {
+  position: fixed;
+  right: clamp(14px, 3vw, 34px);
+  bottom: clamp(14px, 3vw, 34px);
+  z-index: 40;
+  width: min(420px, calc(100vw - 28px));
+  gap: 6px;
+  border-color: rgba(223, 243, 142, 0.78);
+  background: rgba(238, 255, 225, 0.94);
+  box-shadow:
+    0 22px 70px rgba(5, 24, 20, 0.32),
+    0 0 0 4px rgba(223, 243, 142, 0.16);
+  animation: toast-pop 140ms ease-out;
+}
+
+.feedback-panel h2 {
+  font-size: clamp(24px, 3vw, 34px);
+}
+
+.feedback-panel p:not(.kicker) {
+  font-size: 16px;
+}
+
 .next-action {
   width: fit-content;
+}
+
+@keyframes toast-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .is-hidden {
@@ -503,5 +563,11 @@ a {
 
   .viewer-frame {
     min-height: 420px;
+  }
+
+  .feedback-panel {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
   }
 }

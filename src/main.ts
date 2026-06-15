@@ -6,10 +6,11 @@ import type { ArenaFamily, ArenaItem, BattleResponse, HoldChallenge, VoteRespons
 const SESSION_KEY = "capybara-arena-session";
 const SEEN_PAIRS_KEY = "capybara-arena-seen-pairs";
 const VOTE_HISTORY_KEY = "capybara-arena-vote-history";
-const FAST_CHOICE_MS = 1200;
-const FAST_LOADED_CHOICE_MS = 900;
+const FAST_CHOICE_MS = 550;
+const FAST_LOADED_CHOICE_MS = 450;
 const RAPID_VOTE_WINDOW_MS = 10000;
-const RAPID_VOTE_LIMIT = 6;
+const RAPID_VOTE_LIMIT = 12;
+const AUTO_NEXT_DELAY_MS = 800;
 
 interface CurrentBattle extends BattleResponse {
   localOnly?: boolean;
@@ -41,7 +42,7 @@ app.innerHTML = `
     </section>
 
     <section class="battle-grid" aria-live="polite">
-      <article class="model-panel" data-side="left">
+      <article class="model-panel" data-side="left" role="button" tabindex="0" aria-label="Choose model A">
         <div class="panel-top">
           <div>
             <p>Model A</p>
@@ -59,7 +60,7 @@ app.innerHTML = `
         <button type="button" class="draw-action" id="vote-draw" disabled>Same / similar</button>
       </div>
 
-      <article class="model-panel" data-side="right">
+      <article class="model-panel" data-side="right" role="button" tabindex="0" aria-label="Choose model B">
         <div class="panel-top">
           <div>
             <p>Model B</p>
@@ -85,11 +86,10 @@ app.innerHTML = `
       </button>
     </section>
 
-    <section class="feedback-panel is-hidden" id="feedback-panel">
+    <section class="feedback-panel is-hidden" id="feedback-panel" role="status" aria-live="polite" aria-atomic="true">
       <p class="kicker">Arena pulse</p>
       <h2 id="feedback-title">Vote saved</h2>
       <p id="feedback-copy"></p>
-      <button type="button" class="primary-action next-action" id="continue-battle">Next battle</button>
     </section>
   </main>
 `;
@@ -97,8 +97,9 @@ app.innerHTML = `
 const dom = {
   arena: document.querySelector("#arena") as HTMLElement,
   startNow: document.querySelector("#start-now") as HTMLButtonElement,
-  continueBattle: document.querySelector("#continue-battle") as HTMLButtonElement,
   arenaStatus: document.querySelector("#arena-status") as HTMLElement,
+  leftPanel: document.querySelector('[data-side="left"]') as HTMLElement,
+  rightPanel: document.querySelector('[data-side="right"]') as HTMLElement,
   leftCanvas: document.querySelector("#left-canvas") as HTMLCanvasElement,
   rightCanvas: document.querySelector("#right-canvas") as HTMLCanvasElement,
   leftTitle: document.querySelector("#left-title") as HTMLElement,
@@ -125,6 +126,8 @@ let leftViewer: StlViewer | null = null;
 let rightViewer: StlViewer | null = null;
 let holdStartedAt = 0;
 let holdFrame = 0;
+let autoNextTimer = 0;
+let voteInFlight = false;
 
 function sessionId(): string {
   const existing = window.localStorage.getItem(SESSION_KEY);
@@ -283,18 +286,32 @@ function shouldVerifyVote(): boolean {
 }
 
 function clearFeedback(): void {
+  window.clearTimeout(autoNextTimer);
+  autoNextTimer = 0;
   dom.feedbackPanel.classList.add("is-hidden");
   dom.holdPanel.classList.add("is-hidden");
   selectedChoice = null;
 }
 
+function setVoteControls(enabled: boolean): void {
+  dom.voteLeft.disabled = !enabled;
+  dom.voteRight.disabled = !enabled;
+  dom.voteDraw.disabled = !enabled;
+  dom.leftPanel.classList.toggle("is-ready", enabled);
+  dom.rightPanel.classList.toggle("is-ready", enabled);
+  dom.leftPanel.setAttribute("aria-disabled", String(!enabled));
+  dom.rightPanel.setAttribute("aria-disabled", String(!enabled));
+}
+
 async function loadBattle(): Promise<void> {
   clearFeedback();
+  voteInFlight = false;
   battleStartedAt = new Date().toISOString();
   modelsLoadedAt = "";
-  dom.voteLeft.disabled = true;
-  dom.voteRight.disabled = true;
-  dom.voteDraw.disabled = true;
+  dom.arenaStatus.textContent = "Loading";
+  setVoteControls(false);
+  dom.leftPanel.classList.remove("is-voting");
+  dom.rightPanel.classList.remove("is-voting");
   dom.leftStatus.textContent = "Loading STL";
   dom.rightStatus.textContent = "Loading STL";
   dom.leftStatus.classList.remove("is-hidden");
@@ -329,9 +346,8 @@ async function loadBattle(): Promise<void> {
     modelsLoadedAt = new Date().toISOString();
     dom.leftStatus.classList.add("is-hidden");
     dom.rightStatus.classList.add("is-hidden");
-    dom.voteLeft.disabled = false;
-    dom.voteRight.disabled = false;
-    dom.voteDraw.disabled = false;
+    setVoteControls(true);
+    markArenaLive();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load STL";
     dom.leftStatus.textContent = message;
@@ -379,13 +395,14 @@ function cancelHold(): void {
 }
 
 async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<void> {
-  if (!currentBattle) return;
+  if (!currentBattle || voteInFlight) return;
+  voteInFlight = true;
   const isDraw = choice === "draw";
   const winnerId = isDraw ? null : choice;
   const hold = heldMs === null ? null : { ...currentBattle.hold, heldMs: Math.round(heldMs) };
-  dom.voteLeft.disabled = true;
-  dom.voteRight.disabled = true;
-  dom.voteDraw.disabled = true;
+  setVoteControls(false);
+  dom.leftPanel.classList.toggle("is-voting", choice === currentBattle.left.id);
+  dom.rightPanel.classList.toggle("is-voting", choice === currentBattle.right.id);
   dom.holdButton.disabled = true;
   if (hold) dom.holdLabel.textContent = "Saving";
   const votedAt = new Date().toISOString();
@@ -420,9 +437,13 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   dom.holdButton.disabled = false;
   dom.holdPanel.classList.add("is-hidden");
   dom.feedbackPanel.classList.remove("is-hidden");
-  dom.feedbackTitle.textContent = "Vote saved";
+  dom.feedbackTitle.textContent = isDraw ? "Draw saved" : "Vote saved";
   dom.feedbackCopy.textContent = response.agreementLabel;
-  markArenaLive();
+  dom.arenaStatus.textContent = "Loading next";
+  window.clearTimeout(autoNextTimer);
+  autoNextTimer = window.setTimeout(() => {
+    loadBattle().catch(showVoteError);
+  }, AUTO_NEXT_DELAY_MS);
 }
 
 async function finishHold(heldMs: number): Promise<void> {
@@ -441,22 +462,19 @@ async function chooseVote(choice: VoteChoice): Promise<void> {
 }
 
 function showVoteError(error: unknown): void {
+  voteInFlight = false;
   dom.holdButton.disabled = false;
-  dom.voteLeft.disabled = false;
-  dom.voteRight.disabled = false;
-  dom.voteDraw.disabled = false;
+  setVoteControls(Boolean(currentBattle));
+  dom.leftPanel.classList.remove("is-voting");
+  dom.rightPanel.classList.remove("is-voting");
   dom.holdLabel.textContent = "Try again";
   dom.feedbackPanel.classList.remove("is-hidden");
   dom.feedbackTitle.textContent = "Try again";
-  dom.feedbackCopy.textContent = "The arena did not catch that vote. Please try the next one.";
+  dom.feedbackCopy.textContent = "The arena did not catch that vote. Tap a model again.";
 }
 
 dom.startNow.addEventListener("click", () => {
   dom.arena.scrollIntoView({ behavior: "smooth" });
-});
-
-dom.continueBattle.addEventListener("click", () => {
-  loadBattle().catch(showVoteError);
 });
 
 dom.voteLeft.addEventListener("click", () => {
@@ -469,6 +487,38 @@ dom.voteRight.addEventListener("click", () => {
 
 dom.voteDraw.addEventListener("click", () => {
   if (currentBattle) chooseVote("draw").catch(showVoteError);
+});
+
+function choosePanel(side: "left" | "right"): void {
+  if (!currentBattle || voteInFlight) return;
+  if (side === "left" && dom.voteLeft.disabled) return;
+  if (side === "right" && dom.voteRight.disabled) return;
+  const itemId = side === "left" ? currentBattle.left.id : currentBattle.right.id;
+  chooseVote(itemId).catch(showVoteError);
+}
+
+function shouldIgnorePanelClick(event: Event): boolean {
+  return event.target instanceof Element && Boolean(event.target.closest("button"));
+}
+
+dom.leftPanel.addEventListener("click", (event) => {
+  if (!shouldIgnorePanelClick(event)) choosePanel("left");
+});
+
+dom.rightPanel.addEventListener("click", (event) => {
+  if (!shouldIgnorePanelClick(event)) choosePanel("right");
+});
+
+dom.leftPanel.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  choosePanel("left");
+});
+
+dom.rightPanel.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  choosePanel("right");
 });
 
 dom.holdButton.addEventListener("pointerdown", beginHold);
