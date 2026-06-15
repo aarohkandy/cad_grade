@@ -8,6 +8,7 @@ export const activeItems = dataset.items.filter((item) => item.active);
 export const familyLabels: Record<ArenaFamily, string> = {
   wall_planter: "Wall planter",
   wall_hook: "Wall hook",
+  snowman: "Snowman",
 };
 
 export function itemById(id: string): ArenaItem | undefined {
@@ -19,7 +20,7 @@ export function itemsForFamily(family: ArenaFamily): ArenaItem[] {
 }
 
 export function normalizeFamily(value: unknown): ArenaFamily | "any" {
-  if (value === "wall_planter" || value === "wall_hook") return value;
+  if (value === "wall_planter" || value === "wall_hook" || value === "snowman") return value;
   return "any";
 }
 

@@ -210,12 +210,16 @@ function localBattle(): CurrentBattle {
         const familyItems = (dataset.items as ArenaItem[]).filter((item) => item.family === candidateFamily);
         const pairs = allLocalPairs(familyItems);
         const availablePairs = pairs.filter(([left, right]) => !priorPairs.has(pairKeyClient(left.id, right.id)));
+        const familyVotes = pairs.reduce(
+          (sum, [left, right]) => sum + (priorPairs.has(pairKeyClient(left.id, right.id)) ? 1 : 0),
+          0,
+        );
         const averageBattles =
           familyItems.reduce((sum, item) => sum + (seenItemBattles.get(item.id) || 0), 0) /
           Math.max(1, familyItems.length);
         return {
           family: candidateFamily,
-          score: (availablePairs.length ? 0 : 10_000) + averageBattles * 100 + Math.random(),
+          score: (availablePairs.length ? 0 : 10_000) + familyVotes * 1000 + averageBattles * 10 + Math.random(),
         };
       })
       .sort((left, right) => left.score - right.score)[0]?.family || "wall_planter";

@@ -7,9 +7,10 @@ const appRoot = path.resolve(import.meta.dirname, "..");
 
 describe("dataset", () => {
   it("contains the launch set", () => {
-    expect(dataset.itemCount).toBe(40);
+    expect(dataset.itemCount).toBe(94);
     expect(dataset.items.filter((item) => item.family === "wall_planter")).toHaveLength(30);
-    expect(dataset.items.filter((item) => item.family === "wall_hook")).toHaveLength(10);
+    expect(dataset.items.filter((item) => item.family === "wall_hook")).toHaveLength(31);
+    expect(dataset.items.filter((item) => item.family === "snowman")).toHaveLength(33);
   });
 
   it("has unique ids and existing public assets", () => {

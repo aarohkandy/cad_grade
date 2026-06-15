@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { pairKey, selectBattleFamily, selectBattlePair, type ItemStatLike } from "../src/server/pairs";
+import { pairKey, selectBattleFamily, selectBattlePair, type ItemStatLike, type PairStatLike } from "../src/server/pairs";
 import type { ArenaFamily, ArenaItem } from "../src/shared/types";
 
 function item(id: string, family: ArenaFamily = "wall_planter"): ArenaItem {
   return {
     id,
     family,
-    familyLabel: family === "wall_planter" ? "Wall planter" : "Wall hook",
+    familyLabel: family === "wall_planter" ? "Wall planter" : family === "wall_hook" ? "Wall hook" : "Snowman",
     active: true,
     title: id,
     seedId: id,
@@ -55,26 +55,26 @@ describe("pair selection", () => {
     expect(new Set(selected.map((entry) => entry.id))).toEqual(new Set(["c", "d"]));
   });
 
-  it("balances family selection by item exposure", () => {
+  it("balances family selection by category vote exposure", () => {
     const items = [
       item("planter-a"),
       item("planter-b"),
       item("hook-a", "wall_hook"),
       item("hook-b", "wall_hook"),
+      item("snowman-a", "snowman"),
+      item("snowman-b", "snowman"),
     ];
-    const itemStats = new Map<string, ItemStatLike>([
-      ["planter-a", { item_id: "planter-a", battle_count: 8 }],
-      ["planter-b", { item_id: "planter-b", battle_count: 8 }],
-      ["hook-a", { item_id: "hook-a", battle_count: 0 }],
-      ["hook-b", { item_id: "hook-b", battle_count: 0 }],
+    const pairStats = new Map<string, PairStatLike>([
+      [pairKey("planter-a", "planter-b"), { pair_key: pairKey("planter-a", "planter-b"), family: "wall_planter", battle_count: 8 }],
+      [pairKey("hook-a", "hook-b"), { pair_key: pairKey("hook-a", "hook-b"), family: "wall_hook", battle_count: 7 }],
     ]);
     expect(
       selectBattleFamily({
         items,
-        families: ["wall_planter", "wall_hook"],
-        itemStats,
+        families: ["wall_planter", "wall_hook", "snowman"],
+        pairStats,
         random: () => 0,
       }),
-    ).toBe("wall_hook");
+    ).toBe("snowman");
   });
 });

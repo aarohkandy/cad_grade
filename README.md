@@ -5,13 +5,15 @@ shows two same-family STL models, lets a visitor choose the better model or mark
 the pair as similar, and stores append-only preference data in private Vercel
 Blob objects for export and offline analysis.
 
-The first public dataset contains 40 renderable hosted Cadybara outputs:
+The public dataset contains 94 renderable hosted Cadybara outputs, balanced
+across three object categories:
 
 - 30 wall-planter models
-- 10 wall-hook models
+- 31 wall-hook models
+- 33 snowman models
 
-Snowman rows are intentionally excluded from V1 because the inspected batch had
-no viewable STL cells.
+Prompts and proprietary generation text are not included in the public
+manifest.
 
 ## Production Checklist
 
@@ -184,6 +186,7 @@ Visitors do not choose a model family. The server selects same-family battles
 automatically so the data stays useful:
 
 - balance average vote exposure per item across families
+- keep total vote exposure roughly even across object categories
 - avoid pairs already seen by the current browser session when possible
 - prioritize under-sampled items
 - avoid over-repeating the same pair

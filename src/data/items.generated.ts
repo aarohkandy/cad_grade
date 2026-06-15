@@ -2,13 +2,1034 @@ import type { DatasetPayload } from "../shared/types";
 
 const dataset = {
   "datasetId": "cadybara-hosted-renderable-v1",
-  "generatedAtUtc": "2026-06-12T05:12:03.295Z",
-  "itemCount": 40,
+  "generatedAtUtc": "2026-06-15T15:58:30.094Z",
+  "itemCount": 94,
   "families": [
+    "snowman",
     "wall_hook",
     "wall_planter"
   ],
   "items": [
+    {
+      "id": "snowman-snowman-01-minimal-r0-156f49d77a",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 01 minimal 1",
+      "seedId": "snowman_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 0,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 30473,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The snowman is correctly implemented with three rounded-square sections and six bilateral button holes on the torso as specified.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r0-156f49d77a/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r0-156f49d77a/preview.png",
+      "sourceHash": "156f49d77a"
+    },
+    {
+      "id": "snowman-snowman-01-minimal-r0-ad4bf850b8",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 01 minimal 1",
+      "seedId": "snowman_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 29688,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Three stacked rounded-square volumes were correctly modeled and joined, with six circular button holes properly subtracted from the torso.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r0-ad4bf850b8/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r0-ad4bf850b8/preview.png",
+      "sourceHash": "ad4bf850b8"
+    },
+    {
+      "id": "snowman-snowman-01-minimal-r1-bba9f63743",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 01 minimal 2",
+      "seedId": "snowman_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 1,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 33710,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The snowman is correctly modeled with three stacked rounded-square segments and symmetrical button holes as specified.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r1-bba9f63743/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r1-bba9f63743/preview.png",
+      "sourceHash": "bba9f63743"
+    },
+    {
+      "id": "snowman-snowman-01-minimal-r1-f1f27f89ff",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 01 minimal 2",
+      "seedId": "snowman_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 36405,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The snowman is correctly modeled with three stacked rounded-square sections, vertical and horizontal fillets, and the specified six button holes on the middle section.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r1-f1f27f89ff/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r1-f1f27f89ff/preview.png",
+      "sourceHash": "f1f27f89ff"
+    },
+    {
+      "id": "snowman-snowman-01-minimal-r2-6c823df311",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 01 minimal 3",
+      "seedId": "snowman_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 2,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 58854,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Three stacked rounded-square body sections with mirrored circular button holes were successfully implemented as a single unioned solid.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r2-6c823df311/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r2-6c823df311/preview.png",
+      "sourceHash": "6c823df311"
+    },
+    {
+      "id": "snowman-snowman-01-minimal-r2-cad24b00bd",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 01 minimal 3",
+      "seedId": "snowman_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 83075,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The model correctly implements three vertically stacked rounded sections with six symmetrical circular button holes as specified.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r2-cad24b00bd/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r2-cad24b00bd/preview.png",
+      "sourceHash": "cad24b00bd"
+    },
+    {
+      "id": "snowman-snowman-01-minimal-r3-8b55d3e65c",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 01 minimal 4",
+      "seedId": "snowman_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 3,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 68043,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Three rounded square sections are stacked vertically and fused, with three circular button holes on both the left and right sides.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r3-8b55d3e65c/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-01-minimal-r3-8b55d3e65c/preview.png",
+      "sourceHash": "8b55d3e65c"
+    },
+    {
+      "id": "snowman-snowman-03-clear-r0-1b3331a4ed",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 03 clear 1",
+      "seedId": "snowman_03_clear",
+      "specificityLevel": 3,
+      "repetition": 0,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 44373,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Three rounded-square blocks are correctly stacked along a curved path with symmetric button holes successfully cut into each tier.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r0-1b3331a4ed/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r0-1b3331a4ed/preview.png",
+      "sourceHash": "1b3331a4ed"
+    },
+    {
+      "id": "snowman-snowman-03-clear-r0-38e477065d",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 03 clear 1",
+      "seedId": "snowman_03_clear",
+      "specificityLevel": 3,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 34544,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A snowman figurine with three stacked rounded-square blocks, a gentle lateral bend, and six lateral button holes was successfully implemented.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r0-38e477065d/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r0-38e477065d/preview.png",
+      "sourceHash": "38e477065d"
+    },
+    {
+      "id": "snowman-snowman-03-clear-r1-6511b9203b",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 03 clear 2",
+      "seedId": "snowman_03_clear",
+      "specificityLevel": 3,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 42110,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully implements the curved snowman with three filleted blocks and symmetrical button holes as specified.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r1-6511b9203b/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r1-6511b9203b/preview.png",
+      "sourceHash": "6511b9203b"
+    },
+    {
+      "id": "snowman-snowman-03-clear-r1-b0d4326662",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 03 clear 2",
+      "seedId": "snowman_03_clear",
+      "specificityLevel": 3,
+      "repetition": 1,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 38550,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Three-segment curved snowman with rounded corners and specified button holes implemented successfully.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r1-b0d4326662/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r1-b0d4326662/preview.png",
+      "sourceHash": "b0d4326662"
+    },
+    {
+      "id": "snowman-snowman-03-clear-r2-91c1f66ffa",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 03 clear 3",
+      "seedId": "snowman_03_clear",
+      "specificityLevel": 3,
+      "repetition": 2,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 61685,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A stylized curved snowman with three stacked rounded-square segments and symmetrical side button holes was successfully implemented.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r2-91c1f66ffa/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r2-91c1f66ffa/preview.png",
+      "sourceHash": "91c1f66ffa"
+    },
+    {
+      "id": "snowman-snowman-03-clear-r2-cac4694f2b",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 03 clear 3",
+      "seedId": "snowman_03_clear",
+      "specificityLevel": 3,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 69368,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Three stacked rounded blocks with a lateral shift and six button holes implemented via cylinder subtractions.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r2-cac4694f2b/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r2-cac4694f2b/preview.png",
+      "sourceHash": "cac4694f2b"
+    },
+    {
+      "id": "snowman-snowman-03-clear-r3-2e9d27a2fd",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 03 clear 4",
+      "seedId": "snowman_03_clear",
+      "specificityLevel": 3,
+      "repetition": 3,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 41338,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully implements the three-segment curved snowman with rounded squares and bilateral button holes as specified.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r3-2e9d27a2fd/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-03-clear-r3-2e9d27a2fd/preview.png",
+      "sourceHash": "2e9d27a2fd"
+    },
+    {
+      "id": "snowman-snowman-05-printable-r0-d41ba6ee78",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 05 printable 1",
+      "seedId": "snowman_05_printable",
+      "specificityLevel": 5,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 39032,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A single-piece snowman with three rounded segments, forward tilt, and recessed side buttons was successfully implemented.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r0-d41ba6ee78/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r0-d41ba6ee78/preview.png",
+      "sourceHash": "d41ba6ee78"
+    },
+    {
+      "id": "snowman-snowman-05-printable-r1-436fc55c75",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 05 printable 2",
+      "seedId": "snowman_05_printable",
+      "specificityLevel": 5,
+      "repetition": 1,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 64157,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully creates a three-block curved snowman with the requested vertical offsets, softened corners, and recessed circular button details on both sides.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r1-436fc55c75/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r1-436fc55c75/preview.png",
+      "sourceHash": "436fc55c75"
+    },
+    {
+      "id": "snowman-snowman-05-printable-r1-c45682036c",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 05 printable 2",
+      "seedId": "snowman_05_printable",
+      "specificityLevel": 5,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 75296,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A single-piece snowman with three rounded segments, forward lean, and recessed buttons was successfully generated.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r1-c45682036c/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r1-c45682036c/preview.png",
+      "sourceHash": "c45682036c"
+    },
+    {
+      "id": "snowman-snowman-05-printable-r2-18431e405b",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 05 printable 3",
+      "seedId": "snowman_05_printable",
+      "specificityLevel": 5,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 69511,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A single-piece snowman was created using three stacked rounded blocks with forward offsets, side-face circular buttons, and a flat base.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r2-18431e405b/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r2-18431e405b/preview.png",
+      "sourceHash": "18431e405b"
+    },
+    {
+      "id": "snowman-snowman-05-printable-r2-d450de02f9",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 05 printable 3",
+      "seedId": "snowman_05_printable",
+      "specificityLevel": 5,
+      "repetition": 2,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 41390,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Three rounded-square segments with decreasing size, forward lean, and side-mounted button indentations were correctly implemented and joined into a single result.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r2-d450de02f9/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r2-d450de02f9/preview.png",
+      "sourceHash": "d450de02f9"
+    },
+    {
+      "id": "snowman-snowman-05-printable-r3-37ac698c81",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 05 printable 4",
+      "seedId": "snowman_05_printable",
+      "specificityLevel": 5,
+      "repetition": 3,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 38403,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a single manifold figurine with the requested triple-stacked curved geometry and side button recesses.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r3-37ac698c81/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-05-printable-r3-37ac698c81/preview.png",
+      "sourceHash": "37ac698c81"
+    },
+    {
+      "id": "snowman-snowman-07-dimensions-r0-35ad68d9bd",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 07 dimensions 1",
+      "seedId": "snowman_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 59336,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A 120mm tall curved snowman with three filleted blocks and six recessed button holes was successfully implemented and verified.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r0-35ad68d9bd/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r0-35ad68d9bd/preview.png",
+      "sourceHash": "35ad68d9bd"
+    },
+    {
+      "id": "snowman-snowman-07-dimensions-r0-db8ce52139",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 07 dimensions 1",
+      "seedId": "snowman_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 0,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 50196,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The snowman is correctly modeled with three stacked rounded blocks, a total height of 120mm, and the requested six recessed button holes.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r0-db8ce52139/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r0-db8ce52139/preview.png",
+      "sourceHash": "db8ce52139"
+    },
+    {
+      "id": "snowman-snowman-07-dimensions-r1-405ae3c644",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 07 dimensions 2",
+      "seedId": "snowman_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 96267,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A curved snowman figurine was successfully implemented using three stacked rounded-square blocks with horizontal edge fillets and six recessed side buttons.",
+        "attempt_count": 3,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r1-405ae3c644/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r1-405ae3c644/preview.png",
+      "sourceHash": "405ae3c644"
+    },
+    {
+      "id": "snowman-snowman-07-dimensions-r1-c59e6fdae4",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 07 dimensions 2",
+      "seedId": "snowman_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 1,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 61484,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a 120mm tall snowman with the specified forward lean, filleted rounded-square blocks, and lateral button recesses.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r1-c59e6fdae4/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r1-c59e6fdae4/preview.png",
+      "sourceHash": "c59e6fdae4"
+    },
+    {
+      "id": "snowman-snowman-07-dimensions-r2-0a976d9f4c",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 07 dimensions 3",
+      "seedId": "snowman_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 38349,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The snowman geometry was correctly implemented with the specified curved stack, rounded square profiles, and recessed side buttons.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r2-0a976d9f4c/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r2-0a976d9f4c/preview.png",
+      "sourceHash": "0a976d9f4c"
+    },
+    {
+      "id": "snowman-snowman-07-dimensions-r2-1b3da2ec92",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 07 dimensions 3",
+      "seedId": "snowman_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 2,
+      "experimentId": "cadybara_online_snowman_20260609_reps4",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 69051,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a 120mm tall snowman with the specified block dimensions, forward curvature via quadratic Z-Y translation, and recessed side holes.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r2-1b3da2ec92/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-07-dimensions-r2-1b3da2ec92/preview.png",
+      "sourceHash": "1b3da2ec92"
+    },
+    {
+      "id": "snowman-snowman-10-full-r0-a0604e0178",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 10 full 1",
+      "seedId": "snowman_10_full",
+      "specificityLevel": 10,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill2_20260613_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 131277,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully implements the 120mm snowman with three rounded sections, forward offsets, and lateral button cuts, and correctly assigns the model to `result`.",
+        "attempt_count": 3,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r0-a0604e0178/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r0-a0604e0178/preview.png",
+      "sourceHash": "a0604e0178"
+    },
+    {
+      "id": "snowman-snowman-10-full-r0-c0fef5332d",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 10 full 1",
+      "seedId": "snowman_10_full",
+      "specificityLevel": 10,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 71841,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully creates a single-piece snowman with the specified curved geometry, precise dimensions, and integrated button holes.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r0-c0fef5332d/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r0-c0fef5332d/preview.png",
+      "sourceHash": "c0fef5332d"
+    },
+    {
+      "id": "snowman-snowman-10-full-r0-d7f1393df6",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 10 full 1",
+      "seedId": "snowman_10_full",
+      "specificityLevel": 10,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 100627,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a single-piece snowman with three rounded sections, forward offsets, and lateral button holes.",
+        "attempt_count": 3,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r0-d7f1393df6/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r0-d7f1393df6/preview.png",
+      "sourceHash": "d7f1393df6"
+    },
+    {
+      "id": "snowman-snowman-10-full-r1-4be3be77a8",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 10 full 2",
+      "seedId": "snowman_10_full",
+      "specificityLevel": 10,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 97057,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The snowman geometry is correctly implemented with three rounded sections, the requested forward-curving offsets, specific dimensions reaching ~100mm height (per calculated stack 38+34+30 minus overlaps), and robustly placed button holes.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r1-4be3be77a8/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r1-4be3be77a8/preview.png",
+      "sourceHash": "4be3be77a8"
+    },
+    {
+      "id": "snowman-snowman-10-full-r1-f4cb7bc814",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 10 full 2",
+      "seedId": "snowman_10_full",
+      "specificityLevel": 10,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 65807,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully implements a 120mm tall curved snowman with three filleted rounded-square sections and six recessed button holes.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r1-f4cb7bc814/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r1-f4cb7bc814/preview.png",
+      "sourceHash": "f4cb7bc814"
+    },
+    {
+      "id": "snowman-snowman-10-full-r2-0448e664d2",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 10 full 3",
+      "seedId": "snowman_10_full",
+      "specificityLevel": 10,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 82801,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Curved snowman with three rounded-rectangular sections and side button holes successfully implemented as a single watertight solid.",
+        "attempt_count": 3,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r2-0448e664d2/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r2-0448e664d2/preview.png",
+      "sourceHash": "0448e664d2"
+    },
+    {
+      "id": "snowman-snowman-10-full-r2-a7ba113df2",
+      "family": "snowman",
+      "familyLabel": "Snowman",
+      "active": true,
+      "title": "snowman 10 full 3",
+      "seedId": "snowman_10_full",
+      "specificityLevel": 10,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 40595,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Single-piece snowman correctly implemented with stacked rounded-rect sections, forward offsets, and recessed button holes.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "snowman",
+        "curved",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r2-a7ba113df2/model.stl",
+      "previewUrl": "/dataset/v1/snowman/snowman-snowman-10-full-r2-a7ba113df2/preview.png",
+      "sourceHash": "a7ba113df2"
+    },
+    {
+      "id": "wall_hook-hook-01-minimal-r0-1e2ca2c8c7",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "minimal 1",
+      "seedId": "hook_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 65094,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A curved wall-mounted hook with a rectangular back plate and two countersunk screw holes was correctly implemented and successfully executed.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r0-1e2ca2c8c7/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r0-1e2ca2c8c7/preview.png",
+      "sourceHash": "1e2ca2c8c7"
+    },
     {
       "id": "wall_hook-hook-01-minimal-r0-52596089e3",
       "family": "wall_hook",
@@ -70,6 +1091,66 @@ const dataset = {
       "sourceHash": "2e563bf7fd"
     },
     {
+      "id": "wall_hook-hook-01-minimal-r1-d689185650",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "minimal 2",
+      "seedId": "hook_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 64944,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The script successfully generates a wall-mounted hook with a filleted base plate, screw holes, and a lofted tapered arm as specified.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r1-d689185650/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r1-d689185650/preview.png",
+      "sourceHash": "d689185650"
+    },
+    {
+      "id": "wall_hook-hook-01-minimal-r2-30ad1b4228",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "minimal 3",
+      "seedId": "hook_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 58287,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A curved wall-mounted hook with a countersunk-hole mounting plate and swept J-hook was successfully generated.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r2-30ad1b4228/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r2-30ad1b4228/preview.png",
+      "sourceHash": "30ad1b4228"
+    },
+    {
       "id": "wall_hook-hook-01-minimal-r2-a0999681fc",
       "family": "wall_hook",
       "familyLabel": "Wall hook",
@@ -98,6 +1179,36 @@ const dataset = {
       "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r2-a0999681fc/model.stl",
       "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r2-a0999681fc/preview.png",
       "sourceHash": "a0999681fc"
+    },
+    {
+      "id": "wall_hook-hook-01-minimal-r2-eed37fcbba",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "minimal 3",
+      "seedId": "hook_01_minimal",
+      "specificityLevel": 1,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 72741,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A wall-mounted hook with a plate, screw holes, and a swept elliptical arm was correctly implemented.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r2-eed37fcbba/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-01-minimal-r2-eed37fcbba/preview.png",
+      "sourceHash": "eed37fcbba"
     },
     {
       "id": "wall_hook-hook-03-clear-r0-cfd0760374",
@@ -130,6 +1241,36 @@ const dataset = {
       "sourceHash": "cfd0760374"
     },
     {
+      "id": "wall_hook-hook-03-clear-r0-fd6379ff92",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "clear 1",
+      "seedId": "hook_03_clear",
+      "specificityLevel": 3,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 32822,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A single-piece headphone hook with a 60x25mm back plate, countersunk mounting holes, and a swept J-curve hook profile has been successfully implemented.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r0-fd6379ff92/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r0-fd6379ff92/preview.png",
+      "sourceHash": "fd6379ff92"
+    },
+    {
       "id": "wall_hook-hook-03-clear-r1-25cc4758f9",
       "family": "wall_hook",
       "familyLabel": "Wall hook",
@@ -158,6 +1299,96 @@ const dataset = {
       "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r1-25cc4758f9/model.stl",
       "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r1-25cc4758f9/preview.png",
       "sourceHash": "25cc4758f9"
+    },
+    {
+      "id": "wall_hook-hook-03-clear-r1-62f8d42e42",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "clear 2",
+      "seedId": "hook_03_clear",
+      "specificityLevel": 3,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 72315,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A single-piece solid hook with a 40x60mm backplate, mounting holes, and a swept curved profile was successfully generated.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r1-62f8d42e42/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r1-62f8d42e42/preview.png",
+      "sourceHash": "62f8d42e42"
+    },
+    {
+      "id": "wall_hook-hook-03-clear-r1-63dfa3f51a",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "clear 2",
+      "seedId": "hook_03_clear",
+      "specificityLevel": 3,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 67584,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The script successfully generates a single-piece mounting plate with countersunk holes and a curved swept hook arm.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r1-63dfa3f51a/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r1-63dfa3f51a/preview.png",
+      "sourceHash": "63dfa3f51a"
+    },
+    {
+      "id": "wall_hook-hook-03-clear-r2-61f138080a",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "clear 3",
+      "seedId": "hook_03_clear",
+      "specificityLevel": 3,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 100794,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The script successfully generates a wall-mounted hook with a filleted base plate, mounting holes, and a swept hook.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r2-61f138080a/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-03-clear-r2-61f138080a/preview.png",
+      "sourceHash": "61f138080a"
     },
     {
       "id": "wall_hook-hook-03-clear-r2-6ec2ddec84",
@@ -190,6 +1421,66 @@ const dataset = {
       "sourceHash": "6ec2ddec84"
     },
     {
+      "id": "wall_hook-hook-05-printable-r0-2234521fc8",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "printable 1",
+      "seedId": "hook_05_printable",
+      "specificityLevel": 5,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 80962,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a single-piece wall hook with a plate, recessed holes, and a swept hook.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r0-2234521fc8/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r0-2234521fc8/preview.png",
+      "sourceHash": "2234521fc8"
+    },
+    {
+      "id": "wall_hook-hook-05-printable-r0-4ed9a2365e",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "printable 1",
+      "seedId": "hook_05_printable",
+      "specificityLevel": 5,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 92980,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The script successfully generates a single-solid wall hook by filleting components independently before union, avoiding the previous geometry kernel errors.",
+        "attempt_count": 3,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r0-4ed9a2365e/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r0-4ed9a2365e/preview.png",
+      "sourceHash": "4ed9a2365e"
+    },
+    {
       "id": "wall_hook-hook-05-printable-r0-fbf9d4de0d",
       "family": "wall_hook",
       "familyLabel": "Wall hook",
@@ -218,6 +1509,306 @@ const dataset = {
       "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r0-fbf9d4de0d/model.stl",
       "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r0-fbf9d4de0d/preview.png",
       "sourceHash": "fbf9d4de0d"
+    },
+    {
+      "id": "wall_hook-hook-05-printable-r1-1ea7e37300",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "printable 2",
+      "seedId": "hook_05_printable",
+      "specificityLevel": 5,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 70872,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "Rectangular wall plate with counterbored holes and a swept hook profile was successfully generated.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r1-1ea7e37300/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r1-1ea7e37300/preview.png",
+      "sourceHash": "1ea7e37300"
+    },
+    {
+      "id": "wall_hook-hook-05-printable-r1-68f5884796",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "printable 2",
+      "seedId": "hook_05_printable",
+      "specificityLevel": 5,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 99079,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully generates a wall plate with vertically aligned screw holes and a swept hook profile as required.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r1-68f5884796/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r1-68f5884796/preview.png",
+      "sourceHash": "68f5884796"
+    },
+    {
+      "id": "wall_hook-hook-05-printable-r2-2f3a8b41be",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "printable 3",
+      "seedId": "hook_05_printable",
+      "specificityLevel": 5,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 94891,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The wall hook implements a rectangular plate with recessed vertical holes and a curved hook profile as requested.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r2-2f3a8b41be/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r2-2f3a8b41be/preview.png",
+      "sourceHash": "2f3a8b41be"
+    },
+    {
+      "id": "wall_hook-hook-05-printable-r2-95fe804b29",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "printable 3",
+      "seedId": "hook_05_printable",
+      "specificityLevel": 5,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill_solidish_20260615_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 63138,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A single-piece wall hook with a rectangular plate, recessed screw holes, and a swept upward-curving hook was successfully implemented and executed.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r2-95fe804b29/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-05-printable-r2-95fe804b29/preview.png",
+      "sourceHash": "95fe804b29"
+    },
+    {
+      "id": "wall_hook-hook-07-dimensions-r0-a6fd2bc057",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "dimensions 1",
+      "seedId": "hook_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 73864,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully creates a wall-mounted hook with the specified dimensions (90x38x6mm plate, 5mm holes at 55mm spacing, and a 14mm thick swept hook profile).",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r0-a6fd2bc057/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r0-a6fd2bc057/preview.png",
+      "sourceHash": "a6fd2bc057"
+    },
+    {
+      "id": "wall_hook-hook-07-dimensions-r0-b3f7279213",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "dimensions 1",
+      "seedId": "hook_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 0,
+      "experimentId": "cadybara_online_gapfill2_20260613_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 62847,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The hook assembly correctly implements the 90x38x6mm plate, 55mm hole spacing, and the swept 14mm thick arm with an upward curve.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r0-b3f7279213/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r0-b3f7279213/preview.png",
+      "sourceHash": "b3f7279213"
+    },
+    {
+      "id": "wall_hook-hook-07-dimensions-r1-2343690570",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "dimensions 2",
+      "seedId": "hook_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 38070,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "A single solid headphone hook was implemented with the specified 90x38x6mm plate, 55mm projection, and 5mm csk holes.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r1-2343690570/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r1-2343690570/preview.png",
+      "sourceHash": "2343690570"
+    },
+    {
+      "id": "wall_hook-hook-07-dimensions-r1-8398ca606a",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "dimensions 2",
+      "seedId": "hook_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 1,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 84963,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The implementation correctly produces the 90x38x6mm plate with 55mm spaced holes and a swept hook arm that matches the 55mm projection and thickness requirements.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r1-8398ca606a/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r1-8398ca606a/preview.png",
+      "sourceHash": "8398ca606a"
+    },
+    {
+      "id": "wall_hook-hook-07-dimensions-r2-93ec870b35",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "dimensions 3",
+      "seedId": "hook_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 73405,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The implementation correctly produces the 90x38x6mm plate, accurately spaced 55mm screw holes, and the swept hook geometry with the required fillets.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r2-93ec870b35/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r2-93ec870b35/preview.png",
+      "sourceHash": "93ec870b35"
+    },
+    {
+      "id": "wall_hook-hook-07-dimensions-r2-9e0e67c5cd",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "dimensions 3",
+      "seedId": "hook_07_dimensions",
+      "specificityLevel": 7,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill_20260612_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 66844,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The code successfully creates the 90x38x6mm plate with 5mm holes and a swept hook projection conforming to the requested design.",
+        "attempt_count": 2,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r2-9e0e67c5cd/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-07-dimensions-r2-9e0e67c5cd/preview.png",
+      "sourceHash": "9e0e67c5cd"
     },
     {
       "id": "wall_hook-hook-10-full-r0-0c5d404fb2",
@@ -278,6 +1869,36 @@ const dataset = {
       "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-10-full-r1-9f7faeec72/model.stl",
       "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-10-full-r1-9f7faeec72/preview.png",
       "sourceHash": "9f7faeec72"
+    },
+    {
+      "id": "wall_hook-hook-10-full-r2-5c71c625f9",
+      "family": "wall_hook",
+      "familyLabel": "Wall hook",
+      "active": true,
+      "title": "full 3",
+      "seedId": "hook_10_full",
+      "specificityLevel": 10,
+      "repetition": 2,
+      "experimentId": "cadybara_online_gapfill3_20260614_reps3",
+      "modelName": "cadybara-agent-default",
+      "provider": "cadybara_api",
+      "latencyMs": 39901,
+      "validation": {
+        "valid": true,
+        "confidence": 1,
+        "issues": [],
+        "brief_reason": "The model correctly implements the 90x38x6mm backplate with required holes, hook extension, and support rib as a single solid.",
+        "attempt_count": 1,
+        "max_attempts": 3
+      },
+      "tags": [
+        "hook",
+        "wall mounted",
+        "printable"
+      ],
+      "stlUrl": "/dataset/v1/wall_hook/wall_hook-hook-10-full-r2-5c71c625f9/model.stl",
+      "previewUrl": "/dataset/v1/wall_hook/wall_hook-hook-10-full-r2-5c71c625f9/preview.png",
+      "sourceHash": "5c71c625f9"
     },
     {
       "id": "wall_hook-hook-10-full-r2-d419fecba7",

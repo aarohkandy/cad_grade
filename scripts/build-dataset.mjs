@@ -15,6 +15,11 @@ const SOURCES = [
   "projects/cadybara-online-testing/workspace/runs/cadybara_online_smoke_blind_extra/results.jsonl",
   "projects/cadybara-online-testing/workspace/runs/cadybara_online_smoke_blind_20260608_reps3/results.jsonl",
   "projects/cadybara-online-testing/workspace/runs/cadybara_online_hook_20260611_reps3/results.jsonl",
+  "projects/cadybara-online-testing/workspace/runs/cadybara_online_gapfill_20260612_reps3/results.jsonl",
+  "projects/cadybara-online-testing/workspace/runs/cadybara_online_gapfill2_20260613_reps3/results.jsonl",
+  "projects/cadybara-online-testing/workspace/runs/cadybara_online_gapfill3_20260614_reps3/results.jsonl",
+  "projects/cadybara-online-testing/workspace/runs/cadybara_online_gapfill_solidish_20260615_reps3/results.jsonl",
+  "projects/cadybara-online-testing/workspace/runs/cadybara_online_snowman_20260609_reps4/results.jsonl",
 ];
 
 const FAMILY_META = {
@@ -27,6 +32,11 @@ const FAMILY_META = {
     family: "wall_hook",
     familyLabel: "Wall hook",
     tags: ["hook", "wall mounted", "printable"],
+  },
+  snowman: {
+    family: "snowman",
+    familyLabel: "Snowman",
+    tags: ["snowman", "curved", "printable"],
   },
 };
 

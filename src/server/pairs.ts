@@ -46,6 +46,27 @@ function pairBattles(pairStats: Map<string, PairStatLike> | undefined, leftId: s
   return Number.isFinite(value) ? value : 0;
 }
 
+function familyBattleCount(
+  family: ArenaFamily,
+  familyItems: ArenaItem[],
+  itemStats: Map<string, ItemStatLike> | undefined,
+  pairStats: Map<string, PairStatLike> | undefined,
+): number {
+  let pairTotal = 0;
+  let pairRows = 0;
+  for (const stat of pairStats?.values() || []) {
+    if (stat.family !== family) continue;
+    const battles = Number(stat.battle_count);
+    if (!Number.isFinite(battles)) continue;
+    pairTotal += battles;
+    pairRows += 1;
+  }
+  if (pairRows > 0) return pairTotal;
+
+  const itemBattleTotal = familyItems.reduce((sum, item) => sum + battleCount(itemStats?.get(item.id)), 0);
+  return itemBattleTotal / 2;
+}
+
 export function selectBattleFamily(input: {
   items: ArenaItem[];
   families: ArenaFamily[];
@@ -56,10 +77,19 @@ export function selectBattleFamily(input: {
 }): ArenaFamily {
   const random = input.random ?? Math.random;
   const votedPairKeys = input.votedPairKeys ?? new Set<string>();
-  const scored = input.families
-    .map((family) => {
-      const familyItems = input.items.filter((item) => item.family === family);
-      const pairs = allPairs(familyItems);
+  const familyRows = input.families.map((family) => {
+    const familyItems = input.items.filter((item) => item.family === family);
+    const pairs = allPairs(familyItems);
+    return {
+      family,
+      familyItems,
+      pairs,
+      familyBattles: familyBattleCount(family, familyItems, input.itemStats, input.pairStats),
+    };
+  });
+
+  const scored = familyRows
+    .map(({ family, familyItems, pairs, familyBattles }) => {
       if (!pairs.length) return { family, score: Number.POSITIVE_INFINITY };
 
       const availablePairCount = pairs.filter(([left, right]) => !votedPairKeys.has(pairKey(left.id, right.id))).length;
@@ -69,7 +99,7 @@ export function selectBattleFamily(input: {
       const pairCoverageRatio = coveredPairs / pairs.length;
 
       const exhaustedForSessionPenalty = availablePairCount > 0 ? 0 : 10_000;
-      const score = exhaustedForSessionPenalty + itemBattleAverage * 100 + pairCoverageRatio * 35 + random();
+      const score = exhaustedForSessionPenalty + familyBattles * 1000 + itemBattleAverage * 10 + pairCoverageRatio * 35 + random();
       return { family, score };
     })
     .sort((left, right) => left.score - right.score);

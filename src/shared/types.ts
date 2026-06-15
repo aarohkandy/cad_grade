@@ -1,4 +1,4 @@
-export type ArenaFamily = "wall_planter" | "wall_hook";
+export type ArenaFamily = "wall_planter" | "wall_hook" | "snowman";
 
 export interface ArenaItem {
   id: string;

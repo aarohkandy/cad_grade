@@ -11,12 +11,12 @@ function fail(message) {
 async function main() {
   const payload = JSON.parse(await readFile(DATA_PATH, "utf8"));
   const ids = new Set();
-  if (payload.itemCount !== 40) fail(`Expected 40 items, found ${payload.itemCount}`);
+  if (payload.itemCount !== 94) fail(`Expected 94 items, found ${payload.itemCount}`);
   for (const item of payload.items) {
     if (ids.has(item.id)) fail(`Duplicate item id: ${item.id}`);
     ids.add(item.id);
     if (!item.active) fail(`Inactive item in launch dataset: ${item.id}`);
-    if (!["wall_planter", "wall_hook"].includes(item.family)) {
+    if (!["wall_planter", "wall_hook", "snowman"].includes(item.family)) {
       fail(`Unexpected family for ${item.id}: ${item.family}`);
     }
     for (const key of ["stlUrl", "previewUrl"]) {
@@ -30,7 +30,8 @@ async function main() {
     return counts;
   }, {});
   if (families.wall_planter !== 30) fail(`Expected 30 wall planters, found ${families.wall_planter}`);
-  if (families.wall_hook !== 10) fail(`Expected 10 wall hooks, found ${families.wall_hook}`);
+  if (families.wall_hook !== 31) fail(`Expected 31 wall hooks, found ${families.wall_hook}`);
+  if (families.snowman !== 33) fail(`Expected 33 snowmen, found ${families.snowman}`);
   console.log(`Dataset OK: ${payload.itemCount} items`);
 }
 
