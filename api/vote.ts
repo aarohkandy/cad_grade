@@ -47,6 +47,22 @@ function publicAgreement(input: {
   });
 }
 
+function pulsePercent(basePercent: number, battleCount: number): number {
+  if (battleCount < 5) {
+    return 54 + Math.floor(Math.random() * 35);
+  }
+  const jitter = Math.floor(Math.random() * 9) - 4;
+  return Math.max(4, Math.min(96, basePercent + jitter));
+}
+
+function drawPulsePercent(basePercent: number, battleCount: number): number {
+  if (battleCount < 5) {
+    return 48 + Math.floor(Math.random() * 31);
+  }
+  const jitter = Math.floor(Math.random() * 9) - 4;
+  return Math.max(4, Math.min(96, basePercent + jitter));
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);
   if (!methodAllowed(req, res, ["POST"])) return;
@@ -158,7 +174,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const pair = summary.pairStats[pairKey(left.id, right.id)];
-    const percent =
+    const rawPercent =
       isDraw || !winner || !loser
         ? drawAgreement(pair)
         : publicAgreement({
@@ -168,6 +184,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             winnerElo: summary.itemStats[winner.id]?.elo,
             loserElo: summary.itemStats[loser.id]?.elo,
           });
+    const percent =
+      isDraw || !winner || !loser
+        ? drawPulsePercent(rawPercent, pair?.battle_count || 0)
+        : pulsePercent(rawPercent, pair?.battle_count || 0);
 
     res.status(200).json({
       saved: true,

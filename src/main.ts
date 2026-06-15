@@ -6,11 +6,9 @@ import type { ArenaFamily, ArenaItem, BattleResponse, HoldChallenge, VoteRespons
 const SESSION_KEY = "capybara-arena-session";
 const SEEN_PAIRS_KEY = "capybara-arena-seen-pairs";
 const VOTE_HISTORY_KEY = "capybara-arena-vote-history";
-const FAST_CHOICE_MS = 550;
-const FAST_LOADED_CHOICE_MS = 450;
 const RAPID_VOTE_WINDOW_MS = 10000;
 const RAPID_VOTE_LIMIT = 12;
-const AUTO_NEXT_DELAY_MS = 800;
+const AUTO_NEXT_DELAY_MS = 450;
 
 interface CurrentBattle extends BattleResponse {
   localOnly?: boolean;
@@ -27,9 +25,6 @@ app.innerHTML = `
       <a class="brand-lockup" href="#top" aria-label="Capybara Arena home">
         <span class="brand-word">CAPYBARA ARENA</span>
       </a>
-      <div class="nav-actions">
-        <button class="nav-action primary-action" id="start-now" type="button">Start now</button>
-      </div>
     </nav>
     <main class="hero-center">
       <h1>cad arena</h1>
@@ -96,7 +91,6 @@ app.innerHTML = `
 
 const dom = {
   arena: document.querySelector("#arena") as HTMLElement,
-  startNow: document.querySelector("#start-now") as HTMLButtonElement,
   arenaStatus: document.querySelector("#arena-status") as HTMLElement,
   leftPanel: document.querySelector('[data-side="left"]') as HTMLElement,
   rightPanel: document.querySelector('[data-side="right"]') as HTMLElement,
@@ -274,15 +268,7 @@ function canUseLocalFallback(): boolean {
 
 function shouldVerifyVote(): boolean {
   const now = Date.now();
-  const started = Date.parse(battleStartedAt);
-  const loaded = Date.parse(modelsLoadedAt);
-  const battleElapsedMs = Number.isFinite(started) ? now - started : Number.POSITIVE_INFINITY;
-  const loadedElapsedMs = Number.isFinite(loaded) ? now - loaded : Number.POSITIVE_INFINITY;
-  return (
-    battleElapsedMs < FAST_CHOICE_MS ||
-    loadedElapsedMs < FAST_LOADED_CHOICE_MS ||
-    recentVoteTimes(now).length >= RAPID_VOTE_LIMIT
-  );
+  return recentVoteTimes(now).length >= RAPID_VOTE_LIMIT;
 }
 
 function clearFeedback(): void {
@@ -472,10 +458,6 @@ function showVoteError(error: unknown): void {
   dom.feedbackTitle.textContent = "Try again";
   dom.feedbackCopy.textContent = "The arena did not catch that vote. Tap a model again.";
 }
-
-dom.startNow.addEventListener("click", () => {
-  dom.arena.scrollIntoView({ behavior: "smooth" });
-});
 
 dom.voteLeft.addEventListener("click", () => {
   if (currentBattle) chooseVote(currentBattle.left.id).catch(showVoteError);
