@@ -60,7 +60,6 @@ export class StlViewer {
   }
 
   async load(stlUrl: string, label: string): Promise<void> {
-    this.clearRoot();
     const geometry = await new STLLoader().loadAsync(stlUrl);
     if (this.disposed) return;
     geometry.computeVertexNormals();
@@ -78,6 +77,7 @@ export class StlViewer {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     this.addEdges(mesh);
+    this.clearRoot();
     this.root.add(mesh);
     this.root.rotation.set(0, 0, 0);
     this.lastFrameMs = 0;
@@ -145,8 +145,8 @@ export class StlViewer {
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 1);
-    const distance = maxDim / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
-    this.camera.position.set(center.x + distance * 0.18, center.y - distance * 1.04, center.z + distance * 1.18);
+    const distance = (maxDim / (2 * Math.tan((this.camera.fov * Math.PI) / 360))) * 1.18;
+    this.camera.position.set(center.x + distance * 0.22, center.y - distance * 0.72, center.z + distance * 1.48);
     this.camera.near = Math.max(distance / 120, 0.1);
     this.camera.far = distance * 24;
     this.camera.updateProjectionMatrix();

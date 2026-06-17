@@ -70,18 +70,92 @@ async function waitForNonBlankCanvas(page, selector) {
   return latest;
 }
 
+async function assertCoreLoopVisible(page, name) {
+  const state = await page.evaluate(() => {
+    const rectFor = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left,
+        right: rect.right,
+        width: rect.width,
+        height: rect.height,
+      };
+    };
+    const inViewport = (rect) =>
+      Boolean(
+        rect &&
+          rect.top >= -2 &&
+          rect.left >= -2 &&
+          rect.right <= window.innerWidth + 2 &&
+          rect.bottom <= window.innerHeight + 2 &&
+          rect.width > 0 &&
+          rect.height > 0,
+      );
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      scrollHeight: document.documentElement.scrollHeight,
+      bodyHeight: document.body.scrollHeight,
+      holdHidden: document.querySelector("#hold-panel")?.classList.contains("is-hidden") ?? false,
+      leftButton: rectFor("#vote-left"),
+      drawButton: rectFor("#vote-draw"),
+      rightButton: rectFor("#vote-right"),
+      leftCanvas: rectFor("#left-canvas"),
+      rightCanvas: rectFor("#right-canvas"),
+      leftEnabled: !document.querySelector("#vote-left")?.disabled,
+      drawEnabled: !document.querySelector("#vote-draw")?.disabled,
+      rightEnabled: !document.querySelector("#vote-right")?.disabled,
+      allVisible:
+        inViewport(rectFor("#vote-left")) &&
+        inViewport(rectFor("#vote-draw")) &&
+        inViewport(rectFor("#vote-right")) &&
+        inViewport(rectFor("#left-canvas")) &&
+        inViewport(rectFor("#right-canvas")),
+    };
+  });
+
+  if (!state.leftEnabled || !state.drawEnabled || !state.rightEnabled) {
+    throw new Error(`${name} vote controls were not enabled: ${JSON.stringify(state)}`);
+  }
+  if (!state.holdHidden) {
+    throw new Error(`${name} hold verification was visible during normal voting`);
+  }
+  if (name === "desktop" && !state.allVisible) {
+    throw new Error(`${name} core loop was not fully visible: ${JSON.stringify(state)}`);
+  }
+  if (name === "desktop" && state.scrollHeight > state.viewport.height + 2) {
+    throw new Error(`${name} requires vertical scroll: ${JSON.stringify(state)}`);
+  }
+}
+
+async function assertVoteFeedbackAndAdvance(page, name) {
+  await page.locator("#vote-left").click();
+  await page.locator("#feedback-panel:not(.is-hidden)").waitFor({ timeout: 10_000 });
+  const feedback = await page.locator("#feedback-title").textContent();
+  if (!String(feedback || "").toLowerCase().includes("saved")) {
+    throw new Error(`${name} unexpected feedback title: ${feedback}`);
+  }
+  await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
+  const holdHidden = await page.locator("#hold-panel").evaluate((panel) => panel.classList.contains("is-hidden"));
+  if (!holdHidden) throw new Error(`${name} hold verification appeared after normal vote`);
+}
+
 async function checkViewport(browser, name, viewport) {
   const page = await browser.newPage({ viewport });
   page.setDefaultTimeout(30_000);
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
   await page.locator("#arena").waitFor({ state: "visible" });
-  await page.locator("#arena").scrollIntoViewIfNeeded();
   await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
   const left = await waitForNonBlankCanvas(page, "#left-canvas");
   const right = await waitForNonBlankCanvas(page, "#right-canvas");
   if (left.nonTransparent < 500 || right.nonTransparent < 500) {
     throw new Error(`${name} canvas sample was blank: ${JSON.stringify({ left, right })}`);
   }
+  await assertCoreLoopVisible(page, name);
+  await assertVoteFeedbackAndAdvance(page, name);
   const screenshotPath = path.join(OUT_DIR, `${name}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
   console.log(`${name}: left=${left.nonTransparent} right=${right.nonTransparent} screenshot=${screenshotPath}`);
@@ -112,7 +186,7 @@ try {
   await waitForServer();
   const browser = await chromium.launch({ headless: true });
   try {
-    await checkViewport(browser, "desktop", { width: 1440, height: 1000 });
+    await checkViewport(browser, "desktop", { width: 1280, height: 720 });
     await checkViewport(browser, "mobile", { width: 390, height: 900 });
   } finally {
     await browser.close();
