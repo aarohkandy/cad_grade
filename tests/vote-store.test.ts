@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { applyVoteToSummary, emptySummary, sessionPairPath, summaryFromVotes, votePath, type StoredVoteRecord } from "../src/server/voteStore";
-import type { ArenaItem } from "../src/shared/types";
+import type { ArenaFamily, ArenaItem } from "../src/shared/types";
 
-function item(id: string): ArenaItem {
+function item(id: string, family: ArenaFamily = "wall_planter"): ArenaItem {
   return {
     id,
-    family: "wall_planter",
-    familyLabel: "Wall planter",
+    family,
+    familyLabel: family === "wall_planter" ? "Wall planter" : family === "wall_hook" ? "Wall hook" : "Snowman",
     active: true,
     title: id,
     seedId: id,
@@ -118,6 +118,46 @@ describe("vote store helpers", () => {
     expect(summary.itemStats.a.elo).toBe(1200);
     expect(summary.itemStats.b.elo).toBe(1200);
     expect(summary.pairStats.a__b.draw_count).toBe(1);
+  });
+
+  it("scores cross-family votes globally and records mixed pair metadata", () => {
+    const left = item("a", "wall_planter");
+    const right = item("h", "wall_hook");
+    const summary = applyVoteToSummary(
+      emptySummary("dataset", ["wall_planter", "wall_hook", "snowman"]),
+      vote({
+        family: "mixed",
+        right_item_id: "h",
+        winner_item_id: "h",
+        loser_item_id: "a",
+        raw_payload: {
+          battle_id: "battle",
+          left_item_id: "a",
+          right_item_id: "h",
+          winner_item_id: "h",
+          loser_item_id: "a",
+          vote_result: "winner",
+        },
+      }),
+      left,
+      right,
+      right,
+      left,
+    );
+
+    expect(summary.mixedVotes).toBe(1);
+    expect(summary.mixedAcceptedVotes).toBe(1);
+    expect(summary.families.wall_planter.acceptedVotes).toBe(1);
+    expect(summary.families.wall_hook.acceptedVotes).toBe(1);
+    expect(summary.itemStats.h.wins).toBe(1);
+    expect(summary.itemStats.a.losses).toBe(1);
+    expect(summary.itemStats.h.elo).toBeGreaterThan(1200);
+    expect(summary.pairStats.a__h).toMatchObject({
+      family: "mixed",
+      item_a_family: "wall_planter",
+      item_b_family: "wall_hook",
+      item_b_wins: 1,
+    });
   });
 
   it("can derive a summary from exported raw votes", () => {

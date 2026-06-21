@@ -1,4 +1,5 @@
 export type ArenaFamily = "wall_planter" | "wall_hook" | "snowman";
+export type BattleGroup = ArenaFamily | "mixed";
 
 export interface ArenaItem {
   id: string;
@@ -47,7 +48,7 @@ export interface HoldSubmission extends HoldChallenge {
 export interface BattleResponse {
   battleId: string;
   datasetId: string;
-  family: ArenaFamily;
+  family: BattleGroup;
   left: ArenaItem;
   right: ArenaItem;
   hold: HoldChallenge;
@@ -85,6 +86,8 @@ export interface PublicStats {
   itemCount: number;
   totalVotes: number;
   acceptedVotes: number;
+  mixedVoteCount: number;
+  mixedAcceptedVoteCount: number;
   families: Array<{
     family: ArenaFamily;
     label: string;

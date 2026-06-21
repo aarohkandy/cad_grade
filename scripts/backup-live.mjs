@@ -225,6 +225,22 @@ export async function listVoteRecordsFromBlob({ prefix = VOTE_PREFIX } = {}) {
   return records.sort((left, right) => String(left.vote.created_at).localeCompare(String(right.vote.created_at)));
 }
 
+export async function listVoteRecordsFromExport({ baseUrl, limit = 100_000 } = {}) {
+  if (!baseUrl) throw new Error("listVoteRecordsFromExport requires baseUrl");
+  const url = new URL("/api/export", baseUrl);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", String(limit));
+  const payload = await fetchJson(url);
+  const votes = Array.isArray(payload?.votes) ? payload.votes : [];
+  return votes
+    .map((vote) => ({
+      vote,
+      pathname: vote.storage?.path || `export/${vote.id || vote.created_at || "unknown"}.json`,
+      uploadedAt: vote.created_at || "",
+    }))
+    .sort((left, right) => String(left.vote.created_at).localeCompare(String(right.vote.created_at)));
+}
+
 async function deleteBlobPaths(paths) {
   const { del } = await import("@vercel/blob");
   const deleted = [];
@@ -251,7 +267,15 @@ export async function backupLive({
 } = {}) {
   if (!baseUrl) throw new Error("backupLive requires baseUrl");
   await loadEnvFile();
-  const records = await listVoteRecordsFromBlob();
+  let source = "blob";
+  let records;
+  try {
+    records = await listVoteRecordsFromBlob();
+  } catch (error) {
+    source = "export";
+    console.warn(`Blob pull failed; falling back to /api/export: ${error instanceof Error ? error.message : String(error)}`);
+    records = await listVoteRecordsFromExport({ baseUrl });
+  }
   const health = await fetchJson(new URL("/api/health", baseUrl));
   const stats = await fetchJson(new URL("/api/stats", baseUrl));
   const backup = await writeBackupFiles({ outRoot, baseUrl, health, stats, records, now });
@@ -302,6 +326,7 @@ export async function backupLive({
 
   return {
     ...backup,
+    source,
     recordCount: records.length,
     pruneCandidates: pruneCandidates.length,
     deletedCount: pruneResult.deleted.length,
@@ -327,6 +352,7 @@ async function main() {
 
   console.log(`url=${baseUrl}`);
   console.log(`snapshot=${resolve(result.snapshotDir)}`);
+  console.log(`source=${result.source}`);
   console.log(`pulled_votes=${result.recordCount}`);
   console.log(`daily_votes=${result.manifest.dailyVoteCount}`);
   console.log(`prune_candidates=${result.pruneCandidates}`);

@@ -22,6 +22,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       itemCount: dataset.itemCount,
       totalVotes: summary.totalVotes,
       acceptedVotes: summary.acceptedVotes,
+      mixedVoteCount: summary.mixedVotes || 0,
+      mixedAcceptedVoteCount: summary.mixedAcceptedVotes || 0,
       families: familyRows.map((row) => ({
         ...row,
         voteCount: summary.families[row.family]?.acceptedVotes || 0,

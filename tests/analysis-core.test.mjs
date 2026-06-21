@@ -118,6 +118,33 @@ describe("local analysis core", () => {
     expect(b.elo).toBe(1200);
   });
 
+  it("includes cross-family votes in rankings and mixed pair rows", () => {
+    const analysis = analyzeVotes({
+      dataset: dataset(),
+      votes: [
+        vote({
+          id: "mixed",
+          family: "mixed",
+          left_item_id: "a",
+          right_item_id: "h1",
+          winner_item_id: "h1",
+          loser_item_id: "a",
+        }),
+      ],
+      generatedAtUtc: "2026-06-14T12:10:00.000Z",
+    });
+
+    const hook = analysis.rankingsClean.find((row) => row.item_id === "h1");
+    const planter = analysis.rankingsClean.find((row) => row.item_id === "a");
+    const mixedPair = analysis.pairRows.find((row) => row.pair_key === "a__h1");
+    expect(hook.wins).toBe(1);
+    expect(hook.elo).toBeGreaterThan(1200);
+    expect(planter.losses).toBe(1);
+    expect(mixedPair).toMatchObject({ family: "mixed", battles: 1, item_b_wins: 1 });
+    expect(analysis.familyRows.find((row) => row.family === "wall_hook").raw_votes).toBe(1);
+    expect(analysis.familyRows.find((row) => row.family === "wall_planter").raw_votes).toBe(1);
+  });
+
   it("puts under-covered items and pairs first in coverage gaps", () => {
     const analysis = analyzeVotes({
       dataset: dataset(),

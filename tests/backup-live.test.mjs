@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   completedHourCutoff,
   isProtectedBlobPath,
+  listVoteRecordsFromExport,
   mergeDailyVotes,
   pruneCandidatesForCompletedHour,
   verifyPruneSafety,
@@ -74,6 +75,21 @@ describe("live backup helpers", () => {
       expect((await readJsonl(join(dir, "daily", "votes-2026-06-14.jsonl"))).length).toBe(2);
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("can build backup records from the export endpoint", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      expect(String(url)).toContain("/api/export");
+      return new Response(JSON.stringify({ votes: [vote("exported")] }), { status: 200 });
+    };
+    try {
+      const records = await listVoteRecordsFromExport({ baseUrl: "https://cadbattle.vercel.app" });
+      expect(records).toHaveLength(1);
+      expect(records[0]).toMatchObject({ pathname: "votes/v1/2026-06-14/exported.json" });
+    } finally {
+      globalThis.fetch = originalFetch;
     }
   });
 

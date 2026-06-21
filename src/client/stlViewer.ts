@@ -9,7 +9,6 @@ export class StlViewer {
   private controls: OrbitControls;
   private root = new THREE.Group();
   private frame = 0;
-  private lastFrameMs = 0;
   private disposed = false;
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -80,7 +79,6 @@ export class StlViewer {
     this.clearRoot();
     this.root.add(mesh);
     this.root.rotation.set(0, 0, 0);
-    this.lastFrameMs = 0;
     this.fitCamera();
   }
 
@@ -102,11 +100,8 @@ export class StlViewer {
     this.camera.updateProjectionMatrix();
   };
 
-  private animate = (time = 0): void => {
+  private animate = (): void => {
     if (this.disposed) return;
-    const deltaMs = this.lastFrameMs ? Math.min(40, time - this.lastFrameMs) : 16;
-    this.lastFrameMs = time;
-    this.root.rotation.z += deltaMs * 0.00055;
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
     this.frame = requestAnimationFrame(this.animate);

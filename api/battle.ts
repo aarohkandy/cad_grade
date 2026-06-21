@@ -1,13 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createHoldChallenge } from "../src/server/hold.js";
 import { activeItems, dataset, itemsForFamily, normalizeFamily, publicItem } from "../src/server/items.js";
-import {
-  battleId,
-  selectBattleFamily,
-  selectBattlePair,
-  type ItemStatLike,
-  type PairStatLike,
-} from "../src/server/pairs.js";
+import { battleId, pairGroup, selectBattlePair, type ItemStatLike, type PairStatLike } from "../src/server/pairs.js";
 import { firstQueryValue, methodAllowed, noStore } from "../src/server/http.js";
 import { readVoteSummary, storageMode } from "../src/server/voteStore.js";
 
@@ -38,28 +32,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     pairStats.clear();
   }
 
-  const family =
-    requestedFamily === "any"
-      ? selectBattleFamily({
-          items: activeItems,
-          families: dataset.families,
-          votedPairKeys,
-          itemStats,
-          pairStats,
-        })
-      : requestedFamily;
-  const familyItems = itemsForFamily(family);
-  if (familyItems.length < 2) {
+  const candidateItems = requestedFamily === "any" ? activeItems : itemsForFamily(requestedFamily);
+  if (candidateItems.length < 2) {
     res.status(404).json({ error: "not_enough_items" });
     return;
   }
 
   const [left, right] = selectBattlePair({
-    items: familyItems,
+    items: candidateItems,
     votedPairKeys,
     itemStats,
     pairStats,
   });
+  const family = pairGroup(left, right);
 
   res.status(200).json({
     battleId: battleId(left.id, right.id),
@@ -70,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     hold: createHoldChallenge(),
     stats: {
       itemCount: activeItems.length,
-      familyItemCount: familyItems.length,
+      familyItemCount: candidateItems.length,
       dataMode: storageMode() === "blob" ? "live" : "local",
     },
   });

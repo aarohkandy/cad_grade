@@ -131,8 +131,24 @@ async function assertCoreLoopVisible(page, name) {
   }
 }
 
+async function assertCanvasDragDoesNotVote(page, name) {
+  const canvasBox = await page.locator("#left-canvas").boundingBox();
+  if (!canvasBox) throw new Error(`${name} left canvas had no bounding box`);
+  const beforeText = await page.locator("body").innerText();
+  await page.mouse.move(canvasBox.x + canvasBox.width * 0.42, canvasBox.y + canvasBox.height * 0.42);
+  await page.mouse.down();
+  await page.mouse.move(canvasBox.x + canvasBox.width * 0.7, canvasBox.y + canvasBox.height * 0.48, { steps: 8 });
+  await page.mouse.up();
+  await sleep(300);
+  const afterText = await page.locator("body").innerText();
+  const feedbackHidden = await page.locator("#feedback-panel").evaluate((panel) => panel.classList.contains("is-hidden"));
+  if (!feedbackHidden || beforeText !== afterText) {
+    throw new Error(`${name} canvas drag unexpectedly voted or advanced`);
+  }
+}
+
 async function assertVoteFeedbackAndAdvance(page, name) {
-  await page.locator("#vote-left").click();
+  await page.locator('[data-side="left"]').click();
   await page.locator("#feedback-panel:not(.is-hidden)").waitFor({ timeout: 10_000 });
   const feedback = await page.locator("#feedback-title").textContent();
   if (!String(feedback || "").toLowerCase().includes("saved")) {
@@ -155,6 +171,7 @@ async function checkViewport(browser, name, viewport) {
     throw new Error(`${name} canvas sample was blank: ${JSON.stringify({ left, right })}`);
   }
   await assertCoreLoopVisible(page, name);
+  await assertCanvasDragDoesNotVote(page, name);
   await assertVoteFeedbackAndAdvance(page, name);
   const screenshotPath = path.join(OUT_DIR, `${name}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });

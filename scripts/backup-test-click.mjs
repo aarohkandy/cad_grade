@@ -42,7 +42,7 @@ try {
 
   await page.locator("#feedback-panel:not(.is-hidden)").waitFor({ timeout: 20_000 });
   const feedback = await page.locator("#feedback-title").textContent();
-  if (!String(feedback || "").toLowerCase().includes("vote saved")) {
+  if (!String(feedback || "").toLowerCase().includes("saved")) {
     throw new Error(`Unexpected feedback title: ${feedback}`);
   }
   await page.locator("#vote-left:not([disabled])").waitFor({ timeout: 20_000 });

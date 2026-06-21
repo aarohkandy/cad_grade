@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
-import type { ArenaFamily, ArenaItem } from "../shared/types";
+import type { ArenaFamily, ArenaItem, BattleGroup } from "../shared/types";
+
+const MAX_SCORED_PAIRS = 5000;
 
 export interface ItemStatLike {
   item_id: string;
@@ -9,7 +11,7 @@ export interface ItemStatLike {
 
 export interface PairStatLike {
   pair_key: string;
-  family?: ArenaFamily | null;
+  family?: BattleGroup | null;
   battle_count?: number | null;
 }
 
@@ -19,6 +21,10 @@ export function pairKey(leftItemId: string, rightItemId: string): string {
 
 export function battleId(leftItemId: string, rightItemId: string): string {
   return `battle_${pairKey(leftItemId, rightItemId)}_${randomUUID()}`;
+}
+
+export function pairGroup(left: ArenaItem, right: ArenaItem): BattleGroup {
+  return left.family === right.family ? left.family : "mixed";
 }
 
 export function allPairs(items: ArenaItem[]): Array<[ArenaItem, ArenaItem]> {
@@ -44,6 +50,23 @@ function eloValue(stat: ItemStatLike | undefined): number {
 function pairBattles(pairStats: Map<string, PairStatLike> | undefined, leftId: string, rightId: string): number {
   const value = Number(pairStats?.get(pairKey(leftId, rightId))?.battle_count);
   return Number.isFinite(value) ? value : 0;
+}
+
+function maybeSamplePairs(
+  pairs: Array<[ArenaItem, ArenaItem]>,
+  random: () => number,
+  maxPairs = MAX_SCORED_PAIRS,
+): Array<[ArenaItem, ArenaItem]> {
+  if (pairs.length <= maxPairs) return pairs;
+  const sample: Array<[ArenaItem, ArenaItem]> = [];
+  const seen = new Set<number>();
+  while (sample.length < maxPairs && seen.size < pairs.length) {
+    const index = Math.min(pairs.length - 1, Math.floor(random() * pairs.length));
+    if (seen.has(index)) continue;
+    seen.add(index);
+    sample.push(pairs[index]);
+  }
+  return sample;
 }
 
 function familyBattleCount(
@@ -124,7 +147,7 @@ export function selectBattlePair(input: {
 
   const votedPairKeys = input.votedPairKeys ?? new Set<string>();
   const unvoted = pairs.filter(([left, right]) => !votedPairKeys.has(pairKey(left.id, right.id)));
-  const candidates = unvoted.length ? unvoted : pairs;
+  const candidates = maybeSamplePairs(unvoted.length ? unvoted : pairs, random);
 
   const scored = candidates.map((pair) => {
     const [left, right] = pair;

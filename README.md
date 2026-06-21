@@ -1,9 +1,9 @@
 # Capybara Arena
 
 Capybara Arena is a public CAD grading game for Cadybara-generated models. It
-shows two same-family STL models, lets a visitor choose the better model or mark
-the pair as similar, and stores append-only preference data in private Vercel
-Blob objects for export and offline analysis.
+shows two STL models, lets a visitor choose the better model or mark the pair as
+a tie, and stores append-only preference data in private Vercel Blob objects for
+export and offline analysis.
 
 The public dataset contains 94 renderable hosted Cadybara outputs, balanced
 across three object categories:
@@ -161,17 +161,24 @@ Outputs:
 - CSV and JSON files for items, pairs, sessions, coverage gaps, anomalies, and
   raw-vs-clean rankings
 
-Install the hourly Windows backup task:
+Install the hourly macOS backup task:
 
-```powershell
+```bash
 npm run backup:install-hourly
 ```
 
 Remove it:
 
-```powershell
+```bash
 npm run backup:uninstall-hourly
 ```
+
+The macOS task uses `launchd`, runs once an hour, writes logs under
+`exports/live-backups/logs`, pulls from `https://cadbattle.vercel.app`, rebuilds
+analysis, and does not prune live vote blobs.
+
+Windows scheduled task helpers are still available as
+`backup:install-hourly:windows` and `backup:uninstall-hourly:windows`.
 
 Before sharing widely, run a browser-level production vote and confirm it lands
 locally:
@@ -182,15 +189,17 @@ npm run backup:test-click
 
 ## Battle Selection
 
-Visitors do not choose a model family. The server selects same-family battles
-automatically so the data stays useful:
+Visitors do not choose a model family. The server selects global battles across
+all active models automatically so the data stays useful:
 
-- balance average vote exposure per item across families
-- keep total vote exposure roughly even across object categories
-- avoid pairs already seen by the current browser session when possible
 - prioritize under-sampled items
+- avoid pairs already seen by the current browser session when possible
 - avoid over-repeating the same pair
 - prefer closer Elo matchups once both items have enough scoring history
+- add a small random jitter so the queue does not feel repetitive
+
+`GET /api/battle?family=wall_planter`, `wall_hook`, or `snowman` remains
+available as a debug filter for same-family battles.
 
 ## Export
 

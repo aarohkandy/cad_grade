@@ -138,14 +138,23 @@ function activeItems(dataset) {
   return (dataset.items || []).filter((item) => item.active !== false);
 }
 
+function pairGroup(left, right) {
+  return left.family === right.family ? left.family : "mixed";
+}
+
 function allDatasetPairs(dataset) {
   const pairs = [];
-  for (const family of dataset.families || []) {
-    const items = activeItems(dataset).filter((item) => item.family === family);
-    for (let left = 0; left < items.length; left += 1) {
-      for (let right = left + 1; right < items.length; right += 1) {
-        pairs.push({ family, item_a_id: items[left].id, item_b_id: items[right].id, pair_key: pairKey(items[left].id, items[right].id) });
-      }
+  const items = activeItems(dataset);
+  for (let left = 0; left < items.length; left += 1) {
+    for (let right = left + 1; right < items.length; right += 1) {
+      pairs.push({
+        family: pairGroup(items[left], items[right]),
+        item_a_id: items[left].id,
+        item_a_family: items[left].family,
+        item_b_id: items[right].id,
+        item_b_family: items[right].family,
+        pair_key: pairKey(items[left].id, items[right].id),
+      });
     }
   }
   return pairs;
@@ -192,7 +201,7 @@ function rankingRows(votes, dataset, label) {
   for (const vote of [...votes].sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)))) {
     const left = items.get(vote.left_item_id);
     const right = items.get(vote.right_item_id);
-    if (!left || !right || left.family !== right.family) continue;
+    if (!left || !right) continue;
     const key = pairKey(left.item_id, right.item_id);
     const pair = pairs.get(key);
     left.battles += 1;
@@ -354,7 +363,7 @@ function coverageGapRows(dataset, rawRankings, pairRows) {
   return [...itemGaps.slice(0, activeItems(dataset).length), ...pairGaps.slice(0, 200)];
 }
 
-function anomalyRows({ sessions, pairRows, rawRankings, votes }) {
+function anomalyRows({ sessions, pairRows, rawRankings, familyRows }) {
   const rows = [];
   for (const session of sessions) {
     const duplicateRatio = session.raw_votes ? session.duplicate_votes / session.raw_votes : 0;
@@ -379,11 +388,10 @@ function anomalyRows({ sessions, pairRows, rawRankings, votes }) {
     }
   }
 
-  const familyVotes = groupCounts(votes, (vote) => vote.family);
-  const averageFamilyVotes = familyVotes.reduce((sum, row) => sum + row.count, 0) / Math.max(1, familyVotes.length);
-  for (const row of familyVotes) {
-    if (row.count < averageFamilyVotes * 0.35) {
-      rows.push({ anomaly_type: "family_undercovered", severity: "watch", subject_id: row.key, evidence: `${row.count} votes vs avg ${Math.round(averageFamilyVotes)}` });
+  const averageFamilyVotes = familyRows.reduce((sum, row) => sum + row.raw_votes, 0) / Math.max(1, familyRows.length);
+  for (const row of familyRows) {
+    if (row.raw_votes < averageFamilyVotes * 0.35) {
+      rows.push({ anomaly_type: "family_undercovered", severity: "watch", subject_id: row.family, evidence: `${row.raw_votes} votes vs avg ${Math.round(averageFamilyVotes)}` });
     }
   }
 
@@ -395,8 +403,14 @@ function anomalyRows({ sessions, pairRows, rawRankings, votes }) {
 }
 
 function familyRows(votes, dataset) {
+  const items = new Map(activeItems(dataset).map((item) => [item.id, item]));
+  const voteTouchesFamily = (vote, family) => {
+    const left = items.get(vote.left_item_id);
+    const right = items.get(vote.right_item_id);
+    return left?.family === family || right?.family === family;
+  };
   return (dataset.families || []).map((family) => {
-    const familyVotes = votes.filter((vote) => vote.family === family);
+    const familyVotes = votes.filter((vote) => voteTouchesFamily(vote, family));
     const cleanVotes = familyVotes.filter(isCleanVote);
     const itemCount = activeItems(dataset).filter((item) => item.family === family).length;
     return {
@@ -419,7 +433,8 @@ export function analyzeVotes({ votes, dataset, generatedAtUtc = new Date().toISO
   const pairRows = pairRowsFromVotes(reportVotes, dataset);
   const sessions = buildSessionRows(reportVotes);
   const coverageGaps = coverageGapRows(dataset, rawRanking.itemRows, pairRows);
-  const anomalies = anomalyRows({ sessions, pairRows, rawRankings: rawRanking.itemRows, votes: reportVotes });
+  const familySummaries = familyRows(reportVotes, dataset);
+  const anomalies = anomalyRows({ sessions, pairRows, rawRankings: rawRanking.itemRows, familyRows: familySummaries });
 
   const itemsById = new Map(rawRanking.itemRows.map((row) => [row.item_id, row]));
   const cleanById = new Map(cleanRanking.itemRows.map((row) => [row.item_id, row]));
@@ -461,7 +476,7 @@ export function analyzeVotes({ votes, dataset, generatedAtUtc = new Date().toISO
       activeItems: activeItems(dataset).length,
       possiblePairs: allDatasetPairs(dataset).length,
     },
-    familyRows: familyRows(reportVotes, dataset),
+    familyRows: familySummaries,
     votesPerHour,
     votesPerDay,
     itemRows,

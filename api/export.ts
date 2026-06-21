@@ -50,6 +50,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       exportedAtUtc: new Date().toISOString(),
       date: date || null,
       voteCount: votes.length,
+      mixedVoteCount: summary.mixedVotes || 0,
+      mixedAcceptedVoteCount: summary.mixedAcceptedVotes || 0,
       votes,
       item_stats: Object.values(summary.itemStats),
       pair_stats: Object.values(summary.pairStats),

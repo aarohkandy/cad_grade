@@ -1,7 +1,7 @@
 import "./styles.css";
 import dataset from "./data/items.generated.json";
 import { StlViewer } from "./client/stlViewer";
-import type { ArenaFamily, ArenaItem, BattleResponse, HoldChallenge, VoteResponse } from "./shared/types";
+import type { ArenaItem, BattleGroup, BattleResponse, HoldChallenge, VoteResponse } from "./shared/types";
 
 const SESSION_KEY = "capybara-arena-session";
 const SEEN_PAIRS_KEY = "capybara-arena-seen-pairs";
@@ -13,6 +13,7 @@ const RAPID_VOTE_WINDOW_MS = 10000;
 const RAPID_VOTE_LIMIT = 12;
 const STREAK_RESET_MS = 10 * 60 * 1000;
 const AUTO_NEXT_DELAY_MS = 360;
+const PANEL_CLICK_MOVE_THRESHOLD_PX = 8;
 
 interface CurrentBattle extends BattleResponse {
   localOnly?: boolean;
@@ -25,50 +26,39 @@ if (!app) throw new Error("Missing app root");
 
 app.innerHTML = `
   <div class="arena-app">
-    <header class="top-bar" id="top" aria-label="Arena status">
-      <a class="brand-lockup" href="#top" aria-label="Capybara Arena home">
-        <span class="brand-word">CAPYBARA ARENA</span>
-      </a>
-      <div class="hud-title" aria-hidden="true">
-        <h1>cad arena</h1>
-      </div>
-      <div class="hud-stack" aria-label="Session stats">
-        <div class="hud-pill is-live"><span></span><strong id="arena-status">Live</strong></div>
-        <div class="hud-pill"><span>streak</span><strong id="streak-count">0</strong></div>
-        <div class="hud-pill"><span>best</span><strong id="best-streak">0</strong></div>
-        <div class="hud-pill"><span>seen</span><strong id="seen-count">0</strong></div>
-      </div>
+    <header class="top-bar" id="top" aria-label="Capybara Arena">
+      <h1 class="brand-word">Capybara Arena</h1>
     </header>
 
     <main class="arena-shell" id="arena">
       <section class="battle-grid" aria-live="polite">
-        <article class="model-panel" data-side="left" role="button" tabindex="0" aria-label="Choose model A">
+        <article class="model-panel" data-side="left" aria-label="Model A">
           <div class="panel-top">
             <span class="side-chip">A</span>
             <h3 id="left-title">Loading</h3>
           </div>
           <div class="viewer-frame" id="left-frame">
-            <canvas id="left-canvas"></canvas>
+            <canvas id="left-canvas" aria-label="3D preview of model A"></canvas>
             <div class="viewer-status" id="left-status">Loading STL</div>
           </div>
-          <button type="button" class="vote-action" id="vote-left" disabled>Choose A</button>
+          <button type="button" class="vote-action" id="vote-left" disabled>A is better</button>
         </article>
 
-        <div class="draw-column" aria-label="Draw vote">
+        <div class="draw-column" aria-label="Tie vote">
           <div class="round-pulse" id="round-pulse">VS</div>
-          <button type="button" class="draw-action" id="vote-draw" disabled>Same / similar</button>
+          <button type="button" class="draw-action" id="vote-draw" aria-label="No clear winner" disabled>Tie</button>
         </div>
 
-        <article class="model-panel" data-side="right" role="button" tabindex="0" aria-label="Choose model B">
+        <article class="model-panel" data-side="right" aria-label="Model B">
           <div class="panel-top">
             <h3 id="right-title">Loading</h3>
             <span class="side-chip">B</span>
           </div>
           <div class="viewer-frame" id="right-frame">
-            <canvas id="right-canvas"></canvas>
+            <canvas id="right-canvas" aria-label="3D preview of model B"></canvas>
             <div class="viewer-status" id="right-status">Loading STL</div>
           </div>
-          <button type="button" class="vote-action" id="vote-right" disabled>Choose B</button>
+          <button type="button" class="vote-action" id="vote-right" disabled>B is better</button>
         </article>
       </section>
     </main>
@@ -93,7 +83,6 @@ app.innerHTML = `
 
 const dom = {
   arena: document.querySelector("#arena") as HTMLElement,
-  arenaStatus: document.querySelector("#arena-status") as HTMLElement,
   leftPanel: document.querySelector('[data-side="left"]') as HTMLElement,
   rightPanel: document.querySelector('[data-side="right"]') as HTMLElement,
   leftFrame: document.querySelector("#left-frame") as HTMLElement,
@@ -114,9 +103,6 @@ const dom = {
   feedbackPanel: document.querySelector("#feedback-panel") as HTMLElement,
   feedbackTitle: document.querySelector("#feedback-title") as HTMLElement,
   feedbackCopy: document.querySelector("#feedback-copy") as HTMLElement,
-  streakCount: document.querySelector("#streak-count") as HTMLElement,
-  bestStreak: document.querySelector("#best-streak") as HTMLElement,
-  seenCount: document.querySelector("#seen-count") as HTMLElement,
   roundPulse: document.querySelector("#round-pulse") as HTMLElement,
 };
 
@@ -130,6 +116,12 @@ let holdStartedAt = 0;
 let holdFrame = 0;
 let autoNextTimer = 0;
 let voteInFlight = false;
+let panelPointerIntent: {
+  side: "left" | "right";
+  pointerId: number;
+  startX: number;
+  startY: number;
+} | null = null;
 
 function sessionId(): string {
   const existing = window.localStorage.getItem(SESSION_KEY);
@@ -141,6 +133,10 @@ function sessionId(): string {
 
 function pairKeyClient(leftId: string, rightId: string): string {
   return [leftId, rightId].sort().join("__");
+}
+
+function pairGroupClient(left: ArenaItem, right: ArenaItem): BattleGroup {
+  return left.family === right.family ? left.family : "mixed";
 }
 
 function seenPairs(): Set<string> {
@@ -176,12 +172,6 @@ function storedNumber(key: string): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
-function updateHud(): void {
-  dom.streakCount.textContent = String(storedNumber(STREAK_KEY));
-  dom.bestStreak.textContent = String(storedNumber(BEST_STREAK_KEY));
-  dom.seenCount.textContent = String(seenPairs().size);
-}
-
 function recordStreak(now = Date.now()): number {
   const lastVoteMs = storedNumber(LAST_VOTE_MS_KEY);
   const previous = storedNumber(STREAK_KEY);
@@ -190,12 +180,11 @@ function recordStreak(now = Date.now()): number {
   window.localStorage.setItem(STREAK_KEY, String(next));
   window.localStorage.setItem(BEST_STREAK_KEY, String(best));
   window.localStorage.setItem(LAST_VOTE_MS_KEY, String(now));
-  updateHud();
   return next;
 }
 
 function feedbackLine(isDraw: boolean, streak: number): string {
-  if (isDraw) return streak > 1 ? `similar call locked - streak x${streak}` : "similar call locked";
+  if (isDraw) return streak > 1 ? `tie saved - streak x${streak}` : "tie saved";
   const lines = ["clean pick", "locked in", "next matchup queued", "arena heard you", "judgment saved"];
   const line = lines[streak % lines.length];
   return streak > 1 ? `${line} - streak x${streak}` : line;
@@ -242,26 +231,7 @@ async function postJson<T>(url: string, payload: unknown): Promise<T> {
 function localBattle(): CurrentBattle {
   const priorPairs = seenPairs();
   const seenItemBattles = localSeenItemBattles(priorPairs);
-  const family =
-    ([...dataset.families] as ArenaFamily[])
-      .map((candidateFamily) => {
-        const familyItems = (dataset.items as ArenaItem[]).filter((item) => item.family === candidateFamily);
-        const pairs = allLocalPairs(familyItems);
-        const availablePairs = pairs.filter(([left, right]) => !priorPairs.has(pairKeyClient(left.id, right.id)));
-        const familyVotes = pairs.reduce(
-          (sum, [left, right]) => sum + (priorPairs.has(pairKeyClient(left.id, right.id)) ? 1 : 0),
-          0,
-        );
-        const averageBattles =
-          familyItems.reduce((sum, item) => sum + (seenItemBattles.get(item.id) || 0), 0) /
-          Math.max(1, familyItems.length);
-        return {
-          family: candidateFamily,
-          score: (availablePairs.length ? 0 : 10_000) + familyVotes * 1000 + averageBattles * 10 + Math.random(),
-        };
-      })
-      .sort((left, right) => left.score - right.score)[0]?.family || "wall_planter";
-  const items = (dataset.items as ArenaItem[]).filter((item) => item.family === family);
+  const items = (dataset.items as ArenaItem[]).filter((item) => item.active !== false);
   const pairs = allLocalPairs(items);
   const candidates = pairs.filter(([left, right]) => !priorPairs.has(pairKeyClient(left.id, right.id)));
   const scoredPairs = (candidates.length ? candidates : pairs)
@@ -278,6 +248,7 @@ function localBattle(): CurrentBattle {
   const selected = scoredPairs[0]?.pair || pairs[0];
   if (!selected) throw new Error("At least two local items are required");
   const [left, right] = Math.random() > 0.5 ? selected : [selected[1], selected[0]];
+  const family = pairGroupClient(left, right);
   const hold: HoldChallenge = {
     challengeId: "local",
     targetMs: 900,
@@ -301,7 +272,6 @@ function localBattle(): CurrentBattle {
 }
 
 function markArenaLive(): void {
-  dom.arenaStatus.textContent = "Live";
   dom.roundPulse.textContent = "VS";
 }
 
@@ -338,7 +308,6 @@ async function loadBattle(): Promise<void> {
   modelsLoadedAt = "";
   const hasVisibleBattle = Boolean(currentBattle && leftViewer && rightViewer);
   const nextBattleStartedAt = new Date().toISOString();
-  dom.arenaStatus.textContent = "Loading";
   dom.roundPulse.textContent = "loading";
   dom.arena.classList.add("is-loading-next");
   setVoteControls(false);
@@ -387,7 +356,6 @@ async function loadBattle(): Promise<void> {
     setVoteControls(true);
     dom.arena.classList.remove("is-loading-next");
     markArenaLive();
-    updateHud();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load STL";
     dom.leftStatus.textContent = message;
@@ -460,7 +428,7 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
         saved: true,
         acceptedForScoring: false,
         agreementPercent: Math.round(52 + Math.random() * 36),
-        agreementLabel: isDraw ? "Similarity vote saved." : "Vote saved.",
+        agreementLabel: isDraw ? "Tie saved." : "Vote saved.",
         dataMode: "local",
         qualityFlags: ["local_preview"],
       } satisfies VoteResponse)
@@ -481,14 +449,12 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   rememberVoteTime(now);
   const streak = recordStreak(now);
   rememberPair(left.id, right.id);
-  updateHud();
   dom.holdButton.disabled = false;
   dom.holdPanel.classList.add("is-hidden");
   dom.feedbackPanel.classList.remove("is-hidden");
   dom.feedbackPanel.classList.toggle("is-draw", isDraw);
   dom.feedbackTitle.textContent = isDraw ? "Draw saved" : "+1 saved";
   dom.feedbackCopy.textContent = feedbackLine(isDraw, streak);
-  dom.arenaStatus.textContent = "Loading next";
   dom.roundPulse.textContent = "next";
   window.clearTimeout(autoNextTimer);
   autoNextTimer = window.setTimeout(() => {
@@ -544,28 +510,37 @@ function choosePanel(side: "left" | "right"): void {
   chooseVote(itemId).catch(showVoteError);
 }
 
-function shouldIgnorePanelClick(event: Event): boolean {
+function targetIsVoteControl(event: Event): boolean {
   return event.target instanceof Element && Boolean(event.target.closest("button"));
 }
 
-dom.leftPanel.addEventListener("click", (event) => {
-  if (!shouldIgnorePanelClick(event)) choosePanel("left");
-});
+function beginPanelPointer(side: "left" | "right", event: PointerEvent): void {
+  if (targetIsVoteControl(event) || !currentBattle || voteInFlight) return;
+  panelPointerIntent = {
+    side,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+  };
+}
 
-dom.rightPanel.addEventListener("click", (event) => {
-  if (!shouldIgnorePanelClick(event)) choosePanel("right");
-});
+function finishPanelPointer(side: "left" | "right", event: PointerEvent): void {
+  const intent = panelPointerIntent;
+  panelPointerIntent = null;
+  if (!intent || intent.side !== side || intent.pointerId !== event.pointerId || targetIsVoteControl(event)) return;
+  const distance = Math.hypot(event.clientX - intent.startX, event.clientY - intent.startY);
+  if (distance <= PANEL_CLICK_MOVE_THRESHOLD_PX) choosePanel(side);
+}
 
-dom.leftPanel.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" && event.key !== " ") return;
-  event.preventDefault();
-  choosePanel("left");
+dom.leftPanel.addEventListener("pointerdown", (event) => beginPanelPointer("left", event));
+dom.rightPanel.addEventListener("pointerdown", (event) => beginPanelPointer("right", event));
+dom.leftPanel.addEventListener("pointerup", (event) => finishPanelPointer("left", event));
+dom.rightPanel.addEventListener("pointerup", (event) => finishPanelPointer("right", event));
+dom.leftPanel.addEventListener("pointercancel", () => {
+  panelPointerIntent = null;
 });
-
-dom.rightPanel.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" && event.key !== " ") return;
-  event.preventDefault();
-  choosePanel("right");
+dom.rightPanel.addEventListener("pointercancel", () => {
+  panelPointerIntent = null;
 });
 
 dom.holdButton.addEventListener("pointerdown", beginHold);
@@ -573,6 +548,5 @@ dom.holdButton.addEventListener("pointerup", cancelHold);
 dom.holdButton.addEventListener("pointercancel", cancelHold);
 dom.holdButton.addEventListener("pointerleave", cancelHold);
 
-updateHud();
 markArenaLive();
 loadBattle().catch(showVoteError);

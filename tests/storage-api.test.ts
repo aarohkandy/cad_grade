@@ -137,7 +137,48 @@ describe("local storage api flow", () => {
     });
   });
 
-  it("saves draw votes as similarity judgments", async () => {
+  it("accepts and summarizes a cross-family vote", async () => {
+    const left = dataset.items.find((item) => item.family === "wall_planter");
+    const right = dataset.items.find((item) => item.family === "wall_hook");
+    if (!left || !right) throw new Error("missing test items");
+    const now = Date.now();
+    const voteResponse = mockResponse();
+
+    await voteHandler(
+      {
+        method: "POST",
+        headers: { "user-agent": "vitest" },
+        socket: { remoteAddress: "127.0.0.1" },
+        body: {
+          battle_id: "battle-mixed",
+          left_item_id: left.id,
+          right_item_id: right.id,
+          winner_item_id: right.id,
+          vote_result: "winner",
+          started_at: new Date(now - 6000).toISOString(),
+          models_loaded_at: new Date(now - 5000).toISOString(),
+          voted_at: new Date(now).toISOString(),
+          session_id: "session-mixed-1234567890",
+        },
+      } as never,
+      voteResponse as never,
+    );
+
+    expect(voteResponse.statusCode).toBe(200);
+    expect(voteResponse.body).toMatchObject({ saved: true, acceptedForScoring: true, dataMode: "local" });
+
+    const statsResponse = mockResponse();
+    await statsHandler({ method: "GET", headers: {}, query: {} } as never, statsResponse as never);
+    expect(statsResponse.statusCode).toBe(200);
+    expect(statsResponse.body).toMatchObject({
+      totalVotes: 1,
+      acceptedVotes: 1,
+      mixedVoteCount: 1,
+      mixedAcceptedVoteCount: 1,
+    });
+  });
+
+  it("saves draw votes as tie judgments", async () => {
     const items = dataset.items.filter((item) => item.family === "wall_hook");
     const [left, right] = items.slice(2);
     const now = Date.now();
@@ -168,7 +209,7 @@ describe("local storage api flow", () => {
       saved: true,
       acceptedForScoring: true,
     });
-    expect((voteResponse.body as VoteResponse).agreementLabel.toLowerCase()).toContain("similar");
+    expect((voteResponse.body as VoteResponse).agreementLabel.toLowerCase()).toContain("tie");
 
     const statsResponse = mockResponse();
     await statsHandler({ method: "GET", headers: {}, query: {} } as never, statsResponse as never);

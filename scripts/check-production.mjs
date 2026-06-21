@@ -66,7 +66,7 @@ if (!health.response.ok) {
 const battle = await fetchJson(`${baseUrl}/api/battle`);
 if (!battle.response.ok) {
   fail(`/api/battle returned ${battle.response.status}`, battle.body);
-} else if (!battle.body?.left?.id || !battle.body?.right?.id || battle.body.left.family !== battle.body.right.family) {
+} else if (!battle.body?.left?.id || !battle.body?.right?.id || battle.body.left.id === battle.body.right.id) {
   fail("/api/battle returned an invalid battle", battle.body);
 } else {
   pass(`/api/battle returned ${battle.body.left.id} vs ${battle.body.right.id}`);

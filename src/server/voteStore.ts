@@ -3,8 +3,8 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import { updateElo } from "./elo.js";
 import { hasBlobCredentials, isVercelRuntime } from "./env.js";
-import { pairKey } from "./pairs.js";
-import type { ArenaFamily, ArenaItem } from "../shared/types";
+import { pairGroup, pairKey } from "./pairs.js";
+import type { ArenaFamily, ArenaItem, BattleGroup } from "../shared/types";
 
 export const VOTES_PREFIX = "votes/v1";
 export const SESSION_PAIR_PREFIX = "session-pairs/v1";
@@ -19,7 +19,7 @@ export interface StoredVoteRecord {
   created_at: string;
   dataset_id: string;
   battle_id: string;
-  family: ArenaFamily;
+  family: BattleGroup;
   left_item_id: string;
   right_item_id: string;
   winner_item_id: string | null;
@@ -67,9 +67,11 @@ export interface StoredItemStat {
 
 export interface StoredPairStat {
   pair_key: string;
-  family: ArenaFamily;
+  family: BattleGroup;
   item_a_id: string;
+  item_a_family: ArenaFamily;
   item_b_id: string;
+  item_b_family: ArenaFamily;
   item_a_wins: number;
   item_b_wins: number;
   draw_count: number;
@@ -89,6 +91,8 @@ export interface VoteSummary {
   updatedAtUtc: string;
   totalVotes: number;
   acceptedVotes: number;
+  mixedVotes: number;
+  mixedAcceptedVotes: number;
   families: Record<ArenaFamily, FamilySummary>;
   itemStats: Record<string, StoredItemStat>;
   pairStats: Record<string, StoredPairStat>;
@@ -128,6 +132,8 @@ export function emptySummary(datasetId: string, families: ArenaFamily[]): VoteSu
     updatedAtUtc: new Date(0).toISOString(),
     totalVotes: 0,
     acceptedVotes: 0,
+    mixedVotes: 0,
+    mixedAcceptedVotes: 0,
     families: familyRows,
     itemStats: {},
     pairStats: {},
@@ -141,7 +147,7 @@ export function votePath(createdAt: string, voteId: string = randomUUID()): stri
   return `${VOTES_PREFIX}/${day}/${timestamp}_${voteId}.json`;
 }
 
-export function sessionPairPath(sessionHash: string, family: ArenaFamily, leftId: string, rightId: string): string {
+export function sessionPairPath(sessionHash: string, family: BattleGroup, leftId: string, rightId: string): string {
   return `${SESSION_PAIR_PREFIX}/${sessionHash}/${family}/${pairKey(leftId, rightId)}.json`;
 }
 
@@ -158,19 +164,42 @@ function defaultItemStat(item: ArenaItem, updatedAt: string): StoredItemStat {
   };
 }
 
-function defaultPairStat(family: ArenaFamily, leftId: string, rightId: string, updatedAt: string): StoredPairStat {
-  const [itemA, itemB] = [leftId, rightId].sort();
+function defaultPairStat(left: ArenaItem, right: ArenaItem, updatedAt: string): StoredPairStat {
+  const [itemA, itemB] = [left, right].sort((a, b) => a.id.localeCompare(b.id));
   return {
-    pair_key: pairKey(leftId, rightId),
-    family,
-    item_a_id: itemA,
-    item_b_id: itemB,
+    pair_key: pairKey(left.id, right.id),
+    family: pairGroup(left, right),
+    item_a_id: itemA.id,
+    item_a_family: itemA.family,
+    item_b_id: itemB.id,
+    item_b_family: itemB.family,
     item_a_wins: 0,
     item_b_wins: 0,
     draw_count: 0,
     battle_count: 0,
     updated_at: updatedAt,
   };
+}
+
+function normalizePairStat(pair: StoredPairStat | undefined, left: ArenaItem, right: ArenaItem, updatedAt: string): StoredPairStat {
+  return {
+    ...defaultPairStat(left, right, updatedAt),
+    ...pair,
+    family: pairGroup(left, right),
+  };
+}
+
+function incrementFamily(summary: VoteSummary, family: ArenaFamily, key: "totalVotes" | "acceptedVotes"): void {
+  summary.families[family] ||= {
+    family,
+    totalVotes: 0,
+    acceptedVotes: 0,
+  };
+  summary.families[family][key] += 1;
+}
+
+function involvedFamilies(left: ArenaItem, right: ArenaItem): ArenaFamily[] {
+  return left.family === right.family ? [left.family] : [left.family, right.family];
 }
 
 export function applyVoteToSummary(
@@ -185,13 +214,14 @@ export function applyVoteToSummary(
   const updatedAt = vote.created_at;
   next.version = SUMMARY_VERSION;
   next.updatedAtUtc = updatedAt;
+  next.mixedVotes ||= 0;
+  next.mixedAcceptedVotes ||= 0;
   next.totalVotes += 1;
-  next.families[vote.family] ||= {
-    family: vote.family,
-    totalVotes: 0,
-    acceptedVotes: 0,
-  };
-  next.families[vote.family].totalVotes += 1;
+  const group = pairGroup(left, right);
+  if (group === "mixed") next.mixedVotes += 1;
+  for (const family of involvedFamilies(left, right)) {
+    incrementFamily(next, family, "totalVotes");
+  }
 
   for (const flag of vote.quality_flags) {
     next.qualityFlagCounts[flag] = (next.qualityFlagCounts[flag] || 0) + 1;
@@ -200,10 +230,13 @@ export function applyVoteToSummary(
   if (!vote.accepted_for_scoring) return next;
 
   next.acceptedVotes += 1;
-  next.families[vote.family].acceptedVotes += 1;
+  if (group === "mixed") next.mixedAcceptedVotes += 1;
+  for (const family of involvedFamilies(left, right)) {
+    incrementFamily(next, family, "acceptedVotes");
+  }
 
   const key = pairKey(vote.left_item_id, vote.right_item_id);
-  const pair = next.pairStats[key] || defaultPairStat(vote.family, vote.left_item_id, vote.right_item_id, updatedAt);
+  const pair = normalizePairStat(next.pairStats[key], left, right, updatedAt);
 
   if (vote.vote_result === "draw" || !winner || !loser) {
     const leftBefore = next.itemStats[left.id] || defaultItemStat(left, updatedAt);

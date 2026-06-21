@@ -6,7 +6,7 @@ import { safeHash } from "../src/server/hash.js";
 import { verifyHoldSubmission } from "../src/server/hold.js";
 import { clientIp, methodAllowed, noStore, readJsonBody } from "../src/server/http.js";
 import { dataset, itemById } from "../src/server/items.js";
-import { pairKey } from "../src/server/pairs.js";
+import { pairGroup, pairKey } from "../src/server/pairs.js";
 import { qualityDecision } from "../src/server/quality.js";
 import {
   markSessionPair,
@@ -77,11 +77,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(400).json({ error: "invalid_items" });
       return;
     }
-    if (left.family !== right.family || (winner && winner.family !== left.family)) {
-      res.status(400).json({ error: "cross_family_vote" });
-      return;
-    }
-
     const mode = storageMode();
     if (mode === "unconfigured") {
       res.status(503).json({ error: "vote_storage_not_configured" });
@@ -96,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const loser = winner ? (winner.id === left.id ? right : left) : null;
-    const family = left.family;
+    const family = pairGroup(left, right);
     const holdSubmitted = Boolean(payload.hold);
     const hold = holdSubmitted ? verifyHoldSubmission(payload.hold) : { valid: false, flags: [] };
     const sessionHash = safeHash(payload.session_id || "missing-session");
@@ -195,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       agreementPercent: percent,
       agreementLabel:
         isDraw || !winner
-          ? "Similarity vote saved. The arena will treat this pair as a draw."
+          ? "Tie saved. The arena will treat this pair as evenly matched."
           : `${percent}% of the arena is with you on this one.`,
       dataMode: mode === "blob" ? "live" : "local",
       qualityFlags,
