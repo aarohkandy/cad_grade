@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ArenaFamily, ArenaItem, BattleGroup } from "../shared/types";
 
 const MAX_SCORED_PAIRS = 5000;
+const EXPLORATION_RATE = 0.08;
 
 export interface ItemStatLike {
   item_id: string;
@@ -148,6 +149,11 @@ export function selectBattlePair(input: {
   const votedPairKeys = input.votedPairKeys ?? new Set<string>();
   const unvoted = pairs.filter(([left, right]) => !votedPairKeys.has(pairKey(left.id, right.id)));
   const candidates = maybeSamplePairs(unvoted.length ? unvoted : pairs, random);
+
+  if (random() > 1 - EXPLORATION_RATE) {
+    const selected = candidates[Math.min(candidates.length - 1, Math.floor(random() * candidates.length))];
+    return random() > 0.5 ? selected : [selected[1], selected[0]];
+  }
 
   const scored = candidates.map((pair) => {
     const [left, right] = pair;

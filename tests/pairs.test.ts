@@ -69,6 +69,23 @@ describe("pair selection", () => {
     expect(new Set(selected.map((entry) => entry.id))).toEqual(new Set(["c", "d"]));
   });
 
+  it("occasionally explores the wider candidate pool", () => {
+    const items = [item("a"), item("b"), item("c"), item("d")];
+    const itemStats = new Map<string, ItemStatLike>([
+      ["a", { item_id: "a", battle_count: 12 }],
+      ["b", { item_id: "b", battle_count: 12 }],
+      ["c", { item_id: "c", battle_count: 0 }],
+      ["d", { item_id: "d", battle_count: 0 }],
+    ]);
+    const randomValues = [0.99, 0, 0.99];
+    const selected = selectBattlePair({
+      items,
+      itemStats,
+      random: () => randomValues.shift() ?? 0,
+    });
+    expect(new Set(selected.map((entry) => entry.id))).toEqual(new Set(["a", "b"]));
+  });
+
   it("prefers closer Elo matchups once items have signal", () => {
     const items = [item("a"), item("b"), item("c"), item("d")];
     const itemStats = new Map<string, ItemStatLike>([
