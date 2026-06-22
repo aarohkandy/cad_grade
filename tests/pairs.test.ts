@@ -40,7 +40,8 @@ describe("pair selection", () => {
       items,
       random: () => 0,
     });
-    expect(new Set(selected.map((entry) => entry.family))).toEqual(new Set(["wall_planter", "wall_hook"]));
+    expect(new Set(selected.map((entry) => entry.id)).size).toBe(2);
+    expect(new Set(selected.map((entry) => entry.family)).size).toBeGreaterThan(1);
   });
 
   it("avoids already-voted pairs when possible", () => {

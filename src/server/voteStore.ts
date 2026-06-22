@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
-import { updateElo } from "./elo.js";
+import { initialEloForItem, updateElo } from "./elo.js";
 import { hasBlobCredentials, isVercelRuntime } from "./env.js";
 import { pairGroup, pairKey } from "./pairs.js";
 import type { ArenaFamily, ArenaItem, BattleGroup } from "../shared/types";
@@ -155,7 +155,7 @@ function defaultItemStat(item: ArenaItem, updatedAt: string): StoredItemStat {
   return {
     item_id: item.id,
     family: item.family,
-    elo: 1200,
+    elo: initialEloForItem(item),
     wins: 0,
     losses: 0,
     draws: 0,

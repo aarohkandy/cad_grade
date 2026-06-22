@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomUUID } from "node:crypto";
-import { expectedScore, normalizedElo } from "../src/server/elo.js";
+import { expectedScore, initialEloForItem } from "../src/server/elo.js";
 import { isVercelRuntime, missingProductionEnv, productionVoteEnvReady } from "../src/server/env.js";
 import { safeHash } from "../src/server/hash.js";
 import { verifyHoldSubmission } from "../src/server/hold.js";
@@ -30,22 +30,52 @@ function winnerWins(pair: StoredPairStat | undefined, winnerId: string): number 
 }
 
 function boundedPercent(probability: number): number {
-  return Math.round(Math.max(0.04, Math.min(0.96, probability)) * 100);
+  const bounded = Math.max(0.04, Math.min(0.96, probability));
+  const percent = Math.round(bounded * 100);
+  if (percent === 50) return bounded >= 0.5 ? 51 : 49;
+  return percent;
 }
 
-function eloAgreementPercent(winnerElo?: number | null, loserElo?: number | null): number {
-  return boundedPercent(
-    expectedScore(
-      normalizedElo({ elo: winnerElo }),
-      normalizedElo({ elo: loserElo }),
-    ),
-  );
+function eloAgreementProbability(winnerElo: number, loserElo: number): number {
+  return expectedScore(winnerElo, loserElo);
 }
 
-function eloTieAgreementPercent(leftElo?: number | null, rightElo?: number | null): number {
-  const gap = Math.abs(normalizedElo({ elo: leftElo }) - normalizedElo({ elo: rightElo }));
-  const probability = 0.08 + 0.34 * Math.exp(-gap / 120);
-  return boundedPercent(probability);
+function itemElo(item: ArenaItem, value?: number | null): number {
+  const elo = Number(value);
+  return Number.isFinite(elo) ? elo : initialEloForItem(item);
+}
+
+function tieAgreementProbability(leftElo: number, rightElo: number): number {
+  const gap = Math.abs(leftElo - rightElo);
+  return 0.08 + 0.34 * Math.exp(-gap / 120);
+}
+
+function eloPriorProbability(input: {
+  isDraw: boolean;
+  leftElo: number;
+  rightElo: number;
+  winnerElo: number | null;
+  loserElo: number | null;
+}): number {
+  if (input.isDraw || input.winnerElo === null || input.loserElo === null) {
+    return tieAgreementProbability(input.leftElo, input.rightElo);
+  }
+  return eloAgreementProbability(input.winnerElo, input.loserElo);
+}
+
+function directAgreementPercent(input: {
+  pair: StoredPairStat;
+  sampleSize: number;
+  winner: ArenaItem | null;
+  isDraw: boolean;
+  priorProbability: number;
+}): number {
+  const directWins = input.isDraw || !input.winner ? input.pair.draw_count || 0 : winnerWins(input.pair, input.winner.id);
+  const directProbability = directWins / input.sampleSize;
+  if (Math.abs(directProbability - 0.5) < 0.001) {
+    return boundedPercent((directWins + input.priorProbability * 2) / (input.sampleSize + 2));
+  }
+  return boundedPercent(directProbability);
 }
 
 function crowdEstimate(input: {
@@ -62,15 +92,27 @@ function crowdEstimate(input: {
 }) {
   const sampleSize = input.pair?.battle_count || 0;
   const hasDirectSignal = sampleSize >= DIRECT_AGREEMENT_MIN_VOTES;
-  const agreementPercent = hasDirectSignal
-    ? boundedPercent(
-        input.isDraw || !input.winner
-          ? (input.pair?.draw_count || 0) / sampleSize
-          : winnerWins(input.pair, input.winner.id) / sampleSize,
-      )
-    : input.isDraw || !input.winner || !input.loser
-      ? eloTieAgreementPercent(input.leftElo, input.rightElo)
-      : eloAgreementPercent(input.winnerElo, input.loserElo);
+  const leftElo = itemElo(input.left, input.leftElo);
+  const rightElo = itemElo(input.right, input.rightElo);
+  const winnerElo = input.winner ? itemElo(input.winner, input.winnerElo) : null;
+  const loserElo = input.loser ? itemElo(input.loser, input.loserElo) : null;
+  const priorProbability = eloPriorProbability({
+    isDraw: input.isDraw,
+    leftElo,
+    rightElo,
+    winnerElo,
+    loserElo,
+  });
+  const agreementPercent =
+    hasDirectSignal && input.pair
+      ? directAgreementPercent({
+          pair: input.pair,
+          sampleSize,
+          winner: input.winner,
+          isDraw: input.isDraw,
+          priorProbability,
+        })
+      : boundedPercent(priorProbability);
 
   return {
     agreementPercent,

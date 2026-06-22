@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { initialEloForItem } from "../src/server/elo";
 import { applyVoteToSummary, emptySummary, sessionPairPath, summaryFromVotes, votePath, type StoredVoteRecord } from "../src/server/voteStore";
 import type { ArenaFamily, ArenaItem } from "../src/shared/types";
 
@@ -115,8 +116,8 @@ describe("vote store helpers", () => {
     expect(summary.acceptedVotes).toBe(1);
     expect(summary.itemStats.a.draws).toBe(1);
     expect(summary.itemStats.b.draws).toBe(1);
-    expect(summary.itemStats.a.elo).toBe(1200);
-    expect(summary.itemStats.b.elo).toBe(1200);
+    expect(summary.itemStats.a.elo).toBe(initialEloForItem(left));
+    expect(summary.itemStats.b.elo).toBe(initialEloForItem(right));
     expect(summary.pairStats.a__b.draw_count).toBe(1);
   });
 
@@ -151,7 +152,8 @@ describe("vote store helpers", () => {
     expect(summary.families.wall_hook.acceptedVotes).toBe(1);
     expect(summary.itemStats.h.wins).toBe(1);
     expect(summary.itemStats.a.losses).toBe(1);
-    expect(summary.itemStats.h.elo).toBeGreaterThan(1200);
+    expect(summary.itemStats.h.elo).toBeGreaterThan(initialEloForItem(right));
+    expect(summary.itemStats.a.elo).toBeLessThan(initialEloForItem(left));
     expect(summary.pairStats.a__h).toMatchObject({
       family: "mixed",
       item_a_family: "wall_planter",

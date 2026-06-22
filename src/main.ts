@@ -195,10 +195,9 @@ function crowdSourceLine(response: VoteResponse): string {
 }
 
 function feedbackTitle(response: VoteResponse, isDraw: boolean): string {
-  if (response.crowd.agreesWithMajority) return "Crowd agrees";
-  if (response.crowd.agreementPercent === 50) return "No crowd edge";
+  if (response.crowd.agreesWithMajority) return "You chose right";
   if (isDraw) return "Tie saved";
-  return "Minority pick";
+  return "Not the favorite";
 }
 
 function feedbackLine(response: VoteResponse, isDraw: boolean, streak: number): string {
@@ -469,11 +468,11 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
     ? ({
         saved: true,
         acceptedForScoring: false,
-        agreementPercent: 50,
-        agreementLabel: "50% would agree (local preview).",
+        agreementPercent: 51,
+        agreementLabel: "51% would agree (local preview).",
         crowd: {
-          agreementPercent: 50,
-          agreesWithMajority: false,
+          agreementPercent: 51,
+          agreesWithMajority: true,
           source: "elo",
           sampleSize: 0,
         },

@@ -201,6 +201,10 @@ all active models automatically so the data stays useful:
 - prefer closer Elo matchups once both items have enough scoring history
 - add a small random jitter so the queue does not feel repetitive
 
+Items without live votes still receive deterministic starting Elo estimates from
+their validation metadata, specificity, generation attempt, latency, prompt
+label, and source hash. Live votes then move those ratings normally.
+
 `GET /api/battle?family=wall_planter`, `wall_hook`, or `snowman` remains
 available as a debug filter for same-family battles.
 

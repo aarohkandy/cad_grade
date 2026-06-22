@@ -120,12 +120,14 @@ describe("local storage api flow", () => {
       acceptedForScoring: true,
       dataMode: "local",
       crowd: {
-        agreementPercent: 50,
-        agreesWithMajority: false,
         source: "elo",
         sampleSize: 0,
       },
     });
+    expect((voteResponse.body as VoteResponse).crowd.agreementPercent).not.toBe(50);
+    expect((voteResponse.body as VoteResponse).crowd.agreesWithMajority).toBe(
+      (voteResponse.body as VoteResponse).crowd.agreementPercent > 50,
+    );
 
     const statsResponse = mockResponse();
     await statsHandler({ method: "GET", headers: {}, query: {} } as never, statsResponse as never);

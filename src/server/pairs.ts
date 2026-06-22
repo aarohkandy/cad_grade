@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ArenaFamily, ArenaItem, BattleGroup } from "../shared/types";
+import { initialEloForItem } from "./elo.js";
 
 const MAX_SCORED_PAIRS = 5000;
 const EXPLORATION_RATE = 0.08;
@@ -43,9 +44,9 @@ function battleCount(stat: ItemStatLike | undefined): number {
   return Number.isFinite(value) ? value : 0;
 }
 
-function eloValue(stat: ItemStatLike | undefined): number {
+function eloValue(stat: ItemStatLike | undefined, item: ArenaItem): number {
   const value = Number(stat?.elo);
-  return Number.isFinite(value) ? value : 1200;
+  return Number.isFinite(value) ? value : initialEloForItem(item);
 }
 
 function pairBattles(pairStats: Map<string, PairStatLike> | undefined, leftId: string, rightId: string): number {
@@ -164,7 +165,7 @@ export function selectBattlePair(input: {
     const repeatedPairPenalty = pairBattles(input.pairStats, left.id, right.id) * 420;
     const exposurePenalty = Math.max(leftBattles, rightBattles) * 24 + Math.min(leftBattles, rightBattles) * 12;
     const hasRankingSignal = leftBattles >= 4 && rightBattles >= 4;
-    const eloGapPenalty = Math.abs(eloValue(leftStat) - eloValue(rightStat)) / (hasRankingSignal ? 16 : 80);
+    const eloGapPenalty = Math.abs(eloValue(leftStat, left) - eloValue(rightStat, right)) / (hasRankingSignal ? 16 : 80);
     const score = repeatedPairPenalty + exposurePenalty + eloGapPenalty + random();
     return { pair, score };
   });

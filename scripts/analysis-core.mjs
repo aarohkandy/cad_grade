@@ -41,6 +41,42 @@ function expectedScore(playerElo, opponentElo) {
   return 1 / (1 + 10 ** ((opponentElo - playerElo) / 400));
 }
 
+function stableUnit(value) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 0xffffffff;
+}
+
+function initialEloForItem(item) {
+  const confidence = Number(item.validation?.confidence);
+  const attempt = Number(item.validation?.attempt_count);
+  const issueCount = item.validation?.issues?.length || 0;
+  const level = Number(item.specificityLevel);
+  const latency = Number(item.latencyMs);
+  const title = String(item.title || "").toLowerCase();
+  const jitter = stableUnit(`${item.id}:${item.sourceHash}`);
+
+  let elo = DEFAULT_ELO;
+  elo += item.validation?.valid === false ? -90 : 10;
+  if (Number.isFinite(confidence)) elo += (confidence - 0.85) * 36;
+  elo -= issueCount * 8;
+  if (Number.isFinite(attempt) && attempt > 0) elo += Math.max(-18, 8 - (attempt - 1) * 7);
+  if (Number.isFinite(level)) elo += (level - 5) * 2.2;
+  elo -= Math.min(6, Math.max(0, item.repetition || 0) * 1.5);
+  if (Number.isFinite(latency)) elo += Math.max(-9, Math.min(7, (70_000 - latency) / 10_000));
+  if (title.includes("full")) elo += 14;
+  else if (title.includes("dimensions")) elo += 9;
+  else if (title.includes("printable")) elo += 5;
+  else if (title.includes("clear")) elo += 2;
+  else if (title.includes("minimal")) elo -= 3;
+  elo += (jitter - 0.5) * 18;
+
+  return Math.round(elo * 1000) / 1000;
+}
+
 function updateElo(winnerElo, loserElo, weight = 1) {
   const expectedWinner = expectedScore(winnerElo, loserElo);
   const delta = DEFAULT_K * Math.max(0, Math.min(1, weight)) * (1 - expectedWinner);
@@ -173,7 +209,7 @@ function initItemStats(dataset) {
         losses: 0,
         draws: 0,
         battles: 0,
-        elo: DEFAULT_ELO,
+        elo: initialEloForItem(item),
       },
     ]),
   );
@@ -452,8 +488,8 @@ export function analyzeVotes({ votes, dataset, generatedAtUtc = new Date().toISO
       clean_wins: clean?.wins || 0,
       raw_draws: raw?.draws || 0,
       clean_draws: clean?.draws || 0,
-      raw_elo: raw?.elo ?? DEFAULT_ELO,
-      clean_elo: clean?.elo ?? DEFAULT_ELO,
+      raw_elo: raw?.elo ?? initialEloForItem(item),
+      clean_elo: clean?.elo ?? initialEloForItem(item),
       data_status: clean?.data_status || raw?.data_status || "early",
     };
   });

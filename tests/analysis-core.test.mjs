@@ -112,10 +112,17 @@ describe("local analysis core", () => {
 
     const a = analysis.rankingsClean.find((row) => row.item_id === "a");
     const b = analysis.rankingsClean.find((row) => row.item_id === "b");
+    const base = analyzeVotes({
+      dataset: dataset(),
+      votes: [],
+      generatedAtUtc: "2026-06-14T12:10:00.000Z",
+    });
+    const baseA = base.rankingsClean.find((row) => row.item_id === "a");
+    const baseB = base.rankingsClean.find((row) => row.item_id === "b");
     expect(a.draws).toBe(1);
     expect(b.draws).toBe(1);
-    expect(a.elo).toBe(1200);
-    expect(b.elo).toBe(1200);
+    expect(a.elo).toBe(baseA.elo);
+    expect(b.elo).toBe(baseB.elo);
   });
 
   it("includes cross-family votes in rankings and mixed pair rows", () => {
@@ -136,9 +143,15 @@ describe("local analysis core", () => {
 
     const hook = analysis.rankingsClean.find((row) => row.item_id === "h1");
     const planter = analysis.rankingsClean.find((row) => row.item_id === "a");
+    const base = analyzeVotes({
+      dataset: dataset(),
+      votes: [],
+      generatedAtUtc: "2026-06-14T12:10:00.000Z",
+    });
+    const baseHook = base.rankingsClean.find((row) => row.item_id === "h1");
     const mixedPair = analysis.pairRows.find((row) => row.pair_key === "a__h1");
     expect(hook.wins).toBe(1);
-    expect(hook.elo).toBeGreaterThan(1200);
+    expect(hook.elo).toBeGreaterThan(baseHook.elo);
     expect(planter.losses).toBe(1);
     expect(mixedPair).toMatchObject({ family: "mixed", battles: 1, item_b_wins: 1 });
     expect(analysis.familyRows.find((row) => row.family === "wall_hook").raw_votes).toBe(1);
