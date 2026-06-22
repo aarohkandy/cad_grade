@@ -23,6 +23,7 @@ import {
 import type { ArenaItem, VotePayload } from "../src/shared/types";
 
 const DIRECT_AGREEMENT_MIN_VOTES = 5;
+const DIRECT_AGREEMENT_PRIOR_VOTES = 8;
 
 function winnerWins(pair: StoredPairStat | undefined, winnerId: string): number {
   if (!pair) return 0;
@@ -71,11 +72,10 @@ function directAgreementPercent(input: {
   priorProbability: number;
 }): number {
   const directWins = input.isDraw || !input.winner ? input.pair.draw_count || 0 : winnerWins(input.pair, input.winner.id);
-  const directProbability = directWins / input.sampleSize;
-  if (Math.abs(directProbability - 0.5) < 0.001) {
-    return boundedPercent((directWins + input.priorProbability * 2) / (input.sampleSize + 2));
-  }
-  return boundedPercent(directProbability);
+  const smoothedProbability =
+    (directWins + input.priorProbability * DIRECT_AGREEMENT_PRIOR_VOTES) /
+    (input.sampleSize + DIRECT_AGREEMENT_PRIOR_VOTES);
+  return boundedPercent(smoothedProbability);
 }
 
 function crowdEstimate(input: {

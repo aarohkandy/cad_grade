@@ -246,11 +246,12 @@ describe("local storage api flow", () => {
     });
 
     expect(minority.crowd).toMatchObject({
-      agreementPercent: 4,
       agreesWithMajority: false,
       source: "direct",
       sampleSize: 5,
     });
+    expect(minority.crowd.agreementPercent).toBeGreaterThan(4);
+    expect(minority.crowd.agreementPercent).toBeLessThan(50);
   });
 
   it("saves draw votes as tie judgments", async () => {

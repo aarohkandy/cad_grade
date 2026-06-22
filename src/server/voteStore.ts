@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
-import { initialEloForItem, updateElo } from "./elo.js";
+import { eloVoteWeight, initialEloForItem, updateElo } from "./elo.js";
 import { hasBlobCredentials, isVercelRuntime } from "./env.js";
 import { pairGroup, pairKey } from "./pairs.js";
+import { acceptedForCurrentScoring } from "./quality.js";
 import type { ArenaFamily, ArenaItem, BattleGroup } from "../shared/types";
 
 export const VOTES_PREFIX = "votes/v1";
@@ -227,7 +228,7 @@ export function applyVoteToSummary(
     next.qualityFlagCounts[flag] = (next.qualityFlagCounts[flag] || 0) + 1;
   }
 
-  if (!vote.accepted_for_scoring) return next;
+  if (!acceptedForCurrentScoring(vote)) return next;
 
   next.acceptedVotes += 1;
   if (group === "mixed") next.mixedAcceptedVotes += 1;
@@ -264,7 +265,9 @@ export function applyVoteToSummary(
 
   const winnerBefore = next.itemStats[winner.id] || defaultItemStat(winner, updatedAt);
   const loserBefore = next.itemStats[loser.id] || defaultItemStat(loser, updatedAt);
-  const elo = updateElo(winnerBefore, loserBefore);
+  const elo = updateElo(winnerBefore, loserBefore, {
+    weight: eloVoteWeight(winnerBefore, loserBefore),
+  });
 
   next.itemStats[winner.id] = {
     ...winnerBefore,

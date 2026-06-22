@@ -37,7 +37,7 @@ function vote(overrides: Partial<StoredVoteRecord> = {}): StoredVoteRecord {
     winner_item_id: "a",
     loser_item_id: "b",
     vote_result: "winner",
-    session_id: "session",
+    session_id: "session-1234567890",
     started_at: "2026-06-12T13:59:55.000Z",
     models_loaded_at: "2026-06-12T13:59:56.000Z",
     voted_at: "2026-06-12T14:00:00.000Z",
@@ -87,6 +87,27 @@ describe("vote store helpers", () => {
     expect(summary.itemStats.a.wins).toBe(1);
     expect(summary.itemStats.b.losses).toBe(1);
     expect(summary.pairStats.a__b.item_a_wins).toBe(1);
+  });
+
+  it("dampens repeated Elo changes as a pair builds history", () => {
+    const winner = item("a");
+    const loser = item("b");
+    const baseWinnerElo = initialEloForItem(winner);
+    const first = applyVoteToSummary(emptySummary("dataset", ["wall_planter", "wall_hook"]), vote(), winner, loser, winner, loser);
+    const second = applyVoteToSummary(
+      first,
+      vote({ id: "vote-2", created_at: "2026-06-12T14:01:00.000Z" }),
+      winner,
+      loser,
+      winner,
+      loser,
+    );
+
+    const firstGain = first.itemStats.a.elo - baseWinnerElo;
+    const secondGain = second.itemStats.a.elo - first.itemStats.a.elo;
+    expect(firstGain).toBeGreaterThan(0);
+    expect(secondGain).toBeGreaterThan(0);
+    expect(secondGain).toBeLessThan(firstGain);
   });
 
   it("counts accepted draw votes without moving Elo", () => {

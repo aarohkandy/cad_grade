@@ -1,12 +1,13 @@
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
-import { mkdir } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 
 const APP_ROOT = path.resolve(import.meta.dirname, "..");
 const PORT = Number(process.env.SMOKE_PORT || 4273);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const OUT_DIR = path.join(APP_ROOT, "test-results", "browser-smoke");
+const SMOKE_VOTE_DIR = path.join(OUT_DIR, "local-data");
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -185,6 +186,7 @@ async function checkViewport(browser, name, viewport) {
 }
 
 await mkdir(OUT_DIR, { recursive: true });
+await rm(SMOKE_VOTE_DIR, { recursive: true, force: true });
 await assertPortFree();
 const server = spawn(
   process.execPath,
@@ -199,6 +201,12 @@ const server = spawn(
   ],
   {
     cwd: APP_ROOT,
+    env: {
+      ...process.env,
+      LOCAL_VOTE_DIR: SMOKE_VOTE_DIR,
+      IP_HASH_SALT: process.env.IP_HASH_SALT || "browser-smoke-ip-salt",
+      HOLD_VERIFY_SECRET: process.env.HOLD_VERIFY_SECRET || "browser-smoke-hold-secret",
+    },
     stdio: "ignore",
     windowsHide: true,
   },

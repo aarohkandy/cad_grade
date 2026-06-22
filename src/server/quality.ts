@@ -4,12 +4,14 @@ const FAST_VOTE_MS = 1200;
 const FAST_LOAD_MS = 300;
 const FAST_AFTER_LOAD_MS = 900;
 
+type QualityPayload = Pick<VotePayload, "started_at" | "models_loaded_at" | "voted_at" | "session_id">;
+
 function timestampMs(value: string): number | null {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function voteTiming(payload: VotePayload): { elapsedMs: number | null; loadMs: number | null } {
+export function voteTiming(payload: QualityPayload): { elapsedMs: number | null; loadMs: number | null } {
   const started = timestampMs(payload.started_at);
   const loaded = timestampMs(payload.models_loaded_at);
   const voted = timestampMs(payload.voted_at);
@@ -20,7 +22,7 @@ export function voteTiming(payload: VotePayload): { elapsedMs: number | null; lo
 }
 
 export function qualityDecision(input: {
-  payload: VotePayload;
+  payload: QualityPayload;
   holdSubmitted: boolean;
   holdPassed: boolean;
   duplicatePair: boolean;
@@ -37,7 +39,10 @@ export function qualityDecision(input: {
   const voteAfterLoadMs = loaded !== null && voted !== null ? Math.max(0, voted - loaded) : null;
   const qualityFlags: string[] = [];
   const tooFast = elapsedMs !== null && elapsedMs < FAST_VOTE_MS;
-  const modelsLoadedTooFast = loadMs !== null && loadMs < FAST_LOAD_MS;
+  const modelsLoadedTooFast =
+    loadMs !== null &&
+    loadMs < FAST_LOAD_MS &&
+    (voteAfterLoadMs === null || voteAfterLoadMs < FAST_AFTER_LOAD_MS);
   const votedAfterLoadTooFast = voteAfterLoadMs !== null && voteAfterLoadMs < FAST_AFTER_LOAD_MS;
   const weakSession = !input.payload.session_id || input.payload.session_id.length < 12;
   const holdRequired = tooFast || modelsLoadedTooFast || votedAfterLoadTooFast || weakSession;
@@ -59,4 +64,17 @@ export function qualityDecision(input: {
       !weakSession &&
       !(input.holdSubmitted && !input.holdPassed),
   };
+}
+
+export function acceptedForCurrentScoring(vote: QualityPayload & {
+  duplicate_pair?: boolean | null;
+  hold_duration_ms?: number | null;
+  hold_passed?: boolean | null;
+}): boolean {
+  return qualityDecision({
+    payload: vote,
+    holdSubmitted: vote.hold_duration_ms !== null && vote.hold_duration_ms !== undefined,
+    holdPassed: Boolean(vote.hold_passed),
+    duplicatePair: Boolean(vote.duplicate_pair),
+  }).acceptedForScoring;
 }

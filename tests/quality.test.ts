@@ -44,6 +44,38 @@ describe("vote quality", () => {
     expect(quality.qualityFlags).toContain("hold_required");
   });
 
+  it("accepts cached model loads when the vote itself is human-paced", () => {
+    const quality = qualityDecision({
+      payload: payload({
+        models_loaded_at: "2026-06-12T12:00:00.050Z",
+        voted_at: "2026-06-12T12:00:02.000Z",
+      }),
+      holdSubmitted: false,
+      holdPassed: false,
+      duplicatePair: false,
+    });
+
+    expect(quality.acceptedForScoring).toBe(true);
+    expect(quality.qualityFlags).not.toContain("models_loaded_too_fast");
+    expect(quality.qualityFlags).not.toContain("hold_required");
+  });
+
+  it("still rejects an instant vote after a cached model load", () => {
+    const quality = qualityDecision({
+      payload: payload({
+        models_loaded_at: "2026-06-12T12:00:00.050Z",
+        voted_at: "2026-06-12T12:00:00.500Z",
+      }),
+      holdSubmitted: false,
+      holdPassed: false,
+      duplicatePair: false,
+    });
+
+    expect(quality.acceptedForScoring).toBe(false);
+    expect(quality.qualityFlags).toContain("models_loaded_too_fast");
+    expect(quality.qualityFlags).toContain("vote_after_load_too_fast");
+  });
+
   it("can accept a fast vote after a valid hold check", () => {
     const hold = createHoldChallenge("secret", 0, () => 0);
     const quality = qualityDecision({

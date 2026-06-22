@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agreementPercent, expectedScore, initialEloForItem, updateElo } from "../src/server/elo";
+import { agreementPercent, eloVoteWeight, expectedScore, initialEloForItem, updateElo } from "../src/server/elo";
 import type { ArenaItem } from "../src/shared/types";
 
 function item(id: string, overrides: Partial<ArenaItem> = {}): ArenaItem {
@@ -48,5 +48,11 @@ describe("elo", () => {
     const weaker = item("minimal", { title: "minimal model", specificityLevel: 1, sourceHash: "bbb" });
     expect(initialEloForItem(stronger)).toBe(initialEloForItem(stronger));
     expect(initialEloForItem(stronger)).toBeGreaterThan(initialEloForItem(weaker));
+  });
+
+  it("shrinks Elo update weight as models build history", () => {
+    expect(eloVoteWeight({ battle_count: 0 }, { battle_count: 0 })).toBe(1);
+    expect(eloVoteWeight({ battle_count: 40 }, { battle_count: 60 })).toBeLessThan(0.2);
+    expect(eloVoteWeight({ battle_count: 400 }, { battle_count: 500 })).toBeGreaterThan(0);
   });
 });

@@ -2,6 +2,9 @@ import type { ArenaItem } from "../shared/types";
 
 const DEFAULT_ELO = 1200;
 const DEFAULT_K = 28;
+const ELO_DECAY_PRIOR_BATTLES = 10;
+const ELO_MIN_VOTE_WEIGHT = 0.16;
+const AGREEMENT_PRIOR_BATTLES = 8;
 
 export interface EloInput {
   elo?: number | null;
@@ -84,6 +87,14 @@ export function updateElo(
   };
 }
 
+export function eloVoteWeight(left: EloInput | undefined, right: EloInput | undefined): number {
+  const leftBattles = Math.max(0, Number(left?.battle_count) || 0);
+  const rightBattles = Math.max(0, Number(right?.battle_count) || 0);
+  const averageBattles = (leftBattles + rightBattles) / 2;
+  const raw = ELO_DECAY_PRIOR_BATTLES / (ELO_DECAY_PRIOR_BATTLES + averageBattles);
+  return Math.round(Math.max(ELO_MIN_VOTE_WEIGHT, Math.min(1, raw)) * 1000) / 1000;
+}
+
 export function agreementPercent(input: {
   winnerWins: number;
   battleCount: number;
@@ -93,7 +104,6 @@ export function agreementPercent(input: {
   const battleCount = Math.max(0, input.battleCount || 0);
   const winnerWins = Math.max(0, input.winnerWins || 0);
   const prior = expectedScore(normalizedElo({ elo: input.winnerElo }), normalizedElo({ elo: input.loserElo }));
-  const smoothed = (winnerWins + prior * 4) / Math.max(1, battleCount + 4);
-  const raw = battleCount >= 5 ? winnerWins / battleCount : smoothed;
-  return Math.round(Math.max(0.04, Math.min(0.96, raw)) * 100);
+  const smoothed = (winnerWins + prior * AGREEMENT_PRIOR_BATTLES) / Math.max(1, battleCount + AGREEMENT_PRIOR_BATTLES);
+  return Math.round(Math.max(0.04, Math.min(0.96, smoothed)) * 100);
 }

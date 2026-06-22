@@ -6,6 +6,11 @@ export const TEST_SESSION_PREFIXES = ["production-check-", "production-browser-c
 
 const DEFAULT_ELO = 1200;
 const DEFAULT_K = 28;
+const ELO_DECAY_PRIOR_BATTLES = 10;
+const ELO_MIN_VOTE_WEIGHT = 0.16;
+const FAST_VOTE_MS = 1200;
+const FAST_LOAD_MS = 300;
+const FAST_AFTER_LOAD_MS = 900;
 
 function finiteNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -19,6 +24,17 @@ function percent(value) {
 function timestampMs(value) {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function voteTiming(vote) {
+  const started = timestampMs(vote.started_at);
+  const loaded = timestampMs(vote.models_loaded_at);
+  const voted = timestampMs(vote.voted_at);
+  return {
+    elapsedMs: started !== null && voted !== null ? Math.max(0, voted - started) : finiteNumber(vote.elapsed_ms, null) ?? null,
+    loadMs: started !== null && loaded !== null ? Math.max(0, loaded - started) : finiteNumber(vote.load_ms, null) ?? null,
+    voteAfterLoadMs: loaded !== null && voted !== null ? Math.max(0, voted - loaded) : null,
+  };
 }
 
 function hourKey(value) {
@@ -86,6 +102,14 @@ function updateElo(winnerElo, loserElo, weight = 1) {
   };
 }
 
+function eloVoteWeight(left, right) {
+  const leftBattles = Math.max(0, finiteNumber(left?.battles, 0));
+  const rightBattles = Math.max(0, finiteNumber(right?.battles, 0));
+  const averageBattles = (leftBattles + rightBattles) / 2;
+  const raw = ELO_DECAY_PRIOR_BATTLES / (ELO_DECAY_PRIOR_BATTLES + averageBattles);
+  return Math.max(ELO_MIN_VOTE_WEIGHT, Math.min(1, raw));
+}
+
 export function pairKey(leftId, rightId) {
   return [leftId, rightId].sort().join("__");
 }
@@ -94,8 +118,41 @@ export function isTestVote(vote) {
   return TEST_SESSION_PREFIXES.some((prefix) => String(vote?.session_id || "").startsWith(prefix));
 }
 
+function currentQuality(vote) {
+  const { elapsedMs, loadMs, voteAfterLoadMs } = voteTiming(vote);
+  const tooFast = elapsedMs !== null && elapsedMs < FAST_VOTE_MS;
+  const votedAfterLoadTooFast = voteAfterLoadMs !== null && voteAfterLoadMs < FAST_AFTER_LOAD_MS;
+  const modelsLoadedTooFast =
+    loadMs !== null &&
+    loadMs < FAST_LOAD_MS &&
+    (voteAfterLoadMs === null || votedAfterLoadTooFast);
+  const weakSession = !vote.session_id || String(vote.session_id).length < 12;
+  const duplicatePair = Boolean(vote.duplicate_pair);
+  const holdSubmitted = vote.hold_duration_ms !== null && vote.hold_duration_ms !== undefined;
+  const holdPassed = Boolean(vote.hold_passed);
+  const holdRequired = tooFast || modelsLoadedTooFast || votedAfterLoadTooFast || weakSession;
+  const flags = [];
+  if (tooFast) flags.push("too_fast");
+  if (modelsLoadedTooFast) flags.push("models_loaded_too_fast");
+  if (votedAfterLoadTooFast) flags.push("vote_after_load_too_fast");
+  if (holdRequired && !holdSubmitted) flags.push("hold_required");
+  if (holdSubmitted && !holdPassed) flags.push("hold_failed");
+  if (duplicatePair) flags.push("duplicate_pair");
+  if (weakSession) flags.push("weak_session");
+  return {
+    flags,
+    tooFast,
+    duplicatePair,
+    acceptedForScoring:
+      ((!tooFast && !modelsLoadedTooFast && !votedAfterLoadTooFast) || holdPassed) &&
+      !duplicatePair &&
+      !weakSession &&
+      !(holdSubmitted && !holdPassed),
+  };
+}
+
 function isCleanVote(vote) {
-  return vote?.accepted_for_scoring === true && !isTestVote(vote);
+  return currentQuality(vote).acceptedForScoring && !isTestVote(vote);
 }
 
 export function readArgs(argv) {
@@ -240,11 +297,11 @@ function rankingRows(votes, dataset, label) {
     if (!left || !right) continue;
     const key = pairKey(left.item_id, right.item_id);
     const pair = pairs.get(key);
-    left.battles += 1;
-    right.battles += 1;
-    if (pair) pair.battles += 1;
 
     if (vote.vote_result === "draw" || !vote.winner_item_id) {
+      left.battles += 1;
+      right.battles += 1;
+      if (pair) pair.battles += 1;
       left.draws += 1;
       right.draws += 1;
       if (pair) pair.draws += 1;
@@ -258,9 +315,12 @@ function rankingRows(votes, dataset, label) {
 
     winner.wins += 1;
     loser.losses += 1;
-    const elo = updateElo(winner.elo, loser.elo);
+    const elo = updateElo(winner.elo, loser.elo, eloVoteWeight(winner, loser));
     winner.elo = elo.winner;
     loser.elo = elo.loser;
+    left.battles += 1;
+    right.battles += 1;
+    if (pair) pair.battles += 1;
     if (pair) {
       if (winner.item_id === pair.item_a_id) pair.item_a_wins += 1;
       if (winner.item_id === pair.item_b_id) pair.item_b_wins += 1;
@@ -305,6 +365,7 @@ function groupCounts(votes, keyFn) {
 function buildSessionRows(votes) {
   const groups = new Map();
   for (const vote of votes) {
+    const quality = currentQuality(vote);
     const session = String(vote.session_id || "missing-session");
     const row = groups.get(session) || {
       session_id: session,
@@ -319,10 +380,10 @@ function buildSessionRows(votes) {
       last_vote_at: vote.created_at,
     };
     row.raw_votes += 1;
-    row.clean_votes += isCleanVote(vote) ? 1 : 0;
-    row.flagged_votes += vote.quality_flags?.length ? 1 : 0;
-    row.duplicate_votes += vote.duplicate_pair ? 1 : 0;
-    row.too_fast_votes += vote.too_fast ? 1 : 0;
+    row.clean_votes += quality.acceptedForScoring ? 1 : 0;
+    row.flagged_votes += quality.flags.length ? 1 : 0;
+    row.duplicate_votes += quality.duplicatePair ? 1 : 0;
+    row.too_fast_votes += quality.tooFast ? 1 : 0;
     row.unique_pairs.add(pairKey(vote.left_item_id, vote.right_item_id));
     if (Number.isFinite(vote.elapsed_ms)) row.elapsed_values.push(vote.elapsed_ms);
     if (String(vote.created_at) < String(row.first_vote_at)) row.first_vote_at = vote.created_at;
@@ -496,7 +557,7 @@ export function analyzeVotes({ votes, dataset, generatedAtUtc = new Date().toISO
 
   const votesPerHour = groupCounts(reportVotes, (vote) => hourKey(vote.created_at)).map((row) => ({ hour: row.key, votes: row.count }));
   const votesPerDay = groupCounts(reportVotes, (vote) => dayKey(vote.created_at)).map((row) => ({ day: row.key, votes: row.count }));
-  const flaggedVotes = reportVotes.filter((vote) => vote.quality_flags?.length || vote.duplicate_pair || vote.too_fast);
+  const flaggedVotes = reportVotes.filter((vote) => currentQuality(vote).flags.length);
 
   return {
     generatedAtUtc,
@@ -505,7 +566,7 @@ export function analyzeVotes({ votes, dataset, generatedAtUtc = new Date().toISO
       totalRawVotes: allVotes.length,
       reportRawVotes: reportVotes.length,
       cleanVotes: cleanVotes.length,
-      acceptedVotes: reportVotes.filter((vote) => vote.accepted_for_scoring === true).length,
+      acceptedVotes: reportVotes.filter((vote) => currentQuality(vote).acceptedForScoring).length,
       flaggedVotes: flaggedVotes.length,
       excludedTestVotes: testVotes.length,
       activeSessions: sessions.length,
