@@ -154,6 +154,11 @@ async function assertVoteFeedbackAndAdvance(page, name) {
   if (!String(feedback || "").includes("% would")) {
     throw new Error(`${name} missing crowd estimate: ${feedback}`);
   }
+  await page.locator("#result-flash.is-active").waitFor({ timeout: 10_000 });
+  const flashClass = await page.locator("#result-flash").getAttribute("class");
+  if (!String(flashClass || "").match(/\bis-(good|bad)\b/)) {
+    throw new Error(`${name} result flash did not indicate good/bad: ${flashClass}`);
+  }
   await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
   const holdHidden = await page.locator("#hold-panel").evaluate((panel) => panel.classList.contains("is-hidden"));
   if (!holdHidden) throw new Error(`${name} hold verification appeared after normal vote`);

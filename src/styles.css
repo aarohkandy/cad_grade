@@ -427,6 +427,31 @@ button {
     0 0 0 4px rgba(228, 247, 121, 0.2);
 }
 
+.result-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+
+.result-flash.is-good {
+  background:
+    radial-gradient(circle at 50% 46%, rgba(226, 255, 105, 0.5), rgba(91, 226, 129, 0.26) 36%, rgba(12, 70, 40, 0) 72%),
+    linear-gradient(180deg, rgba(126, 255, 164, 0.24), rgba(228, 247, 121, 0.2));
+}
+
+.result-flash.is-bad {
+  background:
+    radial-gradient(circle at 50% 46%, rgba(255, 88, 88, 0.46), rgba(255, 52, 52, 0.28) 36%, rgba(78, 8, 8, 0) 72%),
+    linear-gradient(180deg, rgba(255, 94, 94, 0.24), rgba(255, 37, 37, 0.18));
+}
+
+.result-flash.is-active {
+  animation: result-flash 820ms ease-out forwards;
+}
+
 .confetti-layer {
   position: fixed;
   inset: 0;
@@ -479,7 +504,25 @@ button {
   }
 }
 
+@keyframes result-flash {
+  0% {
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .result-flash.is-active {
+    animation-duration: 420ms;
+  }
+
   .confetti-piece {
     display: none;
   }

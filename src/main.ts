@@ -79,6 +79,7 @@ app.innerHTML = `
       <p id="feedback-copy"></p>
     </section>
 
+    <div class="result-flash" id="result-flash" aria-hidden="true"></div>
     <div class="confetti-layer" id="confetti-layer" aria-hidden="true"></div>
   </div>
 `;
@@ -105,6 +106,7 @@ const dom = {
   feedbackPanel: document.querySelector("#feedback-panel") as HTMLElement,
   feedbackTitle: document.querySelector("#feedback-title") as HTMLElement,
   feedbackCopy: document.querySelector("#feedback-copy") as HTMLElement,
+  resultFlash: document.querySelector("#result-flash") as HTMLElement,
   confettiLayer: document.querySelector("#confetti-layer") as HTMLElement,
   roundPulse: document.querySelector("#round-pulse") as HTMLElement,
 };
@@ -227,6 +229,15 @@ function fireConfetti(): void {
     dom.confettiLayer.append(piece);
   }
   window.setTimeout(() => dom.confettiLayer.replaceChildren(), 1400);
+}
+
+function flashResult(agreesWithMajority: boolean): void {
+  dom.resultFlash.classList.remove("is-good", "is-bad", "is-active");
+  void dom.resultFlash.offsetWidth;
+  dom.resultFlash.classList.add(agreesWithMajority ? "is-good" : "is-bad", "is-active");
+  window.setTimeout(() => {
+    dom.resultFlash.classList.remove("is-active", "is-good", "is-bad");
+  }, 860);
 }
 
 function allLocalPairs(items: ArenaItem[]): Array<[ArenaItem, ArenaItem]> {
@@ -503,6 +514,7 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   dom.feedbackPanel.classList.toggle("is-majority", response.crowd.agreesWithMajority);
   dom.feedbackTitle.textContent = feedbackTitle(response, isDraw);
   dom.feedbackCopy.textContent = feedbackLine(response, isDraw, streak);
+  flashResult(response.crowd.agreesWithMajority);
   if (response.crowd.agreesWithMajority) fireConfetti();
   dom.roundPulse.textContent = "next";
   window.clearTimeout(autoNextTimer);
