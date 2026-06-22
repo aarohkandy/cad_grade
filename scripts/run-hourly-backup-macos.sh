@@ -40,7 +40,7 @@ fi
 "$NODE_PATH" scripts/backup-live.mjs \
   --url https://cadbattle.vercel.app \
   --out exports/live-backups \
-  --prune none >> "$LOG_FILE" 2>&1
+  --prune completed-hour >> "$LOG_FILE" 2>&1
 
 EXIT_CODE=$?
 DONE="$(date -Iseconds)"

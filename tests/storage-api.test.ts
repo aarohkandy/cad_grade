@@ -34,6 +34,38 @@ function mockResponse() {
   return response;
 }
 
+async function submitVote(input: {
+  leftItemId: string;
+  rightItemId: string;
+  winnerItemId: string | null;
+  sessionId: string;
+  now?: number;
+}) {
+  const now = input.now ?? Date.now();
+  const voteResponse = mockResponse();
+  await voteHandler(
+    {
+      method: "POST",
+      headers: { "user-agent": "vitest" },
+      socket: { remoteAddress: "127.0.0.1" },
+      body: {
+        battle_id: `battle-${input.sessionId}`,
+        left_item_id: input.leftItemId,
+        right_item_id: input.rightItemId,
+        winner_item_id: input.winnerItemId,
+        vote_result: input.winnerItemId ? "winner" : "draw",
+        started_at: new Date(now - 6000).toISOString(),
+        models_loaded_at: new Date(now - 5000).toISOString(),
+        voted_at: new Date(now).toISOString(),
+        session_id: input.sessionId,
+      },
+    } as never,
+    voteResponse as never,
+  );
+  expect(voteResponse.statusCode).toBe(200);
+  return voteResponse.body as VoteResponse;
+}
+
 describe("local storage api flow", () => {
   let tempDir = "";
 
@@ -83,7 +115,17 @@ describe("local storage api flow", () => {
     );
 
     expect(voteResponse.statusCode).toBe(200);
-    expect(voteResponse.body).toMatchObject({ saved: true, acceptedForScoring: true, dataMode: "local" });
+    expect(voteResponse.body).toMatchObject({
+      saved: true,
+      acceptedForScoring: true,
+      dataMode: "local",
+      crowd: {
+        agreementPercent: 50,
+        agreesWithMajority: false,
+        source: "elo",
+        sampleSize: 0,
+      },
+    });
 
     const statsResponse = mockResponse();
     await statsHandler({ method: "GET", headers: {}, query: {} } as never, statsResponse as never);
@@ -175,6 +217,37 @@ describe("local storage api flow", () => {
       acceptedVotes: 1,
       mixedVoteCount: 1,
       mixedAcceptedVoteCount: 1,
+    });
+  });
+
+  it("uses direct pair history for crowd agreement once enough votes exist", async () => {
+    const items = dataset.items.filter((item) => item.family === "snowman");
+    const [left, right] = items;
+    const now = Date.now();
+
+    for (let index = 0; index < 5; index += 1) {
+      await submitVote({
+        leftItemId: left.id,
+        rightItemId: right.id,
+        winnerItemId: left.id,
+        sessionId: `session-majority-${index}`,
+        now: now + index,
+      });
+    }
+
+    const minority = await submitVote({
+      leftItemId: left.id,
+      rightItemId: right.id,
+      winnerItemId: right.id,
+      sessionId: "session-minority-choice",
+      now: now + 10,
+    });
+
+    expect(minority.crowd).toMatchObject({
+      agreementPercent: 4,
+      agreesWithMajority: false,
+      source: "direct",
+      sampleSize: 5,
     });
   });
 

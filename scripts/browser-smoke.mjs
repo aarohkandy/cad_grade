@@ -150,9 +150,9 @@ async function assertCanvasDragDoesNotVote(page, name) {
 async function assertVoteFeedbackAndAdvance(page, name) {
   await page.locator('[data-side="left"]').click();
   await page.locator("#feedback-panel:not(.is-hidden)").waitFor({ timeout: 10_000 });
-  const feedback = await page.locator("#feedback-title").textContent();
-  if (!String(feedback || "").toLowerCase().includes("saved")) {
-    throw new Error(`${name} unexpected feedback title: ${feedback}`);
+  const feedback = await page.locator("#feedback-panel").innerText();
+  if (!String(feedback || "").includes("% would")) {
+    throw new Error(`${name} missing crowd estimate: ${feedback}`);
   }
   await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
   const holdHidden = await page.locator("#hold-panel").evaluate((panel) => panel.classList.contains("is-hidden"));

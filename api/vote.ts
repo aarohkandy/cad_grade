@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomUUID } from "node:crypto";
-import { agreementPercent } from "../src/server/elo.js";
+import { expectedScore, normalizedElo } from "../src/server/elo.js";
 import { isVercelRuntime, missingProductionEnv, productionVoteEnvReady } from "../src/server/env.js";
 import { safeHash } from "../src/server/hash.js";
 import { verifyHoldSubmission } from "../src/server/hold.js";
@@ -22,45 +22,70 @@ import {
 } from "../src/server/voteStore.js";
 import type { ArenaItem, VotePayload } from "../src/shared/types";
 
+const DIRECT_AGREEMENT_MIN_VOTES = 5;
+
 function winnerWins(pair: StoredPairStat | undefined, winnerId: string): number {
   if (!pair) return 0;
   return winnerId === pair.item_a_id ? pair.item_a_wins : pair.item_b_wins;
 }
 
-function drawAgreement(pair: StoredPairStat | undefined): number {
-  if (!pair || !pair.battle_count) return 50;
-  return Math.round(Math.max(0.04, Math.min(0.96, (pair.draw_count || 0) / pair.battle_count)) * 100);
+function boundedPercent(probability: number): number {
+  return Math.round(Math.max(0.04, Math.min(0.96, probability)) * 100);
 }
 
-function publicAgreement(input: {
+function eloAgreementPercent(winnerElo?: number | null, loserElo?: number | null): number {
+  return boundedPercent(
+    expectedScore(
+      normalizedElo({ elo: winnerElo }),
+      normalizedElo({ elo: loserElo }),
+    ),
+  );
+}
+
+function eloTieAgreementPercent(leftElo?: number | null, rightElo?: number | null): number {
+  const gap = Math.abs(normalizedElo({ elo: leftElo }) - normalizedElo({ elo: rightElo }));
+  const probability = 0.08 + 0.34 * Math.exp(-gap / 120);
+  return boundedPercent(probability);
+}
+
+function crowdEstimate(input: {
   pair: StoredPairStat | undefined;
-  winner: ArenaItem;
-  loser: ArenaItem;
+  left: ArenaItem;
+  right: ArenaItem;
+  winner: ArenaItem | null;
+  loser: ArenaItem | null;
+  isDraw: boolean;
+  leftElo?: number | null;
+  rightElo?: number | null;
   winnerElo?: number | null;
   loserElo?: number | null;
-}): number {
-  return agreementPercent({
-    winnerWins: winnerWins(input.pair, input.winner.id),
-    battleCount: input.pair?.battle_count || 0,
-    winnerElo: input.winnerElo,
-    loserElo: input.loserElo,
-  });
+}) {
+  const sampleSize = input.pair?.battle_count || 0;
+  const hasDirectSignal = sampleSize >= DIRECT_AGREEMENT_MIN_VOTES;
+  const agreementPercent = hasDirectSignal
+    ? boundedPercent(
+        input.isDraw || !input.winner
+          ? (input.pair?.draw_count || 0) / sampleSize
+          : winnerWins(input.pair, input.winner.id) / sampleSize,
+      )
+    : input.isDraw || !input.winner || !input.loser
+      ? eloTieAgreementPercent(input.leftElo, input.rightElo)
+      : eloAgreementPercent(input.winnerElo, input.loserElo);
+
+  return {
+    agreementPercent,
+    agreesWithMajority: agreementPercent > 50,
+    source: hasDirectSignal ? "direct" : "elo",
+    sampleSize,
+  } as const;
 }
 
-function pulsePercent(basePercent: number, battleCount: number): number {
-  if (battleCount < 5) {
-    return 54 + Math.floor(Math.random() * 35);
-  }
-  const jitter = Math.floor(Math.random() * 9) - 4;
-  return Math.max(4, Math.min(96, basePercent + jitter));
-}
-
-function drawPulsePercent(basePercent: number, battleCount: number): number {
-  if (battleCount < 5) {
-    return 48 + Math.floor(Math.random() * 31);
-  }
-  const jitter = Math.floor(Math.random() * 9) - 4;
-  return Math.max(4, Math.min(96, basePercent + jitter));
+function crowdAgreementLabel(input: ReturnType<typeof crowdEstimate>, isDraw: boolean): string {
+  const action = isDraw ? "call it a tie" : "pick the same model";
+  const source = input.source === "direct"
+    ? `from ${input.sampleSize} prior ${input.sampleSize === 1 ? "vote" : "votes"}`
+    : "rating estimate";
+  return `${input.agreementPercent}% would ${action} (${source}).`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -162,36 +187,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     let summary = await readVoteSummary(dataset.datasetId, dataset.families);
+    const priorPair = summary.pairStats[pairKey(left.id, right.id)];
+    const priorCrowd = crowdEstimate({
+      pair: priorPair,
+      left,
+      right,
+      winner,
+      loser,
+      isDraw,
+      leftElo: summary.itemStats[left.id]?.elo,
+      rightElo: summary.itemStats[right.id]?.elo,
+      winnerElo: winner ? summary.itemStats[winner.id]?.elo : null,
+      loserElo: loser ? summary.itemStats[loser.id]?.elo : null,
+    });
     try {
       summary = await updateVoteSummary(dataset.datasetId, dataset.families, record, left, right, winner, loser);
     } catch (error) {
       console.error(error);
     }
 
-    const pair = summary.pairStats[pairKey(left.id, right.id)];
-    const rawPercent =
-      isDraw || !winner || !loser
-        ? drawAgreement(pair)
-        : publicAgreement({
-            pair,
-            winner,
-            loser,
-            winnerElo: summary.itemStats[winner.id]?.elo,
-            loserElo: summary.itemStats[loser.id]?.elo,
-          });
-    const percent =
-      isDraw || !winner || !loser
-        ? drawPulsePercent(rawPercent, pair?.battle_count || 0)
-        : pulsePercent(rawPercent, pair?.battle_count || 0);
-
     res.status(200).json({
       saved: true,
       acceptedForScoring: quality.acceptedForScoring,
-      agreementPercent: percent,
-      agreementLabel:
-        isDraw || !winner
-          ? "Tie saved. The arena will treat this pair as evenly matched."
-          : `${percent}% of the arena is with you on this one.`,
+      agreementPercent: priorCrowd.agreementPercent,
+      agreementLabel: crowdAgreementLabel(priorCrowd, isDraw),
+      crowd: priorCrowd,
       dataMode: mode === "blob" ? "live" : "local",
       qualityFlags,
     });

@@ -77,6 +77,12 @@ export interface VoteResponse {
   acceptedForScoring: boolean;
   agreementPercent: number;
   agreementLabel: string;
+  crowd: {
+    agreementPercent: number;
+    agreesWithMajority: boolean;
+    source: "direct" | "elo";
+    sampleSize: number;
+  };
   dataMode: "live" | "local";
   qualityFlags: string[];
 }

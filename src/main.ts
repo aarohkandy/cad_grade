@@ -78,6 +78,8 @@ app.innerHTML = `
       <h2 id="feedback-title">Vote saved</h2>
       <p id="feedback-copy"></p>
     </section>
+
+    <div class="confetti-layer" id="confetti-layer" aria-hidden="true"></div>
   </div>
 `;
 
@@ -103,6 +105,7 @@ const dom = {
   feedbackPanel: document.querySelector("#feedback-panel") as HTMLElement,
   feedbackTitle: document.querySelector("#feedback-title") as HTMLElement,
   feedbackCopy: document.querySelector("#feedback-copy") as HTMLElement,
+  confettiLayer: document.querySelector("#confetti-layer") as HTMLElement,
   roundPulse: document.querySelector("#round-pulse") as HTMLElement,
 };
 
@@ -183,11 +186,43 @@ function recordStreak(now = Date.now()): number {
   return next;
 }
 
-function feedbackLine(isDraw: boolean, streak: number): string {
-  if (isDraw) return streak > 1 ? `tie saved - streak x${streak}` : "tie saved";
-  const lines = ["clean pick", "locked in", "next matchup queued", "arena heard you", "judgment saved"];
-  const line = lines[streak % lines.length];
-  return streak > 1 ? `${line} - streak x${streak}` : line;
+function crowdSourceLine(response: VoteResponse): string {
+  const crowd = response.crowd;
+  if (crowd.source === "direct") {
+    return `from ${crowd.sampleSize} prior ${crowd.sampleSize === 1 ? "vote" : "votes"}`;
+  }
+  return "rating estimate";
+}
+
+function feedbackTitle(response: VoteResponse, isDraw: boolean): string {
+  if (response.crowd.agreesWithMajority) return "Crowd agrees";
+  if (response.crowd.agreementPercent === 50) return "No crowd edge";
+  if (isDraw) return "Tie saved";
+  return "Minority pick";
+}
+
+function feedbackLine(response: VoteResponse, isDraw: boolean, streak: number): string {
+  const action = isDraw ? "call it a tie" : "agree";
+  const streakText = streak > 1 ? ` - streak x${streak}` : "";
+  return `${response.crowd.agreementPercent}% would ${action} - ${crowdSourceLine(response)}${streakText}`;
+}
+
+function fireConfetti(): void {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const colors = ["#eaff68", "#7fe8ad", "#4dd0ee", "#ffffff", "#b6f29f"];
+  dom.confettiLayer.replaceChildren();
+  for (let index = 0; index < 42; index += 1) {
+    const piece = document.createElement("i");
+    piece.className = "confetti-piece";
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.setProperty("--confetti-x", `${Math.random() * 160 - 80}px`);
+    piece.style.setProperty("--confetti-rotation", `${Math.random() * 720 - 360}deg`);
+    piece.style.animationDelay = `${Math.random() * 120}ms`;
+    piece.style.animationDuration = `${820 + Math.random() * 620}ms`;
+    piece.style.background = colors[index % colors.length];
+    dom.confettiLayer.append(piece);
+  }
+  window.setTimeout(() => dom.confettiLayer.replaceChildren(), 1800);
 }
 
 function allLocalPairs(items: ArenaItem[]): Array<[ArenaItem, ArenaItem]> {
@@ -288,6 +323,8 @@ function clearFeedback(): void {
   window.clearTimeout(autoNextTimer);
   autoNextTimer = 0;
   dom.feedbackPanel.classList.add("is-hidden");
+  dom.feedbackPanel.classList.remove("is-draw", "is-majority");
+  dom.confettiLayer.replaceChildren();
   dom.holdPanel.classList.add("is-hidden");
   selectedChoice = null;
 }
@@ -427,8 +464,14 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
     ? ({
         saved: true,
         acceptedForScoring: false,
-        agreementPercent: Math.round(52 + Math.random() * 36),
-        agreementLabel: isDraw ? "Tie saved." : "Vote saved.",
+        agreementPercent: 50,
+        agreementLabel: "50% would agree (local preview).",
+        crowd: {
+          agreementPercent: 50,
+          agreesWithMajority: false,
+          source: "elo",
+          sampleSize: 0,
+        },
         dataMode: "local",
         qualityFlags: ["local_preview"],
       } satisfies VoteResponse)
@@ -453,8 +496,10 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   dom.holdPanel.classList.add("is-hidden");
   dom.feedbackPanel.classList.remove("is-hidden");
   dom.feedbackPanel.classList.toggle("is-draw", isDraw);
-  dom.feedbackTitle.textContent = isDraw ? "Draw saved" : "+1 saved";
-  dom.feedbackCopy.textContent = feedbackLine(isDraw, streak);
+  dom.feedbackPanel.classList.toggle("is-majority", response.crowd.agreesWithMajority);
+  dom.feedbackTitle.textContent = feedbackTitle(response, isDraw);
+  dom.feedbackCopy.textContent = feedbackLine(response, isDraw, streak);
+  if (response.crowd.agreesWithMajority) fireConfetti();
   dom.roundPulse.textContent = "next";
   window.clearTimeout(autoNextTimer);
   autoNextTimer = window.setTimeout(() => {
@@ -485,6 +530,7 @@ function showVoteError(error: unknown): void {
   dom.rightPanel.classList.remove("is-voting");
   dom.holdLabel.textContent = "Try again";
   dom.feedbackPanel.classList.remove("is-hidden");
+  dom.feedbackPanel.classList.remove("is-majority");
   dom.feedbackTitle.textContent = "Try again";
   dom.feedbackCopy.textContent = "The arena did not catch that vote. Tap a model again.";
   dom.roundPulse.textContent = "try again";
