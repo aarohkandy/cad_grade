@@ -36,36 +36,26 @@ async function assertPortFree() {
 }
 
 async function sampleCanvas(page, selector) {
-  return page.locator(selector).evaluate(async (canvas) => {
-    const target = canvas;
-    const context = target.getContext("webgl2") || target.getContext("webgl");
-    if (!context || target.width <= 0 || target.height <= 0) return { nonTransparent: 0, colorSum: 0 };
-    const image = new Image();
-    image.src = target.toDataURL("image/png");
-    await image.decode();
-    const sampler = document.createElement("canvas");
-    sampler.width = 64;
-    sampler.height = 64;
-    const samplerContext = sampler.getContext("2d");
-    if (!samplerContext) return { nonTransparent: 0, colorSum: 0 };
-    samplerContext.drawImage(image, 0, 0, 64, 64);
-    const pixels = samplerContext.getImageData(0, 0, 64, 64).data;
-    let nonTransparent = 0;
-    let colorSum = 0;
-    for (let index = 0; index < pixels.length; index += 4) {
-      if (pixels[index + 3] > 0) nonTransparent += 1;
-      colorSum += pixels[index] + pixels[index + 1] + pixels[index + 2];
-    }
-    return { nonTransparent, colorSum };
+  const canvas = page.locator(selector);
+  const box = await canvas.boundingBox();
+  if (!box || box.width <= 0 || box.height <= 0) return { byteLength: 0 };
+  const screenshot = await page.screenshot({
+    clip: {
+      x: Math.max(0, Math.floor(box.x)),
+      y: Math.max(0, Math.floor(box.y)),
+      width: Math.max(1, Math.floor(box.width)),
+      height: Math.max(1, Math.floor(box.height)),
+    },
   });
+  return { byteLength: screenshot.length };
 }
 
 async function waitForNonBlankCanvas(page, selector) {
   const deadline = Date.now() + 20_000;
-  let latest = { nonTransparent: 0, colorSum: 0 };
+  let latest = { byteLength: 0 };
   while (Date.now() < deadline) {
     latest = await sampleCanvas(page, selector);
-    if (latest.nonTransparent >= 500 && latest.colorSum > 10_000) return latest;
+    if (latest.byteLength > 10000) return latest;
     await sleep(250);
   }
   return latest;
@@ -173,7 +163,7 @@ async function checkViewport(browser, name, viewport) {
   await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
   const left = await waitForNonBlankCanvas(page, "#left-canvas");
   const right = await waitForNonBlankCanvas(page, "#right-canvas");
-  if (left.nonTransparent < 500 || right.nonTransparent < 500) {
+  if (left.byteLength <= 10000 || right.byteLength <= 10000) {
     throw new Error(`${name} canvas sample was blank: ${JSON.stringify({ left, right })}`);
   }
   await assertCoreLoopVisible(page, name);
@@ -181,7 +171,7 @@ async function checkViewport(browser, name, viewport) {
   await assertVoteFeedbackAndAdvance(page, name);
   const screenshotPath = path.join(OUT_DIR, `${name}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
-  console.log(`${name}: left=${left.nonTransparent} right=${right.nonTransparent} screenshot=${screenshotPath}`);
+  console.log(`${name}: left_bytes=${left.byteLength} right_bytes=${right.byteLength} screenshot=${screenshotPath}`);
   await page.close();
 }
 

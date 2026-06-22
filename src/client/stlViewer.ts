@@ -2,6 +2,36 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
 
+const GEOMETRY_CACHE_LIMIT = 24;
+const EDGE_VERTEX_LIMIT = 70000;
+const geometryCache = new Map<string, Promise<THREE.BufferGeometry>>();
+const stlLoader = new STLLoader();
+
+async function cachedGeometry(stlUrl: string): Promise<THREE.BufferGeometry> {
+  const existing = geometryCache.get(stlUrl);
+  if (existing) {
+    geometryCache.delete(stlUrl);
+    geometryCache.set(stlUrl, existing);
+    return (await existing).clone();
+  }
+
+  const loading = stlLoader.loadAsync(stlUrl).then((geometry) => {
+    if (!geometry.attributes.normal) geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    return geometry;
+  });
+  geometryCache.set(stlUrl, loading);
+  void loading.then(() => {
+    while (geometryCache.size > GEOMETRY_CACHE_LIMIT) {
+      const oldest = geometryCache.entries().next().value as [string, Promise<THREE.BufferGeometry>] | undefined;
+      if (!oldest) break;
+      geometryCache.delete(oldest[0]);
+      oldest[1].then((geometry) => geometry.dispose()).catch(() => undefined);
+    }
+  });
+  return (await loading).clone();
+}
+
 export class StlViewer {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -9,6 +39,8 @@ export class StlViewer {
   private controls: OrbitControls;
   private root = new THREE.Group();
   private frame = 0;
+  private needsRender = true;
+  private activeUntil = 0;
   private disposed = false;
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -16,21 +48,23 @@ export class StlViewer {
       canvas,
       antialias: true,
       alpha: true,
-      preserveDrawingBuffer: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     this.renderer.setClearColor(0x0d201b, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = false;
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
     this.controls.screenSpacePanning = true;
     this.controls.autoRotate = false;
+    this.controls.addEventListener("change", this.scheduleRender);
+    this.canvas.addEventListener("pointerdown", this.beginInteraction);
+    this.canvas.addEventListener("wheel", this.beginInteraction, { passive: true });
 
     this.scene.add(this.root);
     this.scene.add(new THREE.HemisphereLight(0xeafff4, 0x25382d, 1.1));
@@ -55,14 +89,16 @@ export class StlViewer {
 
     window.addEventListener("resize", this.resize);
     this.resize();
-    this.animate();
+    this.requestRender(500);
   }
 
   async load(stlUrl: string, label: string): Promise<void> {
-    const geometry = await new STLLoader().loadAsync(stlUrl);
-    if (this.disposed) return;
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
+    const geometry = await cachedGeometry(stlUrl);
+    if (this.disposed) {
+      geometry.dispose();
+      return;
+    }
+    if (!geometry.boundingBox) geometry.computeBoundingBox();
 
     const mesh = new THREE.Mesh(
       geometry,
@@ -80,11 +116,15 @@ export class StlViewer {
     this.root.add(mesh);
     this.root.rotation.set(0, 0, 0);
     this.fitCamera();
+    this.requestRender(800);
   }
 
   dispose(): void {
     this.disposed = true;
     window.removeEventListener("resize", this.resize);
+    this.controls.removeEventListener("change", this.scheduleRender);
+    this.canvas.removeEventListener("pointerdown", this.beginInteraction);
+    this.canvas.removeEventListener("wheel", this.beginInteraction);
     cancelAnimationFrame(this.frame);
     this.clearRoot();
     this.controls.dispose();
@@ -98,13 +138,35 @@ export class StlViewer {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    this.requestRender(500);
   };
+
+  private scheduleRender = (): void => {
+    this.requestRender(450);
+  };
+
+  private beginInteraction = (): void => {
+    this.requestRender(1400);
+  };
+
+  private requestRender(durationMs = 0): void {
+    if (this.disposed) return;
+    this.needsRender = true;
+    if (durationMs > 0) this.activeUntil = Math.max(this.activeUntil, performance.now() + durationMs);
+    if (!this.frame) this.frame = requestAnimationFrame(this.animate);
+  }
 
   private animate = (): void => {
     if (this.disposed) return;
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
-    this.frame = requestAnimationFrame(this.animate);
+    this.frame = 0;
+    const changed = this.controls.update();
+    if (this.needsRender || changed) {
+      this.renderer.render(this.scene, this.camera);
+      this.needsRender = false;
+    }
+    if (changed || performance.now() < this.activeUntil) {
+      this.frame = requestAnimationFrame(this.animate);
+    }
   };
 
   private clearRoot(): void {
@@ -123,7 +185,7 @@ export class StlViewer {
   }
 
   private addEdges(mesh: THREE.Mesh): void {
-    if (!mesh.geometry.attributes.position || mesh.geometry.attributes.position.count > 160000) return;
+    if (!mesh.geometry.attributes.position || mesh.geometry.attributes.position.count > EDGE_VERTEX_LIMIT) return;
     const edges = new THREE.LineSegments(
       new THREE.EdgesGeometry(mesh.geometry, 28),
       new THREE.LineBasicMaterial({
