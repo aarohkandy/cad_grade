@@ -88,7 +88,10 @@ if (!exportCheck.response.ok || typeof exportCheck.body?.voteCount !== "number")
     body: exportCheck.body,
   });
 } else {
-  pass(`/api/export returned ${exportCheck.body.voteCount} votes`);
+  const summarySuffix = typeof exportCheck.body?.summaryVoteCount === "number"
+    ? `, ${exportCheck.body.summaryVoteCount} summary votes`
+    : "";
+  pass(`/api/export returned ${exportCheck.body.voteCount} raw votes${summarySuffix}`);
 }
 
 if (writeTestVote) {
