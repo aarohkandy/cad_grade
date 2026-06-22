@@ -209,20 +209,25 @@ function feedbackLine(response: VoteResponse, isDraw: boolean, streak: number): 
 
 function fireConfetti(): void {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const colors = ["#eaff68", "#7fe8ad", "#4dd0ee", "#ffffff", "#b6f29f"];
+  const colors = ["#eaff68", "#7fe8ad", "#4dd0ee", "#f6ffe0"];
+  const origin = dom.feedbackPanel.getBoundingClientRect();
+  const originX = origin.left + origin.width * 0.5;
+  const originY = origin.top + 8;
   dom.confettiLayer.replaceChildren();
-  for (let index = 0; index < 42; index += 1) {
+  for (let index = 0; index < 24; index += 1) {
     const piece = document.createElement("i");
     piece.className = "confetti-piece";
-    piece.style.left = `${Math.random() * 100}%`;
-    piece.style.setProperty("--confetti-x", `${Math.random() * 160 - 80}px`);
-    piece.style.setProperty("--confetti-rotation", `${Math.random() * 720 - 360}deg`);
-    piece.style.animationDelay = `${Math.random() * 120}ms`;
-    piece.style.animationDuration = `${820 + Math.random() * 620}ms`;
+    piece.style.left = `${originX}px`;
+    piece.style.top = `${originY}px`;
+    piece.style.setProperty("--confetti-x", `${Math.random() * 220 - 110}px`);
+    piece.style.setProperty("--confetti-y", `${80 + Math.random() * 155}px`);
+    piece.style.setProperty("--confetti-rotation", `${Math.random() * 460 - 230}deg`);
+    piece.style.animationDelay = `${Math.random() * 80}ms`;
+    piece.style.animationDuration = `${720 + Math.random() * 420}ms`;
     piece.style.background = colors[index % colors.length];
     dom.confettiLayer.append(piece);
   }
-  window.setTimeout(() => dom.confettiLayer.replaceChildren(), 1800);
+  window.setTimeout(() => dom.confettiLayer.replaceChildren(), 1400);
 }
 
 function allLocalPairs(items: ArenaItem[]): Array<[ArenaItem, ArenaItem]> {

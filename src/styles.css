@@ -437,14 +437,14 @@ button {
 
 .confetti-piece {
   --confetti-x: 0px;
+  --confetti-y: 160px;
   --confetti-rotation: 360deg;
   position: absolute;
-  top: -16px;
-  width: 8px;
-  height: 14px;
+  width: 6px;
+  height: 10px;
   border-radius: 2px;
-  opacity: 0.96;
-  animation: confetti-fall 1100ms cubic-bezier(0.18, 0.62, 0.28, 0.99) forwards;
+  opacity: 0;
+  animation: confetti-pop 900ms cubic-bezier(0.18, 0.62, 0.28, 0.99) forwards;
 }
 
 .is-hidden {
@@ -463,10 +463,19 @@ button {
   }
 }
 
-@keyframes confetti-fall {
+@keyframes confetti-pop {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 0, 0) scale(0.72) rotate(0deg);
+  }
+
+  16% {
+    opacity: 0.95;
+  }
+
   to {
     opacity: 0;
-    transform: translate3d(var(--confetti-x), 106vh, 0) rotate(var(--confetti-rotation));
+    transform: translate3d(calc(var(--confetti-x) - 50%), var(--confetti-y), 0) rotate(var(--confetti-rotation));
   }
 }
 

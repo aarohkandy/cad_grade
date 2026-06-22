@@ -177,9 +177,8 @@ The macOS task uses `launchd`, runs once an hour, writes logs under
 `exports/live-backups/logs`, pulls from `https://cadbattle.vercel.app`, rebuilds
 analysis, and prunes completed-hour raw vote blobs from Vercel Blob only after
 they exist in both the timestamped local snapshot and the local daily archive.
-The pruning step requires local Blob credentials in `.env.local` or the shell
-environment; without them the backup still writes local files but cannot delete
-server blobs.
+When local Blob credentials are unavailable, the backup asks the deployed app to
+delete only those verified old raw vote paths.
 
 Windows scheduled task helpers are still available as
 `backup:install-hourly:windows` and `backup:uninstall-hourly:windows`.

@@ -43,6 +43,17 @@ async function fetchJson(url) {
   return text ? JSON.parse(text) : null;
 }
 
+async function postJson(url, payload) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`${url} failed with ${response.status}: ${text}`);
+  return text ? JSON.parse(text) : null;
+}
+
 function dayKey(value) {
   return typeof value === "string" && value.length >= 10 ? value.slice(0, 10) : "unknown";
 }
@@ -257,6 +268,16 @@ async function deleteBlobPaths(paths) {
   return { deleted, failed };
 }
 
+export async function deleteRemoteVotePaths({ baseUrl, paths }) {
+  if (!paths.length) return { deleted: [], failed: [] };
+  const url = new URL("/api/prune-votes", baseUrl);
+  const payload = await postJson(url, { paths });
+  return {
+    deleted: Array.isArray(payload?.deleted) ? payload.deleted : [],
+    failed: Array.isArray(payload?.failed) ? payload.failed : [],
+  };
+}
+
 export async function backupLive({
   baseUrl,
   outRoot = join("exports", "live-backups"),
@@ -302,7 +323,10 @@ export async function backupLive({
   }
 
   if (pruneCandidates.length && !dryRunPrune) {
-    pruneResult = await deleteBlobPaths(pruneCandidates.map((record) => record.pathname));
+    const prunePaths = pruneCandidates.map((record) => record.pathname);
+    pruneResult = source === "blob"
+      ? await deleteBlobPaths(prunePaths)
+      : await deleteRemoteVotePaths({ baseUrl, paths: prunePaths });
   }
 
   await writeJson(join(backup.snapshotDir, "prune-manifest.json"), {

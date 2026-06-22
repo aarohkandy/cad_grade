@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import {
   completedHourCutoff,
+  deleteRemoteVotePaths,
   isProtectedBlobPath,
   listVoteRecordsFromExport,
   mergeDailyVotes,
@@ -88,6 +89,25 @@ describe("live backup helpers", () => {
       const records = await listVoteRecordsFromExport({ baseUrl: "https://cadbattle.vercel.app" });
       expect(records).toHaveLength(1);
       expect(records[0]).toMatchObject({ pathname: "votes/v1/2026-06-14/exported.json" });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("can ask the deployed app to prune verified vote paths", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+      expect(String(url)).toBe("https://cadbattle.vercel.app/api/prune-votes");
+      expect(options.method).toBe("POST");
+      expect(JSON.parse(options.body)).toEqual({ paths: ["votes/v1/2026-06-14/old.json"] });
+      return new Response(JSON.stringify({ deleted: ["votes/v1/2026-06-14/old.json"], failed: [] }), { status: 200 });
+    };
+    try {
+      const result = await deleteRemoteVotePaths({
+        baseUrl: "https://cadbattle.vercel.app",
+        paths: ["votes/v1/2026-06-14/old.json"],
+      });
+      expect(result).toEqual({ deleted: ["votes/v1/2026-06-14/old.json"], failed: [] });
     } finally {
       globalThis.fetch = originalFetch;
     }
