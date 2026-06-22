@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { toCsv } from "../src/server/export.js";
 import { firstQueryValue, methodAllowed, noStore } from "../src/server/http.js";
 import { dataset, itemById } from "../src/server/items.js";
-import { readVoteRecords, storageConfigured, summaryFromVotes } from "../src/server/voteStore.js";
+import { readVoteRecords, readVoteSummary, storageConfigured, summaryFromVotes } from "../src/server/voteStore.js";
 
 const TABLES = ["votes", "item_stats", "pair_stats", "quality_flags"] as const;
 type ExportTable = (typeof TABLES)[number];
@@ -11,8 +11,18 @@ function tableFromQuery(value: string | undefined): ExportTable {
   return TABLES.includes(value as ExportTable) ? (value as ExportTable) : "votes";
 }
 
-function rowsForTable(table: ExportTable, votes: Awaited<ReturnType<typeof readVoteRecords>>) {
-  const summary = summaryFromVotes(dataset.datasetId, dataset.families, votes, itemById);
+function richerSummary(
+  rawSummary: ReturnType<typeof summaryFromVotes>,
+  storedSummary: Awaited<ReturnType<typeof readVoteSummary>>,
+) {
+  return storedSummary.totalVotes >= rawSummary.totalVotes ? storedSummary : rawSummary;
+}
+
+function rowsForTable(
+  table: ExportTable,
+  votes: Awaited<ReturnType<typeof readVoteRecords>>,
+  summary: ReturnType<typeof summaryFromVotes>,
+) {
   if (table === "item_stats") return Object.values(summary.itemStats);
   if (table === "pair_stats") return Object.values(summary.pairStats);
   if (table === "quality_flags") {
@@ -36,23 +46,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const votes = await readVoteRecords({ date, limit });
     const format = firstQueryValue(req.query.format) === "csv" ? "csv" : "json";
     const table = tableFromQuery(firstQueryValue(req.query.table));
+    const rawSummary = summaryFromVotes(dataset.datasetId, dataset.families, votes, itemById);
+    const storedSummary = await readVoteSummary(dataset.datasetId, dataset.families);
+    const summary = richerSummary(rawSummary, storedSummary);
 
     if (format === "csv") {
-      const rows = rowsForTable(table, votes);
+      const rows = rowsForTable(table, votes, summary);
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", `attachment; filename="${table}.csv"`);
       res.status(200).send(toCsv(rows as Array<Record<string, unknown>>));
       return;
     }
 
-    const summary = summaryFromVotes(dataset.datasetId, dataset.families, votes, itemById);
     res.status(200).json({
       exportedAtUtc: new Date().toISOString(),
       date: date || null,
       voteCount: votes.length,
+      rawVoteCount: votes.length,
+      summaryVoteCount: summary.totalVotes,
+      acceptedVoteCount: summary.acceptedVotes,
       mixedVoteCount: summary.mixedVotes || 0,
       mixedAcceptedVoteCount: summary.mixedAcceptedVotes || 0,
       votes,
+      summary: {
+        version: summary.version,
+        datasetId: summary.datasetId,
+        updatedAtUtc: summary.updatedAtUtc,
+        totalVotes: summary.totalVotes,
+        acceptedVotes: summary.acceptedVotes,
+        mixedVotes: summary.mixedVotes || 0,
+        mixedAcceptedVotes: summary.mixedAcceptedVotes || 0,
+        families: summary.families,
+        qualityFlagCounts: summary.qualityFlagCounts,
+      },
       item_stats: Object.values(summary.itemStats),
       pair_stats: Object.values(summary.pairStats),
       quality_flags: summary.qualityFlagCounts,

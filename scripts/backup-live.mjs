@@ -171,7 +171,7 @@ export async function mergeDailyVotes(outRoot, votes) {
   };
 }
 
-export async function writeBackupFiles({ outRoot, baseUrl, health, stats, records, now = new Date() }) {
+export async function writeBackupFiles({ outRoot, baseUrl, health, stats, records, exportPayload = null, now = new Date() }) {
   const day = now.toISOString().slice(0, 10);
   const time = timestampSlug(now).slice(11);
   const snapshotDir = join(outRoot, day, time);
@@ -180,6 +180,7 @@ export async function writeBackupFiles({ outRoot, baseUrl, health, stats, record
   await mkdir(snapshotDir, { recursive: true });
   await writeJson(join(snapshotDir, "health.json"), health);
   await writeJson(join(snapshotDir, "stats.json"), stats);
+  if (exportPayload) await writeJson(join(snapshotDir, "export.json"), exportPayload);
   await writeJsonl(join(snapshotDir, "votes.jsonl"), votes);
 
   const daily = await mergeDailyVotes(outRoot, votes);
@@ -188,6 +189,9 @@ export async function writeBackupFiles({ outRoot, baseUrl, health, stats, record
     "stats.json": await sha256File(join(snapshotDir, "stats.json")),
     "votes.jsonl": await sha256File(join(snapshotDir, "votes.jsonl")),
   };
+  if (exportPayload) {
+    fileHashes["export.json"] = await sha256File(join(snapshotDir, "export.json"));
+  }
 
   const manifest = {
     generatedAtUtc: now.toISOString(),
@@ -195,6 +199,8 @@ export async function writeBackupFiles({ outRoot, baseUrl, health, stats, record
     outRoot,
     snapshotDir,
     pulledVoteCount: votes.length,
+    summaryVoteCount: exportPayload?.summaryVoteCount ?? exportPayload?.summary?.totalVotes ?? stats?.totalVotes ?? null,
+    acceptedVoteCount: exportPayload?.acceptedVoteCount ?? exportPayload?.summary?.acceptedVotes ?? stats?.acceptedVotes ?? null,
     dailyVoteCount: daily.totalDailyVotes,
     newVotesAdded: daily.newVotesAdded,
     fileHashes,
@@ -236,12 +242,15 @@ export async function listVoteRecordsFromBlob({ prefix = VOTE_PREFIX } = {}) {
   return records.sort((left, right) => String(left.vote.created_at).localeCompare(String(right.vote.created_at)));
 }
 
-export async function listVoteRecordsFromExport({ baseUrl, limit = 100_000 } = {}) {
+export async function fetchExportPayload({ baseUrl, limit = 100_000 } = {}) {
   if (!baseUrl) throw new Error("listVoteRecordsFromExport requires baseUrl");
   const url = new URL("/api/export", baseUrl);
   url.searchParams.set("format", "json");
   url.searchParams.set("limit", String(limit));
-  const payload = await fetchJson(url);
+  return fetchJson(url);
+}
+
+export function recordsFromExportPayload(payload) {
   const votes = Array.isArray(payload?.votes) ? payload.votes : [];
   return votes
     .map((vote) => ({
@@ -250,6 +259,10 @@ export async function listVoteRecordsFromExport({ baseUrl, limit = 100_000 } = {
       uploadedAt: vote.created_at || "",
     }))
     .sort((left, right) => String(left.vote.created_at).localeCompare(String(right.vote.created_at)));
+}
+
+export async function listVoteRecordsFromExport({ baseUrl, limit = 100_000 } = {}) {
+  return recordsFromExportPayload(await fetchExportPayload({ baseUrl, limit }));
 }
 
 async function deleteBlobPaths(paths) {
@@ -290,16 +303,18 @@ export async function backupLive({
   await loadEnvFile();
   let source = "blob";
   let records;
+  let exportPayload = null;
   try {
     records = await listVoteRecordsFromBlob();
   } catch (error) {
     source = "export";
     console.warn(`Blob pull failed; falling back to /api/export: ${error instanceof Error ? error.message : String(error)}`);
-    records = await listVoteRecordsFromExport({ baseUrl });
+    exportPayload = await fetchExportPayload({ baseUrl });
+    records = recordsFromExportPayload(exportPayload);
   }
   const health = await fetchJson(new URL("/api/health", baseUrl));
   const stats = await fetchJson(new URL("/api/stats", baseUrl));
-  const backup = await writeBackupFiles({ outRoot, baseUrl, health, stats, records, now });
+  const backup = await writeBackupFiles({ outRoot, baseUrl, health, stats, records, exportPayload, now });
 
   const pruneCandidates = prune === "completed-hour" ? pruneCandidatesForCompletedHour(records, now) : [];
   const safety = verifyPruneSafety({
@@ -378,6 +393,9 @@ async function main() {
   console.log(`snapshot=${resolve(result.snapshotDir)}`);
   console.log(`source=${result.source}`);
   console.log(`pulled_votes=${result.recordCount}`);
+  if (result.manifest.summaryVoteCount !== null && result.manifest.summaryVoteCount !== undefined) {
+    console.log(`summary_votes=${result.manifest.summaryVoteCount}`);
+  }
   console.log(`daily_votes=${result.manifest.dailyVoteCount}`);
   console.log(`prune_candidates=${result.pruneCandidates}`);
   console.log(`deleted=${result.deletedCount}`);

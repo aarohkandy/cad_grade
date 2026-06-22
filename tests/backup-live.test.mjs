@@ -65,6 +65,7 @@ describe("live backup helpers", () => {
         baseUrl: "https://cadbattle.vercel.app",
         health: { ready: true },
         stats: { totalVotes: 2 },
+        exportPayload: { rawVoteCount: 2, summaryVoteCount: 4, acceptedVoteCount: 3, item_stats: [{ item_id: "a" }] },
         records: [
           { vote: vote("a"), pathname: "votes/v1/2026-06-14/a.json" },
           { vote: vote("b"), pathname: "votes/v1/2026-06-14/b.json" },
@@ -72,7 +73,9 @@ describe("live backup helpers", () => {
         now: new Date("2026-06-14T20:42:00.000Z"),
       });
       expect(result.manifest.pulledVoteCount).toBe(2);
+      expect(result.manifest.summaryVoteCount).toBe(4);
       expect(await readFile(join(result.snapshotDir, "manifest.json"), "utf8")).toContain("pulledVoteCount");
+      expect(await readFile(join(result.snapshotDir, "export.json"), "utf8")).toContain("item_stats");
       expect((await readJsonl(join(dir, "daily", "votes-2026-06-14.jsonl"))).length).toBe(2);
     } finally {
       await rm(dir, { recursive: true, force: true });
