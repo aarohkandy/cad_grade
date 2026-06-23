@@ -1,6 +1,6 @@
 import "./styles.css";
 import dataset from "./data/items.generated.json";
-import { StlViewer } from "./client/stlViewer";
+import { preloadStlGeometry, StlViewer } from "./client/stlViewer";
 import type { ArenaItem, BattleGroup, BattleResponse, HoldChallenge, VoteResponse } from "./shared/types";
 
 const SESSION_KEY = "capybara-arena-session";
@@ -12,7 +12,7 @@ const LAST_VOTE_MS_KEY = "capybara-arena-last-vote-ms";
 const RAPID_VOTE_WINDOW_MS = 10000;
 const RAPID_VOTE_LIMIT = 12;
 const STREAK_RESET_MS = 10 * 60 * 1000;
-const AUTO_NEXT_DELAY_MS = 360;
+const AUTO_NEXT_DELAY_MS = 720;
 const PANEL_CLICK_MOVE_THRESHOLD_PX = 8;
 
 interface CurrentBattle extends BattleResponse {
@@ -35,7 +35,10 @@ app.innerHTML = `
         <article class="model-panel" data-side="left" aria-label="Model A">
           <div class="panel-top">
             <span class="side-chip">A</span>
-            <h3 id="left-title">Loading</h3>
+            <div class="panel-label">
+              <h3 id="left-title">Loading</h3>
+              <p id="left-subtitle"></p>
+            </div>
           </div>
           <div class="viewer-frame" id="left-frame">
             <canvas id="left-canvas" aria-label="3D preview of model A"></canvas>
@@ -51,7 +54,10 @@ app.innerHTML = `
 
         <article class="model-panel" data-side="right" aria-label="Model B">
           <div class="panel-top">
-            <h3 id="right-title">Loading</h3>
+            <div class="panel-label is-right">
+              <h3 id="right-title">Loading</h3>
+              <p id="right-subtitle"></p>
+            </div>
             <span class="side-chip">B</span>
           </div>
           <div class="viewer-frame" id="right-frame">
@@ -94,6 +100,8 @@ const dom = {
   rightCanvas: document.querySelector("#right-canvas") as HTMLCanvasElement,
   leftTitle: document.querySelector("#left-title") as HTMLElement,
   rightTitle: document.querySelector("#right-title") as HTMLElement,
+  leftSubtitle: document.querySelector("#left-subtitle") as HTMLElement,
+  rightSubtitle: document.querySelector("#right-subtitle") as HTMLElement,
   leftStatus: document.querySelector("#left-status") as HTMLElement,
   rightStatus: document.querySelector("#right-status") as HTMLElement,
   voteLeft: document.querySelector("#vote-left") as HTMLButtonElement,
@@ -121,6 +129,7 @@ let holdStartedAt = 0;
 let holdFrame = 0;
 let autoNextTimer = 0;
 let voteInFlight = false;
+let preparedBattle: Promise<CurrentBattle> | null = null;
 let panelPointerIntent: {
   side: "left" | "right";
   pointerId: number;
@@ -267,6 +276,34 @@ async function getJson<T>(url: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function fetchBattle(): Promise<CurrentBattle> {
+  try {
+    const params = new URLSearchParams({
+      session_id: sessionId(),
+      seen_pairs: [...seenPairs()].slice(-500).join(","),
+    });
+    return await getJson<CurrentBattle>(`/api/battle?${params}`);
+  } catch (error) {
+    if (!canUseLocalFallback()) throw error;
+    return localBattle();
+  }
+}
+
+async function prepareBattle(): Promise<CurrentBattle> {
+  const battle = await fetchBattle();
+  preloadStlGeometry(battle.left.stlUrl);
+  preloadStlGeometry(battle.right.stlUrl);
+  return battle;
+}
+
+function startPreparingNextBattle(): void {
+  const next = prepareBattle();
+  preparedBattle = next;
+  next.catch(() => {
+    if (preparedBattle === next) preparedBattle = null;
+  });
+}
+
 async function postJson<T>(url: string, payload: unknown): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
@@ -325,6 +362,13 @@ function markArenaLive(): void {
   dom.roundPulse.textContent = "VS";
 }
 
+function displayModelTitle(item: ArenaItem): string {
+  const title = item.title.trim();
+  const family = item.familyLabel.trim();
+  if (!title) return "";
+  return title.toLowerCase().startsWith(family.toLowerCase()) ? title.slice(family.length).trim() : title;
+}
+
 function canUseLocalFallback(): boolean {
   return ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
 }
@@ -374,19 +418,13 @@ async function loadBattle(): Promise<void> {
   if (!hasVisibleBattle) {
     dom.leftTitle.textContent = "Loading";
     dom.rightTitle.textContent = "Loading";
+    dom.leftSubtitle.textContent = "";
+    dom.rightSubtitle.textContent = "";
   }
 
-  let nextBattle: CurrentBattle;
-  try {
-    const params = new URLSearchParams({
-      session_id: sessionId(),
-      seen_pairs: [...seenPairs()].slice(-500).join(","),
-    });
-    nextBattle = await getJson<CurrentBattle>(`/api/battle?${params}`);
-  } catch (error) {
-    if (!canUseLocalFallback()) throw error;
-    nextBattle = localBattle();
-  }
+  const pendingBattle = preparedBattle;
+  preparedBattle = null;
+  const nextBattle = pendingBattle ? await pendingBattle : await fetchBattle();
 
   leftViewer ||= new StlViewer(dom.leftCanvas);
   rightViewer ||= new StlViewer(dom.rightCanvas);
@@ -401,6 +439,8 @@ async function loadBattle(): Promise<void> {
     modelsLoadedAt = new Date().toISOString();
     dom.leftTitle.textContent = currentBattle.left.familyLabel;
     dom.rightTitle.textContent = currentBattle.right.familyLabel;
+    dom.leftSubtitle.textContent = displayModelTitle(currentBattle.left);
+    dom.rightSubtitle.textContent = displayModelTitle(currentBattle.right);
     dom.leftFrame.classList.remove("is-loading");
     dom.rightFrame.classList.remove("is-loading");
     dom.leftStatus.classList.add("is-hidden");
@@ -507,6 +547,7 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   rememberVoteTime(now);
   const streak = recordStreak(now);
   rememberPair(left.id, right.id);
+  startPreparingNextBattle();
   dom.holdButton.disabled = false;
   dom.holdPanel.classList.add("is-hidden");
   dom.feedbackPanel.classList.remove("is-hidden");

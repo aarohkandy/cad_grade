@@ -3,9 +3,73 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
 
 const GEOMETRY_CACHE_LIMIT = 24;
-const EDGE_VERTEX_LIMIT = 70000;
+const EDGE_VERTEX_LIMIT = 150000;
 const geometryCache = new Map<string, Promise<THREE.BufferGeometry>>();
 const stlLoader = new STLLoader();
+let worker: Worker | null = null;
+let workerRequestId = 0;
+type IdleWindow = Window & {
+  requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+  cancelIdleCallback?: (id: number) => void;
+};
+const workerRequests = new Map<
+  number,
+  {
+    resolve: (geometry: THREE.BufferGeometry) => void;
+    reject: (error: Error) => void;
+  }
+>();
+
+function geometryFromArrays(positions: Float32Array, normals: Float32Array): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  if (normals.length === positions.length) {
+    geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
+  } else {
+    geometry.computeVertexNormals();
+  }
+  geometry.computeBoundingBox();
+  return geometry;
+}
+
+function parseInWorker(stlUrl: string): Promise<THREE.BufferGeometry> | null {
+  if (typeof Worker === "undefined") return null;
+  worker ||= new Worker(new URL("./stlParseWorker.ts", import.meta.url), { type: "module" });
+  worker.onmessage ||= (event: MessageEvent<{
+    id: number;
+    positions?: Float32Array;
+    normals?: Float32Array;
+    error?: string;
+  }>) => {
+    const request = workerRequests.get(event.data.id);
+    if (!request) return;
+    workerRequests.delete(event.data.id);
+    if (event.data.error || !event.data.positions || !event.data.normals) {
+      request.reject(new Error(event.data.error || "STL parse failed"));
+      return;
+    }
+    request.resolve(geometryFromArrays(event.data.positions, event.data.normals));
+  };
+
+  return new Promise((resolve, reject) => {
+    const id = workerRequestId++;
+    workerRequests.set(id, { resolve, reject });
+    worker?.postMessage({ id, url: stlUrl });
+  });
+}
+
+async function loadGeometry(stlUrl: string): Promise<THREE.BufferGeometry> {
+  try {
+    const workerGeometry = await parseInWorker(stlUrl);
+    if (workerGeometry) return workerGeometry;
+  } catch {
+    // Fall back to Three's loader if a browser blocks module workers.
+  }
+  const geometry = await stlLoader.loadAsync(stlUrl);
+  if (!geometry.attributes.normal) geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  return geometry;
+}
 
 async function cachedGeometry(stlUrl: string): Promise<THREE.BufferGeometry> {
   const existing = geometryCache.get(stlUrl);
@@ -15,11 +79,7 @@ async function cachedGeometry(stlUrl: string): Promise<THREE.BufferGeometry> {
     return (await existing).clone();
   }
 
-  const loading = stlLoader.loadAsync(stlUrl).then((geometry) => {
-    if (!geometry.attributes.normal) geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    return geometry;
-  });
+  const loading = loadGeometry(stlUrl);
   geometryCache.set(stlUrl, loading);
   void loading.then(() => {
     while (geometryCache.size > GEOMETRY_CACHE_LIMIT) {
@@ -32,6 +92,10 @@ async function cachedGeometry(stlUrl: string): Promise<THREE.BufferGeometry> {
   return (await loading).clone();
 }
 
+export function preloadStlGeometry(stlUrl: string): void {
+  void cachedGeometry(stlUrl).then((geometry) => geometry.dispose()).catch(() => undefined);
+}
+
 export class StlViewer {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -42,6 +106,8 @@ export class StlViewer {
   private needsRender = true;
   private activeUntil = 0;
   private disposed = false;
+  private edgeTask: { type: "idle" | "timeout"; id: number } | null = null;
+  private edgeGeneration = 0;
 
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -50,7 +116,7 @@ export class StlViewer {
       alpha: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.setClearColor(0x0d201b, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -103,20 +169,20 @@ export class StlViewer {
     const mesh = new THREE.Mesh(
       geometry,
       new THREE.MeshStandardMaterial({
-        color: 0x83d49a,
-        roughness: 0.46,
-        metalness: 0.07,
+        color: 0x9acaa2,
+        roughness: 0.58,
+        metalness: 0.03,
       }),
     );
     mesh.name = label;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    this.addEdges(mesh);
     this.clearRoot();
     this.root.add(mesh);
     this.root.rotation.set(0, 0, 0);
     this.fitCamera();
-    this.requestRender(800);
+    this.requestRender(500);
+    this.scheduleEdges(mesh);
   }
 
   dispose(): void {
@@ -170,6 +236,7 @@ export class StlViewer {
   };
 
   private clearRoot(): void {
+    this.cancelPendingEdges();
     while (this.root.children.length) {
       const child = this.root.children.pop();
       child?.traverse((node) => {
@@ -184,6 +251,35 @@ export class StlViewer {
     }
   }
 
+  private cancelPendingEdges(): void {
+    this.edgeGeneration += 1;
+    if (!this.edgeTask) return;
+    const win = window as IdleWindow;
+    if (this.edgeTask.type === "idle") {
+      win.cancelIdleCallback?.(this.edgeTask.id);
+    } else {
+      window.clearTimeout(this.edgeTask.id);
+    }
+    this.edgeTask = null;
+  }
+
+  private scheduleEdges(mesh: THREE.Mesh): void {
+    if (!mesh.geometry.attributes.position || mesh.geometry.attributes.position.count > EDGE_VERTEX_LIMIT) return;
+    const generation = this.edgeGeneration;
+    const run = (): void => {
+      this.edgeTask = null;
+      if (this.disposed || generation !== this.edgeGeneration || !this.root.children.includes(mesh)) return;
+      this.addEdges(mesh);
+      this.requestRender(400);
+    };
+    const win = window as IdleWindow;
+    if (win.requestIdleCallback) {
+      this.edgeTask = { type: "idle", id: win.requestIdleCallback(run, { timeout: 700 }) };
+    } else {
+      this.edgeTask = { type: "timeout", id: window.setTimeout(run, 90) };
+    }
+  }
+
   private addEdges(mesh: THREE.Mesh): void {
     if (!mesh.geometry.attributes.position || mesh.geometry.attributes.position.count > EDGE_VERTEX_LIMIT) return;
     const edges = new THREE.LineSegments(
@@ -191,7 +287,7 @@ export class StlViewer {
       new THREE.LineBasicMaterial({
         color: 0x17251d,
         transparent: true,
-        opacity: 0.42,
+        opacity: 0.3,
       }),
     );
     mesh.add(edges);
@@ -202,8 +298,8 @@ export class StlViewer {
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 1);
-    const distance = (maxDim / (2 * Math.tan((this.camera.fov * Math.PI) / 360))) * 1.18;
-    this.camera.position.set(center.x + distance * 0.22, center.y - distance * 0.72, center.z + distance * 1.48);
+    const distance = (maxDim / (2 * Math.tan((this.camera.fov * Math.PI) / 360))) * 1.34;
+    this.camera.position.set(center.x + distance * 0.24, center.y - distance * 0.78, center.z + distance * 1.5);
     this.camera.near = Math.max(distance / 120, 0.1);
     this.camera.far = distance * 24;
     this.camera.updateProjectionMatrix();
