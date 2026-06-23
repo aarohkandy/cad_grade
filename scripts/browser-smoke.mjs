@@ -183,7 +183,7 @@ async function assertRepeatedVotingStable(page, name) {
     await page.locator(index % 2 === 0 ? "#vote-right" : "#vote-left").click();
     await page.locator("#feedback-panel:not(.is-hidden)").waitFor({ timeout: 10_000 });
     const pieces = await page.locator(".confetti-piece").count();
-    if (pieces > 30) throw new Error(`${name} particle cap failed: ${pieces}`);
+    if (pieces > 20) throw new Error(`${name} particle cap failed: ${pieces}`);
     await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
     durations.push(Date.now() - started);
   }

@@ -16,7 +16,6 @@ const STREAK_RESET_MS = 10 * 60 * 1000;
 const AUTO_NEXT_DELAY_MS = 720;
 const PANEL_CLICK_MOVE_THRESHOLD_PX = 8;
 const ELO_DISPLAY_SCALE = 180;
-const STRONG_AGREEMENT_PERCENT = 60;
 
 interface CurrentBattle extends BattleResponse {
   localOnly?: boolean;
@@ -260,10 +259,7 @@ function feedbackLine(response: VoteResponse, streak: StreakResult): string {
 }
 
 function flashShouldBurst(response: VoteResponse, streak: StreakResult): boolean {
-  return (
-    response.crowd.agreesWithMajority &&
-    (streak.milestone || response.crowd.agreementPercent >= STRONG_AGREEMENT_PERCENT)
-  );
+  return response.crowd.agreesWithMajority && streak.milestone;
 }
 
 function fireConfetti(streak: StreakResult): void {
@@ -271,7 +267,8 @@ function fireConfetti(streak: StreakResult): void {
   const colors = ["#eaff68", "#7fe8ad", "#4dd0ee", "#f6ffe0", "#b8ffd0"];
   const originX = window.innerWidth * 0.5;
   const originY = window.innerHeight * 0.42;
-  const count = streak.milestone ? 30 : 18;
+  const count = streak.milestone ? 20 : 0;
+  if (!count) return;
   dom.confettiLayer.replaceChildren();
   window.clearTimeout(confettiTimer);
   for (let index = 0; index < count; index += 1) {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { pairGroup, pairKey, selectBattleFamily, selectBattlePair, type ItemStatLike, type PairStatLike } from "../src/server/pairs";
+import {
+  familyComboKey,
+  pairGroup,
+  pairKey,
+  selectBattleFamily,
+  selectBattlePair,
+  type ItemStatLike,
+  type PairStatLike,
+} from "../src/server/pairs";
 import type { ArenaFamily, ArenaItem } from "../src/shared/types";
 
 function item(id: string, family: ArenaFamily = "wall_planter"): ArenaItem {
@@ -44,6 +52,40 @@ describe("pair selection", () => {
     expect(new Set(selected.map((entry) => entry.family)).size).toBeGreaterThan(1);
   });
 
+  it("rotates global selection across category matchups within a session", () => {
+    const items = [
+      item("planter-a"),
+      item("planter-b"),
+      item("hook-a", "wall_hook"),
+      item("hook-b", "wall_hook"),
+      item("snowman-a", "snowman"),
+      item("snowman-b", "snowman"),
+    ];
+    const votedPairKeys = new Set<string>();
+    const seenCombos = new Set<string>();
+
+    for (let index = 0; index < 6; index += 1) {
+      const selected = selectBattlePair({
+        items,
+        votedPairKeys,
+        random: () => 0,
+      });
+      votedPairKeys.add(pairKey(selected[0].id, selected[1].id));
+      seenCombos.add(familyComboKey(selected[0].family, selected[1].family));
+    }
+
+    expect(seenCombos).toEqual(
+      new Set([
+        "wall_planter__wall_planter",
+        "wall_hook__wall_planter",
+        "snowman__wall_planter",
+        "wall_hook__wall_hook",
+        "snowman__wall_hook",
+        "snowman__snowman",
+      ]),
+    );
+  });
+
   it("avoids already-voted pairs when possible", () => {
     const items = [item("a"), item("b"), item("c")];
     const selected = selectBattlePair({
@@ -52,6 +94,16 @@ describe("pair selection", () => {
       random: () => 0,
     });
     expect(new Set(selected.map((entry) => entry.id))).toEqual(new Set(["b", "c"]));
+  });
+
+  it("avoids overused session items when possible", () => {
+    const items = [item("a"), item("b"), item("c"), item("d")];
+    const selected = selectBattlePair({
+      items,
+      votedPairKeys: new Set([pairKey("a", "b")]),
+      random: () => 0,
+    });
+    expect(new Set(selected.map((entry) => entry.id))).toEqual(new Set(["c", "d"]));
   });
 
   it("prioritizes under-sampled items", () => {
@@ -114,6 +166,88 @@ describe("pair selection", () => {
       random: () => 0,
     });
     expect(new Set(selected.map((entry) => entry.id))).not.toEqual(new Set(["a", "b"]));
+  });
+
+  it("prioritizes under-sampled category matchups globally", () => {
+    const items = [
+      item("planter-a"),
+      item("planter-b"),
+      item("hook-a", "wall_hook"),
+      item("hook-b", "wall_hook"),
+      item("snowman-a", "snowman"),
+      item("snowman-b", "snowman"),
+    ];
+    const pairStats = new Map<string, PairStatLike>([
+      [pairKey("planter-a", "planter-b"), { pair_key: pairKey("planter-a", "planter-b"), family: "wall_planter", battle_count: 8 }],
+      [pairKey("planter-a", "hook-a"), {
+        pair_key: pairKey("planter-a", "hook-a"),
+        family: "mixed",
+        item_a_family: "wall_planter",
+        item_b_family: "wall_hook",
+        battle_count: 8,
+      }],
+      [pairKey("planter-a", "snowman-a"), {
+        pair_key: pairKey("planter-a", "snowman-a"),
+        family: "mixed",
+        item_a_family: "wall_planter",
+        item_b_family: "snowman",
+        battle_count: 8,
+      }],
+      [pairKey("hook-a", "hook-b"), { pair_key: pairKey("hook-a", "hook-b"), family: "wall_hook", battle_count: 8 }],
+      [pairKey("snowman-a", "snowman-b"), { pair_key: pairKey("snowman-a", "snowman-b"), family: "snowman", battle_count: 8 }],
+    ]);
+    const selected = selectBattlePair({
+      items,
+      pairStats,
+      random: () => 0,
+    });
+
+    expect(familyComboKey(selected[0].family, selected[1].family)).toBe("snowman__wall_hook");
+  });
+
+  it("rotates away from a category matchup already seen in the session", () => {
+    const items = [
+      item("planter-a"),
+      item("planter-b"),
+      item("hook-a", "wall_hook"),
+      item("hook-b", "wall_hook"),
+      item("snowman-a", "snowman"),
+      item("snowman-b", "snowman"),
+    ];
+    const pairStats = new Map<string, PairStatLike>([
+      [pairKey("planter-a", "planter-b"), { pair_key: pairKey("planter-a", "planter-b"), family: "wall_planter", battle_count: 40 }],
+      [pairKey("planter-a", "hook-a"), {
+        pair_key: pairKey("planter-a", "hook-a"),
+        family: "mixed",
+        item_a_family: "wall_planter",
+        item_b_family: "wall_hook",
+        battle_count: 40,
+      }],
+      [pairKey("planter-a", "snowman-a"), {
+        pair_key: pairKey("planter-a", "snowman-a"),
+        family: "mixed",
+        item_a_family: "wall_planter",
+        item_b_family: "snowman",
+        battle_count: 40,
+      }],
+      [pairKey("hook-a", "hook-b"), { pair_key: pairKey("hook-a", "hook-b"), family: "wall_hook", battle_count: 1 }],
+      [pairKey("snowman-a", "hook-a"), {
+        pair_key: pairKey("snowman-a", "hook-a"),
+        family: "mixed",
+        item_a_family: "snowman",
+        item_b_family: "wall_hook",
+        battle_count: 40,
+      }],
+      [pairKey("snowman-a", "snowman-b"), { pair_key: pairKey("snowman-a", "snowman-b"), family: "snowman", battle_count: 40 }],
+    ]);
+    const selected = selectBattlePair({
+      items,
+      pairStats,
+      votedPairKeys: new Set([pairKey("hook-a", "hook-b")]),
+      random: () => 0,
+    });
+
+    expect(familyComboKey(selected[0].family, selected[1].family)).not.toBe("wall_hook__wall_hook");
   });
 
   it("balances family selection by category vote exposure", () => {
