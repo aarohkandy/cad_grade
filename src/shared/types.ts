@@ -81,6 +81,7 @@ export interface VoteResponse {
     agreementPercent: number;
     agreesWithMajority: boolean;
     source: "direct" | "elo";
+    confidence: "low" | "medium" | "high";
     sampleSize: number;
   };
   dataMode: "live" | "local";

@@ -75,9 +75,9 @@ button {
 .top-bar {
   min-width: 0;
   min-height: 48px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(5, 24, 29, 0.78);
@@ -87,6 +87,7 @@ button {
 }
 
 .brand-word {
+  grid-column: 2;
   min-width: 0;
   margin: 0;
   overflow: hidden;
@@ -99,6 +100,26 @@ button {
   text-overflow: ellipsis;
   text-shadow: 0 2px 0 rgba(7, 18, 24, 0.22);
   white-space: nowrap;
+}
+
+.streak-meter {
+  grid-column: 3;
+  justify-self: end;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(248, 255, 243, 0.78);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.streak-meter strong {
+  color: var(--lime);
+  font-size: 15px;
 }
 
 .arena-shell {
@@ -336,8 +357,7 @@ button {
   white-space: normal;
 }
 
-.hold-panel,
-.feedback-panel {
+.hold-panel {
   z-index: 40;
   border: 1px solid var(--line-bright);
   border-radius: 10px;
@@ -412,42 +432,50 @@ button {
 
 .feedback-panel {
   position: fixed;
-  right: clamp(12px, 2vw, 24px);
-  top: 88px;
-  width: min(320px, calc(100vw - 24px));
+  inset: 0;
+  z-index: 65;
   display: grid;
-  gap: 3px;
-  padding: 12px 14px;
+  place-items: center;
+  gap: 6px;
+  padding: 24px;
   pointer-events: none;
-  animation: toast-pop 150ms ease-out;
+  text-align: center;
+  animation: result-copy 760ms ease-out forwards;
 }
 
 .feedback-panel h2 {
   margin: 0;
-  color: var(--leaf-ink);
-  font-family: var(--mono);
-  font-size: 25px;
-  line-height: 1;
+  color: #f8fff3;
+  font-family: var(--sans);
+  font-size: clamp(42px, 10vw, 112px);
+  font-weight: 950;
+  letter-spacing: 0;
+  line-height: 0.92;
+  text-shadow:
+    0 3px 0 rgba(4, 22, 18, 0.34),
+    0 18px 54px rgba(0, 0, 0, 0.46);
 }
 
 .feedback-panel p {
   margin: 0;
-  color: rgba(17, 43, 31, 0.78);
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.25;
+  color: rgba(248, 255, 243, 0.88);
+  font-family: var(--sans);
+  font-size: clamp(15px, 2vw, 25px);
+  font-weight: 900;
+  line-height: 1.2;
+  text-shadow: 0 8px 28px rgba(0, 0, 0, 0.44);
 }
 
-.feedback-panel.is-draw {
-  border-color: rgba(77, 208, 238, 0.74);
+.feedback-panel.is-majority h2 {
+  color: #edff82;
 }
 
-.feedback-panel.is-majority {
-  border-color: rgba(228, 247, 121, 0.98);
-  box-shadow:
-    0 24px 72px rgba(5, 24, 20, 0.36),
-    0 0 0 4px rgba(228, 247, 121, 0.2);
+.feedback-panel.is-against h2 {
+  color: #ffd2d2;
+}
+
+.feedback-panel.is-milestone h2 {
+  color: #ffffff;
 }
 
 .result-flash {
@@ -499,15 +527,18 @@ button {
   display: none !important;
 }
 
-@keyframes toast-pop {
+@keyframes result-copy {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.98);
+  }
+
+  18%,
+  82% {
+    opacity: 1;
   }
 
   to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    opacity: 0;
   }
 }
 
@@ -580,6 +611,19 @@ button {
 
   .top-bar {
     min-height: 44px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    justify-content: stretch;
+  }
+
+  .brand-word {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .streak-meter {
+    grid-column: 2;
+    gap: 7px;
+    font-size: 10px;
   }
 
   .battle-grid {
@@ -623,10 +667,9 @@ button {
     font-size: 18px;
   }
 
-  .feedback-panel {
-    top: auto;
-    right: 10px;
-    bottom: 10px;
-    width: calc(100vw - 20px);
+  .streak-meter span {
+    display: grid;
+    gap: 2px;
+    text-align: right;
   }
 }

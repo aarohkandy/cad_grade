@@ -1,6 +1,7 @@
 import "./styles.css";
 import dataset from "./data/items.generated.json";
 import { preloadStlGeometry, StlViewer } from "./client/stlViewer";
+import { initialEloForItem } from "./server/elo";
 import type { ArenaItem, BattleGroup, BattleResponse, HoldChallenge, VoteResponse } from "./shared/types";
 
 const SESSION_KEY = "capybara-arena-session";
@@ -14,6 +15,8 @@ const RAPID_VOTE_LIMIT = 12;
 const STREAK_RESET_MS = 10 * 60 * 1000;
 const AUTO_NEXT_DELAY_MS = 720;
 const PANEL_CLICK_MOVE_THRESHOLD_PX = 8;
+const ELO_DISPLAY_SCALE = 180;
+const STRONG_AGREEMENT_PERCENT = 60;
 
 interface CurrentBattle extends BattleResponse {
   localOnly?: boolean;
@@ -28,6 +31,10 @@ app.innerHTML = `
   <div class="arena-app">
     <header class="top-bar" id="top" aria-label="Capybara Arena">
       <h1 class="brand-word">Capybara Arena</h1>
+      <div class="streak-meter" aria-label="Voting streak">
+        <span>Streak <strong id="streak-now">0</strong></span>
+        <span>Best <strong id="streak-best">0</strong></span>
+      </div>
     </header>
 
     <main class="arena-shell" id="arena">
@@ -117,6 +124,8 @@ const dom = {
   resultFlash: document.querySelector("#result-flash") as HTMLElement,
   confettiLayer: document.querySelector("#confetti-layer") as HTMLElement,
   roundPulse: document.querySelector("#round-pulse") as HTMLElement,
+  streakNow: document.querySelector("#streak-now") as HTMLElement,
+  streakBest: document.querySelector("#streak-best") as HTMLElement,
 };
 
 let currentBattle: CurrentBattle | null = null;
@@ -128,6 +137,8 @@ let rightViewer: StlViewer | null = null;
 let holdStartedAt = 0;
 let holdFrame = 0;
 let autoNextTimer = 0;
+let flashTimer = 0;
+let confettiTimer = 0;
 let voteInFlight = false;
 let preparedBattle: Promise<CurrentBattle> | null = null;
 let panelPointerIntent: {
@@ -136,6 +147,12 @@ let panelPointerIntent: {
   startX: number;
   startY: number;
 } | null = null;
+
+interface StreakResult {
+  current: number;
+  best: number;
+  milestone: boolean;
+}
 
 function sessionId(): string {
   const existing = window.localStorage.getItem(SESSION_KEY);
@@ -186,65 +203,99 @@ function storedNumber(key: string): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
-function recordStreak(now = Date.now()): number {
+function activeStoredStreak(now = Date.now()): number {
   const lastVoteMs = storedNumber(LAST_VOTE_MS_KEY);
-  const previous = storedNumber(STREAK_KEY);
-  const next = lastVoteMs && now - lastVoteMs <= STREAK_RESET_MS ? previous + 1 : 1;
-  const best = Math.max(storedNumber(BEST_STREAK_KEY), next);
+  if (!lastVoteMs || now - lastVoteMs > STREAK_RESET_MS) return 0;
+  return storedNumber(STREAK_KEY);
+}
+
+function isStreakMilestone(streak: number): boolean {
+  return streak === 3 || streak === 5 || streak === 8 || streak === 12 || (streak >= 15 && streak % 5 === 0);
+}
+
+function updateStreakHud(now = Date.now()): void {
+  const current = activeStoredStreak(now);
+  dom.streakNow.textContent = String(current);
+  dom.streakBest.textContent = String(storedNumber(BEST_STREAK_KEY));
+}
+
+function recordAgreementStreak(agreesWithMajority: boolean, now = Date.now()): StreakResult {
+  const previousBest = storedNumber(BEST_STREAK_KEY);
+  if (!agreesWithMajority) {
+    window.localStorage.setItem(STREAK_KEY, "0");
+    window.localStorage.setItem(LAST_VOTE_MS_KEY, String(now));
+    updateStreakHud(now);
+    return { current: 0, best: previousBest, milestone: false };
+  }
+
+  const next = activeStoredStreak(now) + 1;
+  const best = Math.max(previousBest, next);
   window.localStorage.setItem(STREAK_KEY, String(next));
   window.localStorage.setItem(BEST_STREAK_KEY, String(best));
   window.localStorage.setItem(LAST_VOTE_MS_KEY, String(now));
-  return next;
+  updateStreakHud(now);
+  return { current: next, best, milestone: isStreakMilestone(next) };
 }
 
 function crowdSourceLine(response: VoteResponse): string {
   const crowd = response.crowd;
-  if (crowd.source === "direct") {
-    return `from ${crowd.sampleSize} prior ${crowd.sampleSize === 1 ? "vote" : "votes"}`;
-  }
+  if (crowd.confidence === "high") return "crowd read";
+  if (crowd.source === "direct") return "early crowd";
   return "rating estimate";
 }
 
-function feedbackTitle(response: VoteResponse, isDraw: boolean): string {
-  if (response.crowd.agreesWithMajority) return "You chose right";
-  if (isDraw) return "Tie saved";
-  return "Not the favorite";
+function feedbackTitle(response: VoteResponse, isDraw: boolean, streak: StreakResult): string {
+  if (response.crowd.agreesWithMajority && streak.milestone) return `Streak x${streak.current}`;
+  if (response.crowd.agreesWithMajority) return isDraw ? "Good tie" : "Good read";
+  return "Against the field";
 }
 
-function feedbackLine(response: VoteResponse, isDraw: boolean, streak: number): string {
-  const action = isDraw ? "call it a tie" : "agree";
-  const streakText = streak > 1 ? ` - streak x${streak}` : "";
-  return `${response.crowd.agreementPercent}% would ${action} - ${crowdSourceLine(response)}${streakText}`;
+function feedbackLine(response: VoteResponse, streak: StreakResult): string {
+  const streakText = response.crowd.agreesWithMajority
+    ? `Streak x${streak.current}`
+    : streak.best > 0
+      ? `Best x${streak.best}`
+      : "Streak reset";
+  return `${response.crowd.agreementPercent}% agreed - ${crowdSourceLine(response)} - ${streakText}`;
 }
 
-function fireConfetti(): void {
+function flashShouldBurst(response: VoteResponse, streak: StreakResult): boolean {
+  return (
+    response.crowd.agreesWithMajority &&
+    (streak.milestone || response.crowd.agreementPercent >= STRONG_AGREEMENT_PERCENT)
+  );
+}
+
+function fireConfetti(streak: StreakResult): void {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const colors = ["#eaff68", "#7fe8ad", "#4dd0ee", "#f6ffe0"];
-  const origin = dom.feedbackPanel.getBoundingClientRect();
-  const originX = origin.left + origin.width * 0.5;
-  const originY = origin.top + 8;
+  const colors = ["#eaff68", "#7fe8ad", "#4dd0ee", "#f6ffe0", "#b8ffd0"];
+  const originX = window.innerWidth * 0.5;
+  const originY = window.innerHeight * 0.42;
+  const count = streak.milestone ? 30 : 18;
   dom.confettiLayer.replaceChildren();
-  for (let index = 0; index < 24; index += 1) {
+  window.clearTimeout(confettiTimer);
+  for (let index = 0; index < count; index += 1) {
     const piece = document.createElement("i");
     piece.className = "confetti-piece";
     piece.style.left = `${originX}px`;
     piece.style.top = `${originY}px`;
-    piece.style.setProperty("--confetti-x", `${Math.random() * 220 - 110}px`);
-    piece.style.setProperty("--confetti-y", `${80 + Math.random() * 155}px`);
+    piece.style.setProperty("--confetti-x", `${Math.random() * 380 - 190}px`);
+    piece.style.setProperty("--confetti-y", `${70 + Math.random() * 210}px`);
     piece.style.setProperty("--confetti-rotation", `${Math.random() * 460 - 230}deg`);
     piece.style.animationDelay = `${Math.random() * 80}ms`;
-    piece.style.animationDuration = `${720 + Math.random() * 420}ms`;
+    piece.style.animationDuration = `${620 + Math.random() * 360}ms`;
     piece.style.background = colors[index % colors.length];
     dom.confettiLayer.append(piece);
   }
-  window.setTimeout(() => dom.confettiLayer.replaceChildren(), 1400);
+  confettiTimer = window.setTimeout(() => dom.confettiLayer.replaceChildren(), 1200);
 }
 
 function flashResult(agreesWithMajority: boolean): void {
   dom.resultFlash.classList.remove("is-good", "is-bad", "is-active");
   void dom.resultFlash.offsetWidth;
   dom.resultFlash.classList.add(agreesWithMajority ? "is-good" : "is-bad", "is-active");
-  window.setTimeout(() => {
+  window.clearTimeout(flashTimer);
+  flashTimer = window.setTimeout(() => {
     dom.resultFlash.classList.remove("is-active", "is-good", "is-bad");
   }, 860);
 }
@@ -315,6 +366,45 @@ async function postJson<T>(url: string, payload: unknown): Promise<T> {
   return data;
 }
 
+function boundedPercent(probability: number): number {
+  const bounded = Math.max(0.04, Math.min(0.96, probability));
+  const percent = Math.round(bounded * 100);
+  if (percent === 50 && bounded !== 0.5) return bounded > 0.5 ? 51 : 49;
+  return percent;
+}
+
+function calibratedExpectedScore(playerElo: number, opponentElo: number): number {
+  return 1 / (1 + 10 ** ((opponentElo - playerElo) / ELO_DISPLAY_SCALE));
+}
+
+function tieAgreementProbability(leftElo: number, rightElo: number): number {
+  const gap = Math.abs(leftElo - rightElo);
+  return 0.2 + 0.36 * Math.exp(-gap / 36);
+}
+
+function localCrowdEstimate(left: ArenaItem, right: ArenaItem, choice: VoteChoice): VoteResponse["crowd"] {
+  const leftElo = initialEloForItem(left);
+  const rightElo = initialEloForItem(right);
+  const probability =
+    choice === "draw"
+      ? tieAgreementProbability(leftElo, rightElo)
+      : choice === left.id
+        ? calibratedExpectedScore(leftElo, rightElo)
+        : calibratedExpectedScore(rightElo, leftElo);
+  return {
+    agreementPercent: boundedPercent(probability),
+    agreesWithMajority: probability > 0.5,
+    source: "elo",
+    confidence: "low",
+    sampleSize: 0,
+  };
+}
+
+function localAgreementLabel(crowd: VoteResponse["crowd"], isDraw: boolean): string {
+  const action = isDraw ? "call it a tie" : "pick the same model";
+  return `${crowd.agreementPercent}% would ${action} (rating estimate).`;
+}
+
 function localBattle(): CurrentBattle {
   const priorPairs = seenPairs();
   const seenItemBattles = localSeenItemBattles(priorPairs);
@@ -380,9 +470,14 @@ function shouldVerifyVote(): boolean {
 
 function clearFeedback(): void {
   window.clearTimeout(autoNextTimer);
+  window.clearTimeout(flashTimer);
+  window.clearTimeout(confettiTimer);
   autoNextTimer = 0;
+  flashTimer = 0;
+  confettiTimer = 0;
   dom.feedbackPanel.classList.add("is-hidden");
-  dom.feedbackPanel.classList.remove("is-draw", "is-majority");
+  dom.feedbackPanel.classList.remove("is-draw", "is-majority", "is-milestone", "is-against");
+  dom.resultFlash.classList.remove("is-good", "is-bad", "is-active");
   dom.confettiLayer.replaceChildren();
   dom.holdPanel.classList.add("is-hidden");
   selectedChoice = null;
@@ -515,16 +610,18 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   const right = currentBattle.right;
   cancelAnimationFrame(holdFrame);
   dom.holdButton.classList.remove("holding");
+  const localCrowd = currentBattle.localOnly ? localCrowdEstimate(left, right, choice) : null;
   const response = currentBattle.localOnly
     ? ({
         saved: true,
         acceptedForScoring: false,
-        agreementPercent: 51,
-        agreementLabel: "51% would agree (local preview).",
-        crowd: {
-          agreementPercent: 51,
-          agreesWithMajority: true,
+        agreementPercent: localCrowd?.agreementPercent || 50,
+        agreementLabel: localCrowd ? localAgreementLabel(localCrowd, isDraw) : "Vote saved.",
+        crowd: localCrowd || {
+          agreementPercent: 50,
+          agreesWithMajority: false,
           source: "elo",
+          confidence: "low",
           sampleSize: 0,
         },
         dataMode: "local",
@@ -545,7 +642,7 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
 
   const now = Date.now();
   rememberVoteTime(now);
-  const streak = recordStreak(now);
+  const streak = recordAgreementStreak(response.crowd.agreesWithMajority, now);
   rememberPair(left.id, right.id);
   startPreparingNextBattle();
   dom.holdButton.disabled = false;
@@ -553,10 +650,12 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   dom.feedbackPanel.classList.remove("is-hidden");
   dom.feedbackPanel.classList.toggle("is-draw", isDraw);
   dom.feedbackPanel.classList.toggle("is-majority", response.crowd.agreesWithMajority);
-  dom.feedbackTitle.textContent = feedbackTitle(response, isDraw);
-  dom.feedbackCopy.textContent = feedbackLine(response, isDraw, streak);
+  dom.feedbackPanel.classList.toggle("is-against", !response.crowd.agreesWithMajority);
+  dom.feedbackPanel.classList.toggle("is-milestone", streak.milestone);
+  dom.feedbackTitle.textContent = feedbackTitle(response, isDraw, streak);
+  dom.feedbackCopy.textContent = feedbackLine(response, streak);
   flashResult(response.crowd.agreesWithMajority);
-  if (response.crowd.agreesWithMajority) fireConfetti();
+  if (flashShouldBurst(response, streak)) fireConfetti(streak);
   dom.roundPulse.textContent = "next";
   window.clearTimeout(autoNextTimer);
   autoNextTimer = window.setTimeout(() => {
@@ -651,5 +750,6 @@ dom.holdButton.addEventListener("pointerup", cancelHold);
 dom.holdButton.addEventListener("pointercancel", cancelHold);
 dom.holdButton.addEventListener("pointerleave", cancelHold);
 
+updateStreakHud();
 markArenaLive();
 loadBattle().catch(showVoteError);

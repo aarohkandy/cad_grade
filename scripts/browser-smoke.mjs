@@ -142,8 +142,27 @@ async function assertVoteFeedbackAndAdvance(page, name) {
   await page.locator('[data-side="left"]').click();
   await page.locator("#feedback-panel:not(.is-hidden)").waitFor({ timeout: 10_000 });
   const feedback = await page.locator("#feedback-panel").innerText();
-  if (!String(feedback || "").includes("% would")) {
+  if (!String(feedback || "").includes("% agreed")) {
     throw new Error(`${name} missing crowd estimate: ${feedback}`);
+  }
+  const overlay = await page.locator("#feedback-panel").evaluate((panel) => {
+    const rect = panel.getBoundingClientRect();
+    return {
+      width: rect.width,
+      height: rect.height,
+      left: rect.left,
+      top: rect.top,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    };
+  });
+  if (
+    overlay.left > 1 ||
+    overlay.top > 1 ||
+    overlay.width < overlay.viewportWidth - 2 ||
+    overlay.height < overlay.viewportHeight - 2
+  ) {
+    throw new Error(`${name} feedback overlay did not cover viewport: ${JSON.stringify(overlay)}`);
   }
   await page.locator("#result-flash.is-active").waitFor({ timeout: 10_000 });
   const flashClass = await page.locator("#result-flash").getAttribute("class");
@@ -155,10 +174,33 @@ async function assertVoteFeedbackAndAdvance(page, name) {
   if (!holdHidden) throw new Error(`${name} hold verification appeared after normal vote`);
 }
 
+async function assertRepeatedVotingStable(page, name) {
+  if (name !== "desktop") return;
+  const durations = [];
+  for (let index = 0; index < 10; index += 1) {
+    await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
+    const started = Date.now();
+    await page.locator(index % 2 === 0 ? "#vote-right" : "#vote-left").click();
+    await page.locator("#feedback-panel:not(.is-hidden)").waitFor({ timeout: 10_000 });
+    const pieces = await page.locator(".confetti-piece").count();
+    if (pieces > 30) throw new Error(`${name} particle cap failed: ${pieces}`);
+    await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
+    durations.push(Date.now() - started);
+  }
+  const slowest = Math.max(...durations);
+  if (slowest > 8000) throw new Error(`${name} repeated voting got slow: ${JSON.stringify(durations)}`);
+  await page.evaluate(() => {
+    window.localStorage.setItem("capybara-arena-vote-history", "[]");
+  });
+}
+
 async function checkViewport(browser, name, viewport) {
   const page = await browser.newPage({ viewport });
   page.setDefaultTimeout(30_000);
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.evaluate(() => {
+    window.localStorage.setItem("capybara-arena-vote-history", "[]");
+  });
   await page.locator("#arena").waitFor({ state: "visible" });
   await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 30_000 });
   const left = await waitForNonBlankCanvas(page, "#left-canvas");
@@ -169,6 +211,7 @@ async function checkViewport(browser, name, viewport) {
   await assertCoreLoopVisible(page, name);
   await assertCanvasDragDoesNotVote(page, name);
   await assertVoteFeedbackAndAdvance(page, name);
+  await assertRepeatedVotingStable(page, name);
   const screenshotPath = path.join(OUT_DIR, `${name}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
   console.log(`${name}: left_bytes=${left.byteLength} right_bytes=${right.byteLength} screenshot=${screenshotPath}`);

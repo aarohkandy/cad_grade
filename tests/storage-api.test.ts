@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import exportHandler from "../api/export";
 import statsHandler from "../api/stats";
 import voteHandler from "../api/vote";
+import { initialEloForItem } from "../src/server/elo";
 import { createHoldChallenge } from "../src/server/hold";
 import { dataset } from "../src/server/items";
 import type { VoteResponse } from "../src/shared/types";
@@ -84,8 +85,12 @@ describe("local storage api flow", () => {
   });
 
   it("saves, summarizes, and exports a vote", async () => {
-    const items = dataset.items.filter((item) => item.family === "wall_planter");
-    const [left, right] = items;
+    const items = dataset.items
+      .filter((item) => item.family === "wall_planter")
+      .sort((left, right) => initialEloForItem(right) - initialEloForItem(left));
+    const left = items[0];
+    const right = items.at(-1);
+    if (!left || !right) throw new Error("missing test items");
     const now = Date.now();
     const hold = createHoldChallenge("hold-secret", now - 1000, () => 0);
     const voteResponse = mockResponse();
@@ -121,13 +126,12 @@ describe("local storage api flow", () => {
       dataMode: "local",
       crowd: {
         source: "elo",
+        confidence: "low",
         sampleSize: 0,
       },
     });
-    expect((voteResponse.body as VoteResponse).crowd.agreementPercent).not.toBe(50);
-    expect((voteResponse.body as VoteResponse).crowd.agreesWithMajority).toBe(
-      (voteResponse.body as VoteResponse).crowd.agreementPercent > 50,
-    );
+    expect([49, 50, 51]).not.toContain((voteResponse.body as VoteResponse).crowd.agreementPercent);
+    expect((voteResponse.body as VoteResponse).crowd.agreesWithMajority).toBe(true);
 
     const statsResponse = mockResponse();
     await statsHandler({ method: "GET", headers: {}, query: {} } as never, statsResponse as never);
@@ -248,10 +252,44 @@ describe("local storage api flow", () => {
     expect(minority.crowd).toMatchObject({
       agreesWithMajority: false,
       source: "direct",
+      confidence: "medium",
       sampleSize: 5,
     });
     expect(minority.crowd.agreementPercent).toBeGreaterThan(4);
     expect(minority.crowd.agreementPercent).toBeLessThan(50);
+  });
+
+  it("treats direct tie history as a majority tie read", async () => {
+    const items = dataset.items.filter((item) => item.family === "wall_hook");
+    const [left, right] = items.slice(4);
+    if (!left || !right) throw new Error("missing test items");
+    const now = Date.now();
+
+    for (let index = 0; index < 5; index += 1) {
+      await submitVote({
+        leftItemId: left.id,
+        rightItemId: right.id,
+        winnerItemId: null,
+        sessionId: `session-tie-majority-${index}`,
+        now: now + index,
+      });
+    }
+
+    const tieRead = await submitVote({
+      leftItemId: left.id,
+      rightItemId: right.id,
+      winnerItemId: null,
+      sessionId: "session-tie-majority-choice",
+      now: now + 10,
+    });
+
+    expect(tieRead.crowd).toMatchObject({
+      agreesWithMajority: true,
+      source: "direct",
+      confidence: "medium",
+      sampleSize: 5,
+    });
+    expect(tieRead.crowd.agreementPercent).toBeGreaterThan(50);
   });
 
   it("saves draw votes as tie judgments", async () => {

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomUUID } from "node:crypto";
-import { expectedScore, initialEloForItem } from "../src/server/elo.js";
+import { initialEloForItem } from "../src/server/elo.js";
 import { isVercelRuntime, missingProductionEnv, productionVoteEnvReady } from "../src/server/env.js";
 import { safeHash } from "../src/server/hash.js";
 import { verifyHoldSubmission } from "../src/server/hold.js";
@@ -23,7 +23,9 @@ import {
 import type { ArenaItem, VotePayload } from "../src/shared/types";
 
 const DIRECT_AGREEMENT_MIN_VOTES = 5;
+const DIRECT_AGREEMENT_HIGH_CONFIDENCE_VOTES = 15;
 const DIRECT_AGREEMENT_PRIOR_VOTES = 8;
+const ELO_DISPLAY_SCALE = 180;
 
 function winnerWins(pair: StoredPairStat | undefined, winnerId: string): number {
   if (!pair) return 0;
@@ -33,12 +35,12 @@ function winnerWins(pair: StoredPairStat | undefined, winnerId: string): number 
 function boundedPercent(probability: number): number {
   const bounded = Math.max(0.04, Math.min(0.96, probability));
   const percent = Math.round(bounded * 100);
-  if (percent === 50) return bounded >= 0.5 ? 51 : 49;
+  if (percent === 50 && bounded !== 0.5) return bounded > 0.5 ? 51 : 49;
   return percent;
 }
 
 function eloAgreementProbability(winnerElo: number, loserElo: number): number {
-  return expectedScore(winnerElo, loserElo);
+  return 1 / (1 + 10 ** ((loserElo - winnerElo) / ELO_DISPLAY_SCALE));
 }
 
 function itemElo(item: ArenaItem, value?: number | null): number {
@@ -48,7 +50,7 @@ function itemElo(item: ArenaItem, value?: number | null): number {
 
 function tieAgreementProbability(leftElo: number, rightElo: number): number {
   const gap = Math.abs(leftElo - rightElo);
-  return 0.08 + 0.34 * Math.exp(-gap / 120);
+  return 0.2 + 0.36 * Math.exp(-gap / 36);
 }
 
 function eloPriorProbability(input: {
@@ -64,7 +66,7 @@ function eloPriorProbability(input: {
   return eloAgreementProbability(input.winnerElo, input.loserElo);
 }
 
-function directAgreementPercent(input: {
+function directAgreementProbability(input: {
   pair: StoredPairStat;
   sampleSize: number;
   winner: ArenaItem | null;
@@ -75,7 +77,12 @@ function directAgreementPercent(input: {
   const smoothedProbability =
     (directWins + input.priorProbability * DIRECT_AGREEMENT_PRIOR_VOTES) /
     (input.sampleSize + DIRECT_AGREEMENT_PRIOR_VOTES);
-  return boundedPercent(smoothedProbability);
+  return smoothedProbability;
+}
+
+function crowdConfidence(source: "direct" | "elo", sampleSize: number): "low" | "medium" | "high" {
+  if (source === "elo") return "low";
+  return sampleSize >= DIRECT_AGREEMENT_HIGH_CONFIDENCE_VOTES ? "high" : "medium";
 }
 
 function crowdEstimate(input: {
@@ -103,30 +110,35 @@ function crowdEstimate(input: {
     winnerElo,
     loserElo,
   });
-  const agreementPercent =
+  const source = hasDirectSignal ? "direct" : "elo";
+  const agreementProbability =
     hasDirectSignal && input.pair
-      ? directAgreementPercent({
+      ? directAgreementProbability({
           pair: input.pair,
           sampleSize,
           winner: input.winner,
           isDraw: input.isDraw,
           priorProbability,
         })
-      : boundedPercent(priorProbability);
+      : priorProbability;
+  const agreementPercent = boundedPercent(agreementProbability);
 
   return {
     agreementPercent,
-    agreesWithMajority: agreementPercent > 50,
-    source: hasDirectSignal ? "direct" : "elo",
+    agreesWithMajority: agreementProbability > 0.5,
+    source,
+    confidence: crowdConfidence(source, sampleSize),
     sampleSize,
   } as const;
 }
 
 function crowdAgreementLabel(input: ReturnType<typeof crowdEstimate>, isDraw: boolean): string {
   const action = isDraw ? "call it a tie" : "pick the same model";
-  const source = input.source === "direct"
-    ? `from ${input.sampleSize} prior ${input.sampleSize === 1 ? "vote" : "votes"}`
-    : "rating estimate";
+  const source = input.confidence === "high"
+    ? "crowd read"
+    : input.source === "direct"
+      ? "early crowd read"
+      : "rating estimate";
   return `${input.agreementPercent}% would ${action} (${source}).`;
 }
 

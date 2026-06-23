@@ -41,9 +41,9 @@ try {
   }
 
   await page.locator("#feedback-panel:not(.is-hidden)").waitFor({ timeout: 20_000 });
-  const feedback = await page.locator("#feedback-title").textContent();
-  if (!String(feedback || "").toLowerCase().includes("saved")) {
-    throw new Error(`Unexpected feedback title: ${feedback}`);
+  const feedback = await page.locator("#feedback-panel").innerText();
+  if (!String(feedback || "").includes("% agreed")) {
+    throw new Error(`Unexpected feedback panel: ${feedback}`);
   }
   await page.locator("#vote-left:not([disabled])").waitFor({ timeout: 20_000 });
 } finally {
