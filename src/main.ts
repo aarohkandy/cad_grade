@@ -701,6 +701,39 @@ dom.voteDraw.addEventListener("click", () => {
   if (currentBattle) chooseVote("draw").catch(showVoteError);
 });
 
+function targetAcceptsVoteShortcut(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return true;
+  if (target.isContentEditable) return false;
+  return !["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+}
+
+function shortcutChoice(event: KeyboardEvent): VoteChoice | null {
+  if (!currentBattle) return null;
+  if (event.key === "ArrowLeft") return currentBattle.left.id;
+  if (event.key === "ArrowRight") return currentBattle.right.id;
+  if (event.key === "ArrowUp" || event.key === "ArrowDown") return "draw";
+  return null;
+}
+
+function handleVoteShortcut(event: KeyboardEvent): void {
+  if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (!targetAcceptsVoteShortcut(event.target)) return;
+  if (!currentBattle || voteInFlight || !dom.holdPanel.classList.contains("is-hidden")) return;
+  const choice = shortcutChoice(event);
+  if (!choice) return;
+  const choiceDisabled =
+    choice === "draw"
+      ? dom.voteDraw.disabled
+      : choice === currentBattle.left.id
+        ? dom.voteLeft.disabled
+        : dom.voteRight.disabled;
+  if (choiceDisabled) return;
+  event.preventDefault();
+  chooseVote(choice).catch(showVoteError);
+}
+
+window.addEventListener("keydown", handleVoteShortcut);
+
 function choosePanel(side: "left" | "right"): void {
   if (!currentBattle || voteInFlight) return;
   if (side === "left" && dom.voteLeft.disabled) return;

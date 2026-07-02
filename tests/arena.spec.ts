@@ -36,3 +36,16 @@ test("arena shows full-screen result feedback after a vote", async ({ page }) =>
   expect(overlay.width).toBeGreaterThanOrEqual(overlay.viewportWidth - 2);
   expect(overlay.height).toBeGreaterThanOrEqual(overlay.viewportHeight - 2);
 });
+
+test("arena accepts arrow-key voting shortcuts", async ({ page }) => {
+  for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
+    await page.goto("/");
+    await page.evaluate(() => {
+      window.localStorage.setItem("capybara-arena-vote-history", "[]");
+    });
+    await expect(page.locator("#vote-left")).toBeEnabled({ timeout: 30_000 });
+    await page.keyboard.press(key);
+    await expect(page.locator("#feedback-panel:not(.is-hidden)")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("#feedback-panel")).toContainText("% agreed");
+  }
+});
