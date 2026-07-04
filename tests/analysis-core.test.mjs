@@ -108,6 +108,36 @@ describe("local analysis core", () => {
     expect(analysis.rankingsClean.find((row) => row.item_id === "a").battles).toBe(1);
   });
 
+  it("trusts local vote records in clean analysis even when keyboard voting is fast", () => {
+    const votes = Array.from({ length: 5 }, (_, index) =>
+      vote({
+        id: `local-fast-${index}`,
+        session_id: "local-keyboard-session",
+        created_at: `2026-06-14T12:00:0${index}.000Z`,
+        started_at: "2026-06-14T12:00:00.000Z",
+        models_loaded_at: "2026-06-14T12:00:00.050Z",
+        voted_at: "2026-06-14T12:00:00.700Z",
+        elapsed_ms: 700,
+        load_ms: 50,
+        too_fast: true,
+        accepted_for_scoring: false,
+        quality_flags: ["too_fast", "hold_required"],
+        storage: {
+          mode: "local",
+          path: `votes/v1/2026-06-14/local-fast-${index}.json`,
+        },
+      }),
+    );
+    const analysis = analyzeVotes({ dataset: dataset(), votes });
+    const anomalyTypes = new Set(analysis.anomalyRows.map((row) => row.anomaly_type));
+
+    expect(analysis.totals.reportRawVotes).toBe(5);
+    expect(analysis.totals.cleanVotes).toBe(5);
+    expect(analysis.totals.trustedLocalVotes).toBe(5);
+    expect(anomalyTypes.has("too_fast_session")).toBe(false);
+    expect(anomalyTypes.has("low_median_vote_time")).toBe(false);
+  });
+
   it("counts draw votes without moving Elo", () => {
     const analysis = analyzeVotes({
       dataset: dataset(),
@@ -161,6 +191,23 @@ describe("local analysis core", () => {
     expect(mixedPair).toMatchObject({ family: "mixed", battles: 1, item_b_wins: 1 });
     expect(analysis.familyRows.find((row) => row.family === "wall_hook").raw_votes).toBe(1);
     expect(analysis.familyRows.find((row) => row.family === "wall_planter").raw_votes).toBe(1);
+  });
+
+  it("records Elo history and convergence over clean votes", () => {
+    const analysis = analyzeVotes({
+      dataset: dataset(),
+      votes: [
+        vote({ id: "first", left_item_id: "a", right_item_id: "b", winner_item_id: "a" }),
+        vote({ id: "second", left_item_id: "a", right_item_id: "h1", winner_item_id: "h1", loser_item_id: "a", family: "mixed" }),
+      ],
+      generatedAtUtc: "2026-06-14T12:10:00.000Z",
+    });
+
+    expect(analysis.eloHistoryRows.length).toBe(4);
+    expect(analysis.eloConvergenceRows).toHaveLength(2);
+    expect(analysis.eloHistoryRows[0]).toMatchObject({ vote_index: 1, vote_id: "first", item_id: "a", item_result: "win" });
+    expect(analysis.eloHistoryRows[1]).toMatchObject({ vote_index: 1, vote_id: "first", item_id: "b", item_result: "loss" });
+    expect(analysis.eloConvergenceRows[1].leader_item_id).toBeTruthy();
   });
 
   it("puts under-covered items and pairs first in coverage gaps", () => {
@@ -227,6 +274,8 @@ describe("local analysis core", () => {
       await writeAnalysisOutputs(analysis, dir);
       expect(await readFile(join(dir, "index.html"), "utf8")).toContain("CadBattle Local Analysis");
       expect(await readFile(join(dir, "rankings_clean.csv"), "utf8")).toContain("item_id");
+      expect(await readFile(join(dir, "elo_history.csv"), "utf8")).toContain("vote_index");
+      expect(await readFile(join(dir, "elo_convergence.csv"), "utf8")).toContain("mean_abs_elo_delta");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

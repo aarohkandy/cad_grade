@@ -118,6 +118,10 @@ export function isTestVote(vote) {
   return TEST_SESSION_PREFIXES.some((prefix) => String(vote?.session_id || "").startsWith(prefix));
 }
 
+function isTrustedLocalVote(vote) {
+  return vote?.storage?.mode === "local";
+}
+
 function currentQuality(vote) {
   const { elapsedMs, loadMs, voteAfterLoadMs } = voteTiming(vote);
   const tooFast = elapsedMs !== null && elapsedMs < FAST_VOTE_MS;
@@ -139,12 +143,14 @@ function currentQuality(vote) {
   if (holdSubmitted && !holdPassed) flags.push("hold_failed");
   if (duplicatePair) flags.push("duplicate_pair");
   if (weakSession) flags.push("weak_session");
+  const trustedLocal = isTrustedLocalVote(vote);
   return {
     flags,
     tooFast,
     duplicatePair,
+    trustedLocal,
     acceptedForScoring:
-      ((!tooFast && !modelsLoadedTooFast && !votedAfterLoadTooFast) || holdPassed) &&
+      (trustedLocal || (!tooFast && !modelsLoadedTooFast && !votedAfterLoadTooFast) || holdPassed) &&
       !duplicatePair &&
       !weakSession &&
       !(holdSubmitted && !holdPassed),
@@ -353,6 +359,103 @@ function rankingRows(votes, dataset, label) {
   return { itemRows: rows, pairRows: [...pairs.values()] };
 }
 
+function roundElo(value) {
+  return Math.round(value * 1000) / 1000;
+}
+
+function eloSpread(items) {
+  const values = [...items.values()].map((item) => item.elo);
+  const mean = values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, values.length);
+  return Math.round(Math.sqrt(variance) * 1000) / 1000;
+}
+
+function eloTimelineRows(votes, dataset) {
+  const items = initItemStats(dataset);
+  const historyRows = [];
+  const convergenceRows = [];
+  let voteIndex = 0;
+
+  for (const vote of [...votes].sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)))) {
+    const left = items.get(vote.left_item_id);
+    const right = items.get(vote.right_item_id);
+    if (!left || !right) continue;
+
+    voteIndex += 1;
+    const touched = [];
+    const before = new Map([
+      [left.item_id, left.elo],
+      [right.item_id, right.elo],
+    ]);
+
+    if (vote.vote_result === "draw" || !vote.winner_item_id) {
+      left.battles += 1;
+      right.battles += 1;
+      left.draws += 1;
+      right.draws += 1;
+      touched.push(left, right);
+    } else {
+      const winner = items.get(vote.winner_item_id);
+      const loserId = vote.loser_item_id || (vote.winner_item_id === left.item_id ? right.item_id : left.item_id);
+      const loser = items.get(loserId);
+      if (!winner || !loser) continue;
+
+      before.set(winner.item_id, winner.elo);
+      before.set(loser.item_id, loser.elo);
+      winner.wins += 1;
+      loser.losses += 1;
+      const elo = updateElo(winner.elo, loser.elo, eloVoteWeight(winner, loser));
+      winner.elo = elo.winner;
+      loser.elo = elo.loser;
+      left.battles += 1;
+      right.battles += 1;
+      touched.push(winner, loser);
+    }
+
+    const uniqueTouched = [...new Map(touched.map((item) => [item.item_id, item])).values()];
+    const deltas = uniqueTouched.map((item) => roundElo(item.elo - (before.get(item.item_id) ?? item.elo)));
+    for (const item of uniqueTouched) {
+      const previousElo = before.get(item.item_id) ?? item.elo;
+      const itemResult =
+        vote.vote_result === "draw" || !vote.winner_item_id ? "draw" : item.item_id === vote.winner_item_id ? "win" : "loss";
+      historyRows.push({
+        vote_index: voteIndex,
+        created_at: vote.created_at,
+        vote_id: vote.id,
+        item_id: item.item_id,
+        family: item.family,
+        title: item.title,
+        seed_id: item.seed_id,
+        opponent_id: item.item_id === left.item_id ? right.item_id : left.item_id,
+        item_result: itemResult,
+        vote_result: vote.vote_result,
+        previous_elo: roundElo(previousElo),
+        elo: roundElo(item.elo),
+        elo_delta: roundElo(item.elo - previousElo),
+        battles: item.battles,
+        wins: item.wins,
+        losses: item.losses,
+        draws: item.draws,
+      });
+    }
+
+    const leader = [...items.values()].sort((leftItem, rightItem) => rightItem.elo - leftItem.elo || leftItem.item_id.localeCompare(rightItem.item_id))[0];
+    convergenceRows.push({
+      vote_index: voteIndex,
+      created_at: vote.created_at,
+      vote_id: vote.id,
+      mean_abs_elo_delta: roundElo(deltas.reduce((sum, value) => sum + Math.abs(value), 0) / Math.max(1, deltas.length)),
+      max_abs_elo_delta: roundElo(Math.max(0, ...deltas.map((value) => Math.abs(value)))),
+      elo_spread: eloSpread(items),
+      leader_item_id: leader.item_id,
+      leader_title: leader.title,
+      leader_elo: roundElo(leader.elo),
+    });
+  }
+
+  return { historyRows, convergenceRows };
+}
+
 function groupCounts(votes, keyFn) {
   const counts = new Map();
   for (const vote of votes) {
@@ -374,6 +477,7 @@ function buildSessionRows(votes) {
       flagged_votes: 0,
       duplicate_votes: 0,
       too_fast_votes: 0,
+      trusted_local_votes: 0,
       unique_pairs: new Set(),
       elapsed_values: [],
       first_vote_at: vote.created_at,
@@ -384,6 +488,7 @@ function buildSessionRows(votes) {
     row.flagged_votes += quality.flags.length ? 1 : 0;
     row.duplicate_votes += quality.duplicatePair ? 1 : 0;
     row.too_fast_votes += quality.tooFast ? 1 : 0;
+    row.trusted_local_votes += quality.trustedLocal ? 1 : 0;
     row.unique_pairs.add(pairKey(vote.left_item_id, vote.right_item_id));
     if (Number.isFinite(vote.elapsed_ms)) row.elapsed_values.push(vote.elapsed_ms);
     if (String(vote.created_at) < String(row.first_vote_at)) row.first_vote_at = vote.created_at;
@@ -402,6 +507,7 @@ function buildSessionRows(votes) {
         flagged_votes: row.flagged_votes,
         duplicate_votes: row.duplicate_votes,
         too_fast_votes: row.too_fast_votes,
+        trusted_local_votes: row.trusted_local_votes,
         unique_pairs: row.unique_pairs.size,
         median_elapsed_ms: median(row.elapsed_values),
         first_vote_at: row.first_vote_at,
@@ -465,16 +571,17 @@ function anomalyRows({ sessions, pairRows, rawRankings, familyRows }) {
   for (const session of sessions) {
     const duplicateRatio = session.raw_votes ? session.duplicate_votes / session.raw_votes : 0;
     const tooFastRatio = session.raw_votes ? session.too_fast_votes / session.raw_votes : 0;
+    const trustedLocalSession = session.raw_votes > 0 && session.trusted_local_votes === session.raw_votes;
     if (session.raw_votes >= 25) {
       rows.push({ anomaly_type: "high_volume_session", severity: "watch", subject_id: session.session_id, evidence: `${session.raw_votes} votes` });
     }
-    if (session.too_fast_votes >= 3 || (session.raw_votes >= 3 && tooFastRatio >= 0.5)) {
+    if (!trustedLocalSession && (session.too_fast_votes >= 3 || (session.raw_votes >= 3 && tooFastRatio >= 0.5))) {
       rows.push({ anomaly_type: "too_fast_session", severity: "review", subject_id: session.session_id, evidence: `${session.too_fast_votes}/${session.raw_votes} too fast` });
     }
     if (session.duplicate_votes >= 3 || (session.raw_votes >= 5 && duplicateRatio >= 0.3)) {
       rows.push({ anomaly_type: "duplicate_heavy_session", severity: "review", subject_id: session.session_id, evidence: `${session.duplicate_votes}/${session.raw_votes} duplicate pairs` });
     }
-    if (session.raw_votes >= 3 && session.median_elapsed_ms !== null && session.median_elapsed_ms < 1200) {
+    if (!trustedLocalSession && session.raw_votes >= 3 && session.median_elapsed_ms !== null && session.median_elapsed_ms < 1200) {
       rows.push({ anomaly_type: "low_median_vote_time", severity: "review", subject_id: session.session_id, evidence: `${Math.round(session.median_elapsed_ms)}ms median` });
     }
   }
@@ -527,6 +634,7 @@ export function analyzeVotes({ votes, dataset, generatedAtUtc = new Date().toISO
   const cleanVotes = reportVotes.filter(isCleanVote);
   const rawRanking = rankingRows(reportVotes, dataset, "raw");
   const cleanRanking = rankingRows(cleanVotes, dataset, "clean");
+  const eloTimeline = eloTimelineRows(cleanVotes, dataset);
   const pairRows = pairRowsFromVotes(reportVotes, dataset);
   const sessions = buildSessionRows(reportVotes);
   const coverageGaps = coverageGapRows(dataset, rawRanking.itemRows, pairRows);
@@ -568,6 +676,7 @@ export function analyzeVotes({ votes, dataset, generatedAtUtc = new Date().toISO
       cleanVotes: cleanVotes.length,
       acceptedVotes: reportVotes.filter((vote) => currentQuality(vote).acceptedForScoring).length,
       flaggedVotes: flaggedVotes.length,
+      trustedLocalVotes: reportVotes.filter((vote) => currentQuality(vote).trustedLocal).length,
       excludedTestVotes: testVotes.length,
       activeSessions: sessions.length,
       activeItems: activeItems(dataset).length,
@@ -583,6 +692,8 @@ export function analyzeVotes({ votes, dataset, generatedAtUtc = new Date().toISO
     anomalyRows: anomalies,
     rankingsRaw: rawRanking.itemRows,
     rankingsClean: cleanRanking.itemRows,
+    eloHistoryRows: eloTimeline.historyRows,
+    eloConvergenceRows: eloTimeline.convergenceRows,
     excludedTestVoteIds: testVotes.map((vote) => vote.id),
   };
 }
@@ -590,6 +701,7 @@ export function analyzeVotes({ votes, dataset, generatedAtUtc = new Date().toISO
 function summaryMarkdown(analysis) {
   const topClean = analysis.rankingsClean.slice(0, 5);
   const gaps = analysis.coverageGaps.slice(0, 10);
+  const latestConvergence = analysis.eloConvergenceRows.at(-1);
   return [
     "# CadBattle Local Analysis",
     "",
@@ -601,12 +713,22 @@ function summaryMarkdown(analysis) {
     `- Raw backed-up votes: ${analysis.totals.totalRawVotes}`,
     `- Report votes excluding test sessions: ${analysis.totals.reportRawVotes}`,
     `- Clean votes: ${analysis.totals.cleanVotes}`,
+    `- Trusted local votes: ${analysis.totals.trustedLocalVotes}`,
     `- Active sessions: ${analysis.totals.activeSessions}`,
     `- Excluded test votes: ${analysis.totals.excludedTestVotes}`,
     "",
     "## Early Clean Leaders",
     "",
     ...(topClean.length ? topClean.map((row) => `- #${row.rank} ${row.title} (${row.family}): Elo ${row.elo}, ${row.battles} clean battles`) : ["- Not enough clean votes yet."]),
+    "",
+    "## Elo Convergence",
+    "",
+    latestConvergence
+      ? `- Latest mean absolute Elo move: ${latestConvergence.mean_abs_elo_delta}`
+      : "- Not enough clean votes yet.",
+    latestConvergence
+      ? `- Current Elo spread: ${latestConvergence.elo_spread}`
+      : "",
     "",
     "## Biggest Coverage Gaps",
     "",
@@ -690,7 +812,7 @@ function renderHtml(analysis) {
       { key: "family", label: "Family" }, { key: "item_count", label: "Items" }, { key: "raw_votes", label: "Raw votes" }, { key: "clean_votes", label: "Clean votes" }, { key: "vote_share_pct", label: "Vote share %" },
     ])}</section>
     <section class="card section"><h2>Downloads</h2><div class="downloads">
-      ${["summary.md", "analysis.json", "items.csv", "pairs.csv", "sessions.csv", "coverage_gaps.csv", "anomalies.csv", "rankings_raw.csv", "rankings_clean.csv"].map((file) => `<a href="${file}">${file}</a>`).join("")}
+      ${["summary.md", "analysis.json", "items.csv", "pairs.csv", "sessions.csv", "coverage_gaps.csv", "anomalies.csv", "rankings_raw.csv", "rankings_clean.csv", "elo_history.csv", "elo_convergence.csv"].map((file) => `<a href="${file}">${file}</a>`).join("")}
     </div></section>
   </main>
 </body>
@@ -714,6 +836,8 @@ export async function writeAnalysisOutputs(analysis, outDir) {
     "anomalies.csv": toCsv(analysis.anomalyRows),
     "rankings_raw.csv": toCsv(analysis.rankingsRaw),
     "rankings_clean.csv": toCsv(analysis.rankingsClean),
+    "elo_history.csv": toCsv(analysis.eloHistoryRows),
+    "elo_convergence.csv": toCsv(analysis.eloConvergenceRows),
     "index.html": renderHtml(analysis),
   };
   for (const [file, contents] of Object.entries(files)) {
