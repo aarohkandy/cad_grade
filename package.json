@@ -22,6 +22,7 @@
     "process:data": "node scripts/process-data.mjs",
     "pull:data": "node scripts/pull-data.mjs",
     "pull:votes": "node scripts/pull-votes.mjs",
+    "serve:trends": "node scripts/serve-trends.mjs",
     "playwright": "node scripts/browser-smoke.mjs",
     "playwright:test": "playwright test"
   },
