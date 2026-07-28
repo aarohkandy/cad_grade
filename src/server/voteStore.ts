@@ -182,7 +182,12 @@ function defaultPairStat(left: ArenaItem, right: ArenaItem, updatedAt: string): 
   };
 }
 
-function normalizePairStat(pair: StoredPairStat | undefined, left: ArenaItem, right: ArenaItem, updatedAt: string): StoredPairStat {
+function normalizePairStat(
+  pair: StoredPairStat | undefined,
+  left: ArenaItem,
+  right: ArenaItem,
+  updatedAt: string,
+): StoredPairStat {
   return {
     ...defaultPairStat(left, right, updatedAt),
     ...pair,
@@ -303,13 +308,16 @@ export function summaryFromVotes(
 ): VoteSummary {
   return [...votes]
     .sort((left, right) => left.created_at.localeCompare(right.created_at))
-    .reduce((summary, vote) => {
-      const left = itemLookup(vote.left_item_id);
-      const right = itemLookup(vote.right_item_id);
-      const winner = vote.winner_item_id ? itemLookup(vote.winner_item_id) || null : null;
-      const loser = vote.loser_item_id ? itemLookup(vote.loser_item_id) || null : null;
-      return left && right ? applyVoteToSummary(summary, vote, left, right, winner, loser) : summary;
-    }, emptySummary(datasetId, families));
+    .reduce(
+      (summary, vote) => {
+        const left = itemLookup(vote.left_item_id);
+        const right = itemLookup(vote.right_item_id);
+        const winner = vote.winner_item_id ? itemLookup(vote.winner_item_id) || null : null;
+        const loser = vote.loser_item_id ? itemLookup(vote.loser_item_id) || null : null;
+        return left && right ? applyVoteToSummary(summary, vote, left, right, winner, loser) : summary;
+      },
+      emptySummary(datasetId, families),
+    );
 }
 
 async function blobClient() {

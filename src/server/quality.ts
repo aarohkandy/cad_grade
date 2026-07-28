@@ -40,9 +40,7 @@ export function qualityDecision(input: {
   const qualityFlags: string[] = [];
   const tooFast = elapsedMs !== null && elapsedMs < FAST_VOTE_MS;
   const modelsLoadedTooFast =
-    loadMs !== null &&
-    loadMs < FAST_LOAD_MS &&
-    (voteAfterLoadMs === null || voteAfterLoadMs < FAST_AFTER_LOAD_MS);
+    loadMs !== null && loadMs < FAST_LOAD_MS && (voteAfterLoadMs === null || voteAfterLoadMs < FAST_AFTER_LOAD_MS);
   const votedAfterLoadTooFast = voteAfterLoadMs !== null && voteAfterLoadMs < FAST_AFTER_LOAD_MS;
   const weakSession = !input.payload.session_id || input.payload.session_id.length < 12;
   const holdRequired = tooFast || modelsLoadedTooFast || votedAfterLoadTooFast || weakSession;
@@ -66,11 +64,13 @@ export function qualityDecision(input: {
   };
 }
 
-export function acceptedForCurrentScoring(vote: QualityPayload & {
-  duplicate_pair?: boolean | null;
-  hold_duration_ms?: number | null;
-  hold_passed?: boolean | null;
-}): boolean {
+export function acceptedForCurrentScoring(
+  vote: QualityPayload & {
+    duplicate_pair?: boolean | null;
+    hold_duration_ms?: number | null;
+    hold_passed?: boolean | null;
+  },
+): boolean {
   return qualityDecision({
     payload: vote,
     holdSubmitted: vote.hold_duration_ms !== null && vote.hold_duration_ms !== undefined,

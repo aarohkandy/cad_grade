@@ -92,7 +92,11 @@ function buildDashboardData() {
     .filter((point) => point && Number.isFinite(point.detail) && Number.isFinite(point.elo));
 
   const detailGroups = [...groupBy(points, (point) => point.detail).entries()]
-    .map(([detail, rows]) => ({ detail: Number(detail), elo: round(mean(rows.map((row) => row.elo))), count: rows.length }))
+    .map(([detail, rows]) => ({
+      detail: Number(detail),
+      elo: round(mean(rows.map((row) => row.elo))),
+      count: rows.length,
+    }))
     .sort((left, right) => left.detail - right.detail);
 
   const familyDetail = [...groupBy(points, (point) => `${point.family}|${point.detail}`).entries()]
@@ -109,7 +113,9 @@ function buildDashboardData() {
     .sort((left, right) => left.family.localeCompare(right.family) || left.detail - right.detail);
 
   const familyGroups = groupBy(points, (point) => point.family);
-  const familyMeans = new Map([...familyGroups.entries()].map(([family, rows]) => [family, mean(rows.map((row) => row.elo))]));
+  const familyMeans = new Map(
+    [...familyGroups.entries()].map(([family, rows]) => [family, mean(rows.map((row) => row.elo))]),
+  );
   const normalized = points.map((row) => {
     const familyMean = familyMeans.get(row.family) ?? row.elo;
     return { ...row, normalizedElo: row.elo - familyMean };
@@ -127,7 +133,9 @@ function buildDashboardData() {
   const familyRegressions = [...groupBy(points, (point) => point.family).entries()]
     .map(([family, rows]) => {
       const line = regression(rows.map((point) => ({ x: point.detail, y: point.elo })));
-      return line ? { family, familyLabel: familyName(family), slope: round(line.slope, 3), intercept: round(line.intercept, 3) } : null;
+      return line
+        ? { family, familyLabel: familyName(family), slope: round(line.slope, 3), intercept: round(line.intercept, 3) }
+        : null;
     })
     .filter(Boolean);
 
@@ -138,7 +146,9 @@ function buildDashboardData() {
     leaderTitle: row.leader_title,
   }));
   const sampleEvery = Math.max(1, Math.ceil(convergenceRows.length / 180));
-  const convergence = convergenceRows.filter((_, index) => index % sampleEvery === 0 || index === convergenceRows.length - 1);
+  const convergence = convergenceRows.filter(
+    (_, index) => index % sampleEvery === 0 || index === convergenceRows.length - 1,
+  );
 
   return {
     generatedAtUtc: analysis.generatedAtUtc,

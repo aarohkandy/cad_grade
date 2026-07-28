@@ -178,23 +178,35 @@ describe("pair selection", () => {
       item("snowman-b", "snowman"),
     ];
     const pairStats = new Map<string, PairStatLike>([
-      [pairKey("planter-a", "planter-b"), { pair_key: pairKey("planter-a", "planter-b"), family: "wall_planter", battle_count: 8 }],
-      [pairKey("planter-a", "hook-a"), {
-        pair_key: pairKey("planter-a", "hook-a"),
-        family: "mixed",
-        item_a_family: "wall_planter",
-        item_b_family: "wall_hook",
-        battle_count: 8,
-      }],
-      [pairKey("planter-a", "snowman-a"), {
-        pair_key: pairKey("planter-a", "snowman-a"),
-        family: "mixed",
-        item_a_family: "wall_planter",
-        item_b_family: "snowman",
-        battle_count: 8,
-      }],
+      [
+        pairKey("planter-a", "planter-b"),
+        { pair_key: pairKey("planter-a", "planter-b"), family: "wall_planter", battle_count: 8 },
+      ],
+      [
+        pairKey("planter-a", "hook-a"),
+        {
+          pair_key: pairKey("planter-a", "hook-a"),
+          family: "mixed",
+          item_a_family: "wall_planter",
+          item_b_family: "wall_hook",
+          battle_count: 8,
+        },
+      ],
+      [
+        pairKey("planter-a", "snowman-a"),
+        {
+          pair_key: pairKey("planter-a", "snowman-a"),
+          family: "mixed",
+          item_a_family: "wall_planter",
+          item_b_family: "snowman",
+          battle_count: 8,
+        },
+      ],
       [pairKey("hook-a", "hook-b"), { pair_key: pairKey("hook-a", "hook-b"), family: "wall_hook", battle_count: 8 }],
-      [pairKey("snowman-a", "snowman-b"), { pair_key: pairKey("snowman-a", "snowman-b"), family: "snowman", battle_count: 8 }],
+      [
+        pairKey("snowman-a", "snowman-b"),
+        { pair_key: pairKey("snowman-a", "snowman-b"), family: "snowman", battle_count: 8 },
+      ],
     ]);
     const selected = selectBattlePair({
       items,
@@ -215,30 +227,45 @@ describe("pair selection", () => {
       item("snowman-b", "snowman"),
     ];
     const pairStats = new Map<string, PairStatLike>([
-      [pairKey("planter-a", "planter-b"), { pair_key: pairKey("planter-a", "planter-b"), family: "wall_planter", battle_count: 40 }],
-      [pairKey("planter-a", "hook-a"), {
-        pair_key: pairKey("planter-a", "hook-a"),
-        family: "mixed",
-        item_a_family: "wall_planter",
-        item_b_family: "wall_hook",
-        battle_count: 40,
-      }],
-      [pairKey("planter-a", "snowman-a"), {
-        pair_key: pairKey("planter-a", "snowman-a"),
-        family: "mixed",
-        item_a_family: "wall_planter",
-        item_b_family: "snowman",
-        battle_count: 40,
-      }],
+      [
+        pairKey("planter-a", "planter-b"),
+        { pair_key: pairKey("planter-a", "planter-b"), family: "wall_planter", battle_count: 40 },
+      ],
+      [
+        pairKey("planter-a", "hook-a"),
+        {
+          pair_key: pairKey("planter-a", "hook-a"),
+          family: "mixed",
+          item_a_family: "wall_planter",
+          item_b_family: "wall_hook",
+          battle_count: 40,
+        },
+      ],
+      [
+        pairKey("planter-a", "snowman-a"),
+        {
+          pair_key: pairKey("planter-a", "snowman-a"),
+          family: "mixed",
+          item_a_family: "wall_planter",
+          item_b_family: "snowman",
+          battle_count: 40,
+        },
+      ],
       [pairKey("hook-a", "hook-b"), { pair_key: pairKey("hook-a", "hook-b"), family: "wall_hook", battle_count: 1 }],
-      [pairKey("snowman-a", "hook-a"), {
-        pair_key: pairKey("snowman-a", "hook-a"),
-        family: "mixed",
-        item_a_family: "snowman",
-        item_b_family: "wall_hook",
-        battle_count: 40,
-      }],
-      [pairKey("snowman-a", "snowman-b"), { pair_key: pairKey("snowman-a", "snowman-b"), family: "snowman", battle_count: 40 }],
+      [
+        pairKey("snowman-a", "hook-a"),
+        {
+          pair_key: pairKey("snowman-a", "hook-a"),
+          family: "mixed",
+          item_a_family: "snowman",
+          item_b_family: "wall_hook",
+          battle_count: 40,
+        },
+      ],
+      [
+        pairKey("snowman-a", "snowman-b"),
+        { pair_key: pairKey("snowman-a", "snowman-b"), family: "snowman", battle_count: 40 },
+      ],
     ]);
     const selected = selectBattlePair({
       items,
@@ -260,7 +287,10 @@ describe("pair selection", () => {
       item("snowman-b", "snowman"),
     ];
     const pairStats = new Map<string, PairStatLike>([
-      [pairKey("planter-a", "planter-b"), { pair_key: pairKey("planter-a", "planter-b"), family: "wall_planter", battle_count: 8 }],
+      [
+        pairKey("planter-a", "planter-b"),
+        { pair_key: pairKey("planter-a", "planter-b"), family: "wall_planter", battle_count: 8 },
+      ],
       [pairKey("hook-a", "hook-b"), { pair_key: pairKey("hook-a", "hook-b"), family: "wall_hook", battle_count: 7 }],
     ]);
     expect(

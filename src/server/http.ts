@@ -24,5 +24,7 @@ export function readJsonBody<T>(req: VercelRequest): T {
 export function clientIp(req: VercelRequest): string {
   const forwarded = req.headers["x-forwarded-for"];
   const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  return String(value || req.socket.remoteAddress || "unknown").split(",")[0].trim();
+  return String(value || req.socket.remoteAddress || "unknown")
+    .split(",")[0]
+    .trim();
 }

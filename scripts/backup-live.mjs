@@ -107,7 +107,10 @@ export function completedHourCutoff(now = new Date()) {
 }
 
 export function isProtectedBlobPath(pathname) {
-  return !String(pathname || "").startsWith(`${VOTE_PREFIX}/`) || PROTECTED_PREFIXES.some((prefix) => String(pathname || "").startsWith(prefix));
+  return (
+    !String(pathname || "").startsWith(`${VOTE_PREFIX}/`) ||
+    PROTECTED_PREFIXES.some((prefix) => String(pathname || "").startsWith(prefix))
+  );
 }
 
 export function pruneCandidatesForCompletedHour(records, now = new Date()) {
@@ -140,7 +143,9 @@ export async function mergeDailyVotes(outRoot, votes) {
   }
 
   const byDay = new Map();
-  for (const vote of [...existing.values()].sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)))) {
+  for (const vote of [...existing.values()].sort((left, right) =>
+    String(left.created_at).localeCompare(String(right.created_at)),
+  )) {
     const day = dayKey(vote.created_at);
     const rows = byDay.get(day) || [];
     rows.push(vote);
@@ -171,11 +176,21 @@ export async function mergeDailyVotes(outRoot, votes) {
   };
 }
 
-export async function writeBackupFiles({ outRoot, baseUrl, health, stats, records, exportPayload = null, now = new Date() }) {
+export async function writeBackupFiles({
+  outRoot,
+  baseUrl,
+  health,
+  stats,
+  records,
+  exportPayload = null,
+  now = new Date(),
+}) {
   const day = now.toISOString().slice(0, 10);
   const time = timestampSlug(now).slice(11);
   const snapshotDir = join(outRoot, day, time);
-  const votes = records.map((record) => record.vote).sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)));
+  const votes = records
+    .map((record) => record.vote)
+    .sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)));
 
   await mkdir(snapshotDir, { recursive: true });
   await writeJson(join(snapshotDir, "health.json"), health);
@@ -199,8 +214,10 @@ export async function writeBackupFiles({ outRoot, baseUrl, health, stats, record
     outRoot,
     snapshotDir,
     pulledVoteCount: votes.length,
-    summaryVoteCount: exportPayload?.summaryVoteCount ?? exportPayload?.summary?.totalVotes ?? stats?.totalVotes ?? null,
-    acceptedVoteCount: exportPayload?.acceptedVoteCount ?? exportPayload?.summary?.acceptedVotes ?? stats?.acceptedVotes ?? null,
+    summaryVoteCount:
+      exportPayload?.summaryVoteCount ?? exportPayload?.summary?.totalVotes ?? stats?.totalVotes ?? null,
+    acceptedVoteCount:
+      exportPayload?.acceptedVoteCount ?? exportPayload?.summary?.acceptedVotes ?? stats?.acceptedVotes ?? null,
     dailyVoteCount: daily.totalDailyVotes,
     newVotesAdded: daily.newVotesAdded,
     fileHashes,
@@ -233,7 +250,13 @@ export async function listVoteRecordsFromBlob({ prefix = VOTE_PREFIX } = {}) {
     const rows = await Promise.all(
       page.blobs.map(async (blob) => {
         const vote = await readBlobVote(blob.pathname);
-        return vote ? { vote, pathname: blob.pathname, uploadedAt: blob.uploadedAt?.toISOString?.() || String(blob.uploadedAt || "") } : null;
+        return vote
+          ? {
+              vote,
+              pathname: blob.pathname,
+              uploadedAt: blob.uploadedAt?.toISOString?.() || String(blob.uploadedAt || ""),
+            }
+          : null;
       }),
     );
     records.push(...rows.filter(Boolean));
@@ -308,7 +331,9 @@ export async function backupLive({
     records = await listVoteRecordsFromBlob();
   } catch (error) {
     source = "export";
-    console.warn(`Blob pull failed; falling back to /api/export: ${error instanceof Error ? error.message : String(error)}`);
+    console.warn(
+      `Blob pull failed; falling back to /api/export: ${error instanceof Error ? error.message : String(error)}`,
+    );
     exportPayload = await fetchExportPayload({ baseUrl });
     records = recordsFromExportPayload(exportPayload);
   }
@@ -339,9 +364,10 @@ export async function backupLive({
 
   if (pruneCandidates.length && !dryRunPrune) {
     const prunePaths = pruneCandidates.map((record) => record.pathname);
-    pruneResult = source === "blob"
-      ? await deleteBlobPaths(prunePaths)
-      : await deleteRemoteVotePaths({ baseUrl, paths: prunePaths });
+    pruneResult =
+      source === "blob"
+        ? await deleteBlobPaths(prunePaths)
+        : await deleteRemoteVotePaths({ baseUrl, paths: prunePaths });
   }
 
   await writeJson(join(backup.snapshotDir, "prune-manifest.json"), {
@@ -360,7 +386,9 @@ export async function backupLive({
   }
 
   if (pruneResult.failed.length) {
-    throw new Error(`Prune failed for ${pruneResult.failed.length} chunk(s); see ${join(backup.snapshotDir, "prune-manifest.json")}`);
+    throw new Error(
+      `Prune failed for ${pruneResult.failed.length} chunk(s); see ${join(backup.snapshotDir, "prune-manifest.json")}`,
+    );
   }
 
   return {
@@ -375,7 +403,9 @@ export async function backupLive({
 
 async function main() {
   const args = readArgs(process.argv.slice(2));
-  const baseUrl = deploymentUrl(args.url || process.env.CAPYBARA_ARENA_URL || process.env.VERCEL_URL || "https://cadbattle.vercel.app");
+  const baseUrl = deploymentUrl(
+    args.url || process.env.CAPYBARA_ARENA_URL || process.env.VERCEL_URL || "https://cadbattle.vercel.app",
+  );
   const outRoot = args.out || join("exports", "live-backups");
   const prune = args.prune || "none";
   const dryRunPrune = args["dry-run-prune"] === "true";

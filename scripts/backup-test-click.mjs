@@ -30,9 +30,12 @@ try {
   await page.waitForFunction(() => !document.querySelector("#vote-left")?.disabled, null, { timeout: 45_000 });
   await page.waitForTimeout(1700);
 
-  const voteResponsePromise = page.waitForResponse((response) => response.url().includes("/api/vote") && response.request().method() === "POST", {
-    timeout: 45_000,
-  });
+  const voteResponsePromise = page.waitForResponse(
+    (response) => response.url().includes("/api/vote") && response.request().method() === "POST",
+    {
+      timeout: 45_000,
+    },
+  );
   await page.locator("#vote-left").click();
   const voteResponse = await voteResponsePromise;
   voteResponseBody = await voteResponse.json();

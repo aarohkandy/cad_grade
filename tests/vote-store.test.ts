@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { initialEloForItem } from "../src/server/elo";
-import { applyVoteToSummary, emptySummary, sessionPairPath, summaryFromVotes, votePath, type StoredVoteRecord } from "../src/server/voteStore";
+import {
+  applyVoteToSummary,
+  emptySummary,
+  sessionPairPath,
+  summaryFromVotes,
+  votePath,
+  type StoredVoteRecord,
+} from "../src/server/voteStore";
 import type { ArenaFamily, ArenaItem } from "../src/shared/types";
 
 function item(id: string, family: ArenaFamily = "wall_planter"): ArenaItem {
@@ -70,9 +77,7 @@ function vote(overrides: Partial<StoredVoteRecord> = {}): StoredVoteRecord {
 
 describe("vote store helpers", () => {
   it("builds stable private object paths", () => {
-    expect(votePath("2026-06-12T14:00:00.123Z", "abc")).toBe(
-      "votes/v1/2026-06-12/2026-06-12T14-00-00-123Z_abc.json",
-    );
+    expect(votePath("2026-06-12T14:00:00.123Z", "abc")).toBe("votes/v1/2026-06-12/2026-06-12T14-00-00-123Z_abc.json");
     expect(sessionPairPath("session-hash", "wall_planter", "b", "a")).toBe(
       "session-pairs/v1/session-hash/wall_planter/a__b.json",
     );
@@ -81,7 +86,14 @@ describe("vote store helpers", () => {
   it("updates accepted vote stats without exposing raw identifiers", () => {
     const winner = item("a");
     const loser = item("b");
-    const summary = applyVoteToSummary(emptySummary("dataset", ["wall_planter", "wall_hook"]), vote(), winner, loser, winner, loser);
+    const summary = applyVoteToSummary(
+      emptySummary("dataset", ["wall_planter", "wall_hook"]),
+      vote(),
+      winner,
+      loser,
+      winner,
+      loser,
+    );
     expect(summary.totalVotes).toBe(1);
     expect(summary.acceptedVotes).toBe(1);
     expect(summary.itemStats.a.wins).toBe(1);
@@ -93,7 +105,14 @@ describe("vote store helpers", () => {
     const winner = item("a");
     const loser = item("b");
     const baseWinnerElo = initialEloForItem(winner);
-    const first = applyVoteToSummary(emptySummary("dataset", ["wall_planter", "wall_hook"]), vote(), winner, loser, winner, loser);
+    const first = applyVoteToSummary(
+      emptySummary("dataset", ["wall_planter", "wall_hook"]),
+      vote(),
+      winner,
+      loser,
+      winner,
+      loser,
+    );
     const second = applyVoteToSummary(
       first,
       vote({ id: "vote-2", created_at: "2026-06-12T14:01:00.000Z" }),

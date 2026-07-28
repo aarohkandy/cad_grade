@@ -35,12 +35,14 @@ function geometryFromArrays(positions: Float32Array, normals: Float32Array): THR
 function parseInWorker(stlUrl: string): Promise<THREE.BufferGeometry> | null {
   if (typeof Worker === "undefined") return null;
   worker ||= new Worker(new URL("./stlParseWorker.ts", import.meta.url), { type: "module" });
-  worker.onmessage ||= (event: MessageEvent<{
-    id: number;
-    positions?: Float32Array;
-    normals?: Float32Array;
-    error?: string;
-  }>) => {
+  worker.onmessage ||= (
+    event: MessageEvent<{
+      id: number;
+      positions?: Float32Array;
+      normals?: Float32Array;
+      error?: string;
+    }>,
+  ) => {
     const request = workerRequests.get(event.data.id);
     if (!request) return;
     workerRequests.delete(event.data.id);
@@ -93,7 +95,9 @@ async function cachedGeometry(stlUrl: string): Promise<THREE.BufferGeometry> {
 }
 
 export function preloadStlGeometry(stlUrl: string): void {
-  void cachedGeometry(stlUrl).then((geometry) => geometry.dispose()).catch(() => undefined);
+  void cachedGeometry(stlUrl)
+    .then((geometry) => geometry.dispose())
+    .catch(() => undefined);
 }
 
 export class StlViewer {

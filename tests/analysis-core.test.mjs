@@ -198,15 +198,32 @@ describe("local analysis core", () => {
       dataset: dataset(),
       votes: [
         vote({ id: "first", left_item_id: "a", right_item_id: "b", winner_item_id: "a" }),
-        vote({ id: "second", left_item_id: "a", right_item_id: "h1", winner_item_id: "h1", loser_item_id: "a", family: "mixed" }),
+        vote({
+          id: "second",
+          left_item_id: "a",
+          right_item_id: "h1",
+          winner_item_id: "h1",
+          loser_item_id: "a",
+          family: "mixed",
+        }),
       ],
       generatedAtUtc: "2026-06-14T12:10:00.000Z",
     });
 
     expect(analysis.eloHistoryRows.length).toBe(4);
     expect(analysis.eloConvergenceRows).toHaveLength(2);
-    expect(analysis.eloHistoryRows[0]).toMatchObject({ vote_index: 1, vote_id: "first", item_id: "a", item_result: "win" });
-    expect(analysis.eloHistoryRows[1]).toMatchObject({ vote_index: 1, vote_id: "first", item_id: "b", item_result: "loss" });
+    expect(analysis.eloHistoryRows[0]).toMatchObject({
+      vote_index: 1,
+      vote_id: "first",
+      item_id: "a",
+      item_result: "win",
+    });
+    expect(analysis.eloHistoryRows[1]).toMatchObject({
+      vote_index: 1,
+      vote_id: "first",
+      item_id: "b",
+      item_result: "loss",
+    });
     expect(analysis.eloConvergenceRows[1].leader_item_id).toBeTruthy();
   });
 

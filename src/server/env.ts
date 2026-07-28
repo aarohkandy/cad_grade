@@ -1,10 +1,6 @@
 import type { StorageMode } from "./voteStore";
 
-export const REQUIRED_PRODUCTION_ENV = [
-  "BLOB_READ_WRITE_TOKEN",
-  "IP_HASH_SALT",
-  "HOLD_VERIFY_SECRET",
-] as const;
+export const REQUIRED_PRODUCTION_ENV = ["BLOB_READ_WRITE_TOKEN", "IP_HASH_SALT", "HOLD_VERIFY_SECRET"] as const;
 
 export function isVercelRuntime(): boolean {
   return process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);

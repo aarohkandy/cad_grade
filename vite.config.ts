@@ -2,7 +2,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Buffer } from "node:buffer";
 import { defineConfig, type Connect, type Plugin } from "vite";
 
-type ApiHandler = (req: IncomingMessage & { body?: unknown; query?: Record<string, string | string[]> }, res: ServerResponse) => Promise<void>;
+type ApiHandler = (
+  req: IncomingMessage & { body?: unknown; query?: Record<string, string | string[]> },
+  res: ServerResponse,
+) => Promise<void>;
 
 const apiModules: Record<string, () => Promise<{ default: ApiHandler }>> = {
   "/api/battle": () => import("./api/battle") as Promise<{ default: ApiHandler }>,

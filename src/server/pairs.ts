@@ -136,7 +136,8 @@ function scorePair(input: {
   const rightSessionBattles = input.votedItemCounts.get(right.id) || 0;
   const repeatedPairPenalty = pairBattles(input.pairStats, left.id, right.id) * 420;
   const exposurePenalty = Math.max(leftBattles, rightBattles) * 24 + Math.min(leftBattles, rightBattles) * 12;
-  const sessionExposurePenalty = Math.max(leftSessionBattles, rightSessionBattles) * 180 + Math.min(leftSessionBattles, rightSessionBattles) * 90;
+  const sessionExposurePenalty =
+    Math.max(leftSessionBattles, rightSessionBattles) * 180 + Math.min(leftSessionBattles, rightSessionBattles) * 90;
   const hasRankingSignal = leftBattles >= 4 && rightBattles >= 4;
   const eloGapPenalty = Math.abs(eloValue(leftStat, left) - eloValue(rightStat, right)) / (hasRankingSignal ? 16 : 80);
   return repeatedPairPenalty + exposurePenalty + sessionExposurePenalty + eloGapPenalty + input.random();
@@ -239,7 +240,8 @@ export function selectBattleFamily(input: {
       const pairCoverageRatio = coveredPairs / pairs.length;
 
       const exhaustedForSessionPenalty = availablePairCount > 0 ? 0 : 10_000;
-      const score = exhaustedForSessionPenalty + familyBattles * 1000 + itemBattleAverage * 10 + pairCoverageRatio * 35 + random();
+      const score =
+        exhaustedForSessionPenalty + familyBattles * 1000 + itemBattleAverage * 10 + pairCoverageRatio * 35 + random();
       return { family, score };
     })
     .sort((left, right) => left.score - right.score);
@@ -266,15 +268,16 @@ export function selectBattlePair(input: {
   const unvoted = pairs.filter(([left, right]) => !votedPairKeys.has(pairKey(left.id, right.id)));
   const candidates = maybeSamplePairs(unvoted.length ? unvoted : pairs, random);
   const familyCount = new Set(input.items.map((item) => item.family)).size;
-  const bucket = familyCount > 1
-    ? globalCandidateBucket({
-        items: input.items,
-        candidates,
-        votedPairKeys,
-        pairStats: input.pairStats,
-        random,
-      })
-    : candidates;
+  const bucket =
+    familyCount > 1
+      ? globalCandidateBucket({
+          items: input.items,
+          candidates,
+          votedPairKeys,
+          pairStats: input.pairStats,
+          random,
+        })
+      : candidates;
 
   if (random() > 1 - EXPLORATION_RATE) {
     const selected = bucket[Math.min(bucket.length - 1, Math.floor(random() * bucket.length))];

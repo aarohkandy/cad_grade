@@ -79,12 +79,12 @@ async function assertCoreLoopVisible(page, name) {
     const inViewport = (rect) =>
       Boolean(
         rect &&
-          rect.top >= -2 &&
-          rect.left >= -2 &&
-          rect.right <= window.innerWidth + 2 &&
-          rect.bottom <= window.innerHeight + 2 &&
-          rect.width > 0 &&
-          rect.height > 0,
+        rect.top >= -2 &&
+        rect.left >= -2 &&
+        rect.right <= window.innerWidth + 2 &&
+        rect.bottom <= window.innerHeight + 2 &&
+        rect.width > 0 &&
+        rect.height > 0,
       );
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
@@ -132,7 +132,9 @@ async function assertCanvasDragDoesNotVote(page, name) {
   await page.mouse.up();
   await sleep(300);
   const afterText = await page.locator("body").innerText();
-  const feedbackHidden = await page.locator("#feedback-panel").evaluate((panel) => panel.classList.contains("is-hidden"));
+  const feedbackHidden = await page
+    .locator("#feedback-panel")
+    .evaluate((panel) => panel.classList.contains("is-hidden"));
   if (!feedbackHidden || beforeText !== afterText) {
     throw new Error(`${name} canvas drag unexpectedly voted or advanced`);
   }
@@ -223,15 +225,7 @@ await rm(SMOKE_VOTE_DIR, { recursive: true, force: true });
 await assertPortFree();
 const server = spawn(
   process.execPath,
-  [
-    "./node_modules/vite/bin/vite.js",
-    "preview",
-    "--host",
-    "127.0.0.1",
-    "--port",
-    String(PORT),
-    "--strictPort",
-  ],
+  ["./node_modules/vite/bin/vite.js", "preview", "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
   {
     cwd: APP_ROOT,
     env: {

@@ -31,8 +31,10 @@ function voteTiming(vote) {
   const loaded = timestampMs(vote.models_loaded_at);
   const voted = timestampMs(vote.voted_at);
   return {
-    elapsedMs: started !== null && voted !== null ? Math.max(0, voted - started) : finiteNumber(vote.elapsed_ms, null) ?? null,
-    loadMs: started !== null && loaded !== null ? Math.max(0, loaded - started) : finiteNumber(vote.load_ms, null) ?? null,
+    elapsedMs:
+      started !== null && voted !== null ? Math.max(0, voted - started) : (finiteNumber(vote.elapsed_ms, null) ?? null),
+    loadMs:
+      started !== null && loaded !== null ? Math.max(0, loaded - started) : (finiteNumber(vote.load_ms, null) ?? null),
     voteAfterLoadMs: loaded !== null && voted !== null ? Math.max(0, voted - loaded) : null,
   };
 }
@@ -127,9 +129,7 @@ function currentQuality(vote) {
   const tooFast = elapsedMs !== null && elapsedMs < FAST_VOTE_MS;
   const votedAfterLoadTooFast = voteAfterLoadMs !== null && voteAfterLoadMs < FAST_AFTER_LOAD_MS;
   const modelsLoadedTooFast =
-    loadMs !== null &&
-    loadMs < FAST_LOAD_MS &&
-    (voteAfterLoadMs === null || votedAfterLoadTooFast);
+    loadMs !== null && loadMs < FAST_LOAD_MS && (voteAfterLoadMs === null || votedAfterLoadTooFast);
   const weakSession = !vote.session_id || String(vote.session_id).length < 12;
   const duplicatePair = Boolean(vote.duplicate_pair);
   const holdSubmitted = vote.hold_duration_ms !== null && vote.hold_duration_ms !== undefined;
@@ -218,8 +218,12 @@ async function walkFiles(root) {
 
 export async function loadVotesFromBackupRoot(root) {
   const dailyRoot = join(root, "daily");
-  const dailyFiles = (await walkFiles(dailyRoot)).filter((path) => basename(path).match(/^votes-\d{4}-\d{2}-\d{2}\.jsonl$/));
-  const sourceFiles = dailyFiles.length ? dailyFiles : (await walkFiles(root)).filter((path) => basename(path) === "votes.jsonl");
+  const dailyFiles = (await walkFiles(dailyRoot)).filter((path) =>
+    basename(path).match(/^votes-\d{4}-\d{2}-\d{2}\.jsonl$/),
+  );
+  const sourceFiles = dailyFiles.length
+    ? dailyFiles
+    : (await walkFiles(root)).filter((path) => basename(path) === "votes.jsonl");
   const seen = new Set();
   const votes = [];
   for (const file of sourceFiles.sort()) {
@@ -297,7 +301,9 @@ function rankingRows(votes, dataset, label) {
   const items = initItemStats(dataset);
   const pairs = initPairStats(dataset);
 
-  for (const vote of [...votes].sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)))) {
+  for (const vote of [...votes].sort((left, right) =>
+    String(left.created_at).localeCompare(String(right.created_at)),
+  )) {
     const left = items.get(vote.left_item_id);
     const right = items.get(vote.right_item_id);
     if (!left || !right) continue;
@@ -349,7 +355,9 @@ function rankingRows(votes, dataset, label) {
     data_status: row.battles < 5 ? "early" : row.battles < 20 ? "building" : "stronger",
   }));
 
-  rows.sort((left, right) => right.elo - left.elo || right.battles - left.battles || left.item_id.localeCompare(right.item_id));
+  rows.sort(
+    (left, right) => right.elo - left.elo || right.battles - left.battles || left.item_id.localeCompare(right.item_id),
+  );
   rows.forEach((row, index) => {
     row.rank = index + 1;
     row.win_rate_pct = percent(row.win_rate);
@@ -376,7 +384,9 @@ function eloTimelineRows(votes, dataset) {
   const convergenceRows = [];
   let voteIndex = 0;
 
-  for (const vote of [...votes].sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)))) {
+  for (const vote of [...votes].sort((left, right) =>
+    String(left.created_at).localeCompare(String(right.created_at)),
+  )) {
     const left = items.get(vote.left_item_id);
     const right = items.get(vote.right_item_id);
     if (!left || !right) continue;
@@ -417,7 +427,11 @@ function eloTimelineRows(votes, dataset) {
     for (const item of uniqueTouched) {
       const previousElo = before.get(item.item_id) ?? item.elo;
       const itemResult =
-        vote.vote_result === "draw" || !vote.winner_item_id ? "draw" : item.item_id === vote.winner_item_id ? "win" : "loss";
+        vote.vote_result === "draw" || !vote.winner_item_id
+          ? "draw"
+          : item.item_id === vote.winner_item_id
+            ? "win"
+            : "loss";
       historyRows.push({
         vote_index: voteIndex,
         created_at: vote.created_at,
@@ -439,12 +453,16 @@ function eloTimelineRows(votes, dataset) {
       });
     }
 
-    const leader = [...items.values()].sort((leftItem, rightItem) => rightItem.elo - leftItem.elo || leftItem.item_id.localeCompare(rightItem.item_id))[0];
+    const leader = [...items.values()].sort(
+      (leftItem, rightItem) => rightItem.elo - leftItem.elo || leftItem.item_id.localeCompare(rightItem.item_id),
+    )[0];
     convergenceRows.push({
       vote_index: voteIndex,
       created_at: vote.created_at,
       vote_id: vote.id,
-      mean_abs_elo_delta: roundElo(deltas.reduce((sum, value) => sum + Math.abs(value), 0) / Math.max(1, deltas.length)),
+      mean_abs_elo_delta: roundElo(
+        deltas.reduce((sum, value) => sum + Math.abs(value), 0) / Math.max(1, deltas.length),
+      ),
       max_abs_elo_delta: roundElo(Math.max(0, ...deltas.map((value) => Math.abs(value)))),
       elo_spread: eloSpread(items),
       leader_item_id: leader.item_id,
@@ -462,7 +480,9 @@ function groupCounts(votes, keyFn) {
     const key = keyFn(vote);
     counts.set(key, (counts.get(key) || 0) + 1);
   }
-  return [...counts.entries()].map(([key, count]) => ({ key, count })).sort((left, right) => String(left.key).localeCompare(String(right.key)));
+  return [...counts.entries()]
+    .map(([key, count]) => ({ key, count }))
+    .sort((left, right) => String(left.key).localeCompare(String(right.key)));
 }
 
 function buildSessionRows(votes) {
@@ -535,7 +555,12 @@ function pairRowsFromVotes(votes, dataset) {
       draws: row.draws,
       one_sided_rate: row.battles ? Math.max(row.item_a_wins, row.item_b_wins) / row.battles : 0,
     }))
-    .sort((left, right) => left.battles - right.battles || left.family.localeCompare(right.family) || left.pair_key.localeCompare(right.pair_key));
+    .sort(
+      (left, right) =>
+        left.battles - right.battles ||
+        left.family.localeCompare(right.family) ||
+        left.pair_key.localeCompare(right.pair_key),
+    );
 }
 
 function coverageGapRows(dataset, rawRankings, pairRows) {
@@ -573,37 +598,79 @@ function anomalyRows({ sessions, pairRows, rawRankings, familyRows }) {
     const tooFastRatio = session.raw_votes ? session.too_fast_votes / session.raw_votes : 0;
     const trustedLocalSession = session.raw_votes > 0 && session.trusted_local_votes === session.raw_votes;
     if (session.raw_votes >= 25) {
-      rows.push({ anomaly_type: "high_volume_session", severity: "watch", subject_id: session.session_id, evidence: `${session.raw_votes} votes` });
+      rows.push({
+        anomaly_type: "high_volume_session",
+        severity: "watch",
+        subject_id: session.session_id,
+        evidence: `${session.raw_votes} votes`,
+      });
     }
     if (!trustedLocalSession && (session.too_fast_votes >= 3 || (session.raw_votes >= 3 && tooFastRatio >= 0.5))) {
-      rows.push({ anomaly_type: "too_fast_session", severity: "review", subject_id: session.session_id, evidence: `${session.too_fast_votes}/${session.raw_votes} too fast` });
+      rows.push({
+        anomaly_type: "too_fast_session",
+        severity: "review",
+        subject_id: session.session_id,
+        evidence: `${session.too_fast_votes}/${session.raw_votes} too fast`,
+      });
     }
     if (session.duplicate_votes >= 3 || (session.raw_votes >= 5 && duplicateRatio >= 0.3)) {
-      rows.push({ anomaly_type: "duplicate_heavy_session", severity: "review", subject_id: session.session_id, evidence: `${session.duplicate_votes}/${session.raw_votes} duplicate pairs` });
+      rows.push({
+        anomaly_type: "duplicate_heavy_session",
+        severity: "review",
+        subject_id: session.session_id,
+        evidence: `${session.duplicate_votes}/${session.raw_votes} duplicate pairs`,
+      });
     }
-    if (!trustedLocalSession && session.raw_votes >= 3 && session.median_elapsed_ms !== null && session.median_elapsed_ms < 1200) {
-      rows.push({ anomaly_type: "low_median_vote_time", severity: "review", subject_id: session.session_id, evidence: `${Math.round(session.median_elapsed_ms)}ms median` });
+    if (
+      !trustedLocalSession &&
+      session.raw_votes >= 3 &&
+      session.median_elapsed_ms !== null &&
+      session.median_elapsed_ms < 1200
+    ) {
+      rows.push({
+        anomaly_type: "low_median_vote_time",
+        severity: "review",
+        subject_id: session.session_id,
+        evidence: `${Math.round(session.median_elapsed_ms)}ms median`,
+      });
     }
   }
 
   for (const pair of pairRows) {
     if (pair.battles >= 5 && pair.one_sided_rate >= 0.9) {
-      rows.push({ anomaly_type: "one_sided_pair", severity: "watch", subject_id: pair.pair_key, evidence: `${pair.battles} battles, ${percent(pair.one_sided_rate)}% one-sided` });
+      rows.push({
+        anomaly_type: "one_sided_pair",
+        severity: "watch",
+        subject_id: pair.pair_key,
+        evidence: `${pair.battles} battles, ${percent(pair.one_sided_rate)}% one-sided`,
+      });
     }
   }
 
   const averageFamilyVotes = familyRows.reduce((sum, row) => sum + row.raw_votes, 0) / Math.max(1, familyRows.length);
   for (const row of familyRows) {
     if (row.raw_votes < averageFamilyVotes * 0.35) {
-      rows.push({ anomaly_type: "family_undercovered", severity: "watch", subject_id: row.family, evidence: `${row.raw_votes} votes vs avg ${Math.round(averageFamilyVotes)}` });
+      rows.push({
+        anomaly_type: "family_undercovered",
+        severity: "watch",
+        subject_id: row.family,
+        evidence: `${row.raw_votes} votes vs avg ${Math.round(averageFamilyVotes)}`,
+      });
     }
   }
 
   for (const item of rawRankings.filter((row) => row.battles === 0).slice(0, 20)) {
-    rows.push({ anomaly_type: "item_no_votes", severity: "gap", subject_id: item.item_id, evidence: `${item.title} has no votes` });
+    rows.push({
+      anomaly_type: "item_no_votes",
+      severity: "gap",
+      subject_id: item.item_id,
+      evidence: `${item.title} has no votes`,
+    });
   }
 
-  return rows.sort((left, right) => left.severity.localeCompare(right.severity) || left.anomaly_type.localeCompare(right.anomaly_type));
+  return rows.sort(
+    (left, right) => left.severity.localeCompare(right.severity) || left.anomaly_type.localeCompare(right.anomaly_type),
+  );
 }
 
 function familyRows(votes, dataset) {
@@ -663,8 +730,14 @@ export function analyzeVotes({ votes, dataset, generatedAtUtc = new Date().toISO
     };
   });
 
-  const votesPerHour = groupCounts(reportVotes, (vote) => hourKey(vote.created_at)).map((row) => ({ hour: row.key, votes: row.count }));
-  const votesPerDay = groupCounts(reportVotes, (vote) => dayKey(vote.created_at)).map((row) => ({ day: row.key, votes: row.count }));
+  const votesPerHour = groupCounts(reportVotes, (vote) => hourKey(vote.created_at)).map((row) => ({
+    hour: row.key,
+    votes: row.count,
+  }));
+  const votesPerDay = groupCounts(reportVotes, (vote) => dayKey(vote.created_at)).map((row) => ({
+    day: row.key,
+    votes: row.count,
+  }));
   const flaggedVotes = reportVotes.filter((vote) => currentQuality(vote).flags.length);
 
   return {
@@ -719,27 +792,31 @@ function summaryMarkdown(analysis) {
     "",
     "## Early Clean Leaders",
     "",
-    ...(topClean.length ? topClean.map((row) => `- #${row.rank} ${row.title} (${row.family}): Elo ${row.elo}, ${row.battles} clean battles`) : ["- Not enough clean votes yet."]),
+    ...(topClean.length
+      ? topClean.map(
+          (row) => `- #${row.rank} ${row.title} (${row.family}): Elo ${row.elo}, ${row.battles} clean battles`,
+        )
+      : ["- Not enough clean votes yet."]),
     "",
     "## Elo Convergence",
     "",
     latestConvergence
       ? `- Latest mean absolute Elo move: ${latestConvergence.mean_abs_elo_delta}`
       : "- Not enough clean votes yet.",
-    latestConvergence
-      ? `- Current Elo spread: ${latestConvergence.elo_spread}`
-      : "",
+    latestConvergence ? `- Current Elo spread: ${latestConvergence.elo_spread}` : "",
     "",
     "## Biggest Coverage Gaps",
     "",
-    ...(gaps.length ? gaps.map((row) => `- ${row.gap_type}: ${row.label} (${row.current_votes} votes)`) : ["- No coverage gaps found."]),
+    ...(gaps.length
+      ? gaps.map((row) => `- ${row.gap_type}: ${row.label} (${row.current_votes} votes)`)
+      : ["- No coverage gaps found."]),
     "",
   ].join("\n");
 }
 
 function htmlTable(rows, columns, limit = 12) {
   const limited = rows.slice(0, limit);
-  if (!limited.length) return "<p class=\"empty\">No rows yet.</p>";
+  if (!limited.length) return '<p class="empty">No rows yet.</p>';
   return `<table><thead><tr>${columns.map((col) => `<th>${col.label}</th>`).join("")}</tr></thead><tbody>${limited
     .map((row) => `<tr>${columns.map((col) => `<td>${row[col.key] ?? ""}</td>`).join("")}</tr>`)
     .join("")}</tbody></table>`;
@@ -750,7 +827,10 @@ function renderHtml(analysis) {
   const maxHourVotes = Math.max(1, ...analysis.votesPerHour.map((row) => row.votes));
   const hourBars = analysis.votesPerHour
     .slice(-24)
-    .map((row) => `<div class="bar-row"><span>${row.hour.slice(5, 16).replace("T", " ")}</span><strong style="width:${Math.max(4, (row.votes / maxHourVotes) * 100)}%">${row.votes}</strong></div>`)
+    .map(
+      (row) =>
+        `<div class="bar-row"><span>${row.hour.slice(5, 16).replace("T", " ")}</span><strong style="width:${Math.max(4, (row.votes / maxHourVotes) * 100)}%">${row.votes}</strong></div>`,
+    )
     .join("");
   return `<!doctype html>
 <html lang="en">
@@ -796,20 +876,43 @@ function renderHtml(analysis) {
       <div class="card metric"><span>Clean votes</span><strong>${totals.cleanVotes}</strong></div>
       <div class="card metric"><span>Active sessions</span><strong>${totals.activeSessions}</strong></div>
     </section>
-    <section class="card section"><h2>Vote Momentum</h2>${hourBars || "<p class=\"empty\">No hourly votes yet.</p>"}</section>
+    <section class="card section"><h2>Vote Momentum</h2>${hourBars || '<p class="empty">No hourly votes yet.</p>'}</section>
     <section class="card section"><h2>Clean Early Rankings</h2>${htmlTable(analysis.rankingsClean, [
-      { key: "rank", label: "Rank" }, { key: "title", label: "Model" }, { key: "family", label: "Family" },
-      { key: "elo", label: "Elo" }, { key: "battles", label: "Battles" }, { key: "win_rate_pct", label: "Win %" }, { key: "data_status", label: "Status" },
+      { key: "rank", label: "Rank" },
+      { key: "title", label: "Model" },
+      { key: "family", label: "Family" },
+      { key: "elo", label: "Elo" },
+      { key: "battles", label: "Battles" },
+      { key: "win_rate_pct", label: "Win %" },
+      { key: "data_status", label: "Status" },
     ])}</section>
-    <section class="card section"><h2>Coverage Gaps</h2>${htmlTable(analysis.coverageGaps, [
-      { key: "gap_type", label: "Type" }, { key: "label", label: "Target" }, { key: "family", label: "Family" },
-      { key: "current_votes", label: "Votes" }, { key: "recommendation", label: "Recommendation" },
-    ], 18)}</section>
-    <section class="card section"><h2>Anomalies To Watch</h2>${htmlTable(analysis.anomalyRows, [
-      { key: "severity", label: "Severity" }, { key: "anomaly_type", label: "Type" }, { key: "subject_id", label: "Subject" }, { key: "evidence", label: "Evidence" },
-    ], 18)}</section>
+    <section class="card section"><h2>Coverage Gaps</h2>${htmlTable(
+      analysis.coverageGaps,
+      [
+        { key: "gap_type", label: "Type" },
+        { key: "label", label: "Target" },
+        { key: "family", label: "Family" },
+        { key: "current_votes", label: "Votes" },
+        { key: "recommendation", label: "Recommendation" },
+      ],
+      18,
+    )}</section>
+    <section class="card section"><h2>Anomalies To Watch</h2>${htmlTable(
+      analysis.anomalyRows,
+      [
+        { key: "severity", label: "Severity" },
+        { key: "anomaly_type", label: "Type" },
+        { key: "subject_id", label: "Subject" },
+        { key: "evidence", label: "Evidence" },
+      ],
+      18,
+    )}</section>
     <section class="card section"><h2>Family Split</h2>${htmlTable(analysis.familyRows, [
-      { key: "family", label: "Family" }, { key: "item_count", label: "Items" }, { key: "raw_votes", label: "Raw votes" }, { key: "clean_votes", label: "Clean votes" }, { key: "vote_share_pct", label: "Vote share %" },
+      { key: "family", label: "Family" },
+      { key: "item_count", label: "Items" },
+      { key: "raw_votes", label: "Raw votes" },
+      { key: "clean_votes", label: "Clean votes" },
+      { key: "vote_share_pct", label: "Vote share %" },
     ])}</section>
     <section class="card section"><h2>Downloads</h2><div class="downloads">
       ${["summary.md", "analysis.json", "items.csv", "pairs.csv", "sessions.csv", "coverage_gaps.csv", "anomalies.csv", "rankings_raw.csv", "rankings_clean.csv", "elo_history.csv", "elo_convergence.csv"].map((file) => `<a href="${file}">${file}</a>`).join("")}
@@ -859,7 +962,12 @@ export async function copyAnalysisRunToLatest(runDir, latestDir) {
   );
 }
 
-export async function processData({ backupRoot = join("exports", "live-backups"), outRoot = join("exports", "analysis"), datasetPath = join("public", "data", "items.json"), now = new Date() } = {}) {
+export async function processData({
+  backupRoot = join("exports", "live-backups"),
+  outRoot = join("exports", "analysis"),
+  datasetPath = join("public", "data", "items.json"),
+  now = new Date(),
+} = {}) {
   const dataset = JSON.parse(await readFile(datasetPath, "utf8"));
   const votes = await loadVotesFromBackupRoot(backupRoot);
   const analysis = analyzeVotes({ votes, dataset, generatedAtUtc: now.toISOString() });

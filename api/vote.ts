@@ -73,7 +73,8 @@ function directAgreementProbability(input: {
   isDraw: boolean;
   priorProbability: number;
 }): number {
-  const directWins = input.isDraw || !input.winner ? input.pair.draw_count || 0 : winnerWins(input.pair, input.winner.id);
+  const directWins =
+    input.isDraw || !input.winner ? input.pair.draw_count || 0 : winnerWins(input.pair, input.winner.id);
   const smoothedProbability =
     (directWins + input.priorProbability * DIRECT_AGREEMENT_PRIOR_VOTES) /
     (input.sampleSize + DIRECT_AGREEMENT_PRIOR_VOTES);
@@ -134,11 +135,8 @@ function crowdEstimate(input: {
 
 function crowdAgreementLabel(input: ReturnType<typeof crowdEstimate>, isDraw: boolean): string {
   const action = isDraw ? "call it a tie" : "pick the same model";
-  const source = input.confidence === "high"
-    ? "crowd read"
-    : input.source === "direct"
-      ? "early crowd read"
-      : "rating estimate";
+  const source =
+    input.confidence === "high" ? "crowd read" : input.source === "direct" ? "early crowd read" : "rating estimate";
   return `${input.agreementPercent}% would ${action} (${source}).`;
 }
 

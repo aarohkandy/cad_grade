@@ -28,7 +28,9 @@ const args = readArgs(process.argv.slice(2));
 const baseUrl = deploymentUrl(args.url || process.env.CAPYBARA_ARENA_URL || process.env.VERCEL_URL);
 
 if (!baseUrl) {
-  console.error("Usage: node scripts/pull-votes.mjs --url https://your-app.vercel.app [--date YYYY-MM-DD] [--out exports/votes.jsonl]");
+  console.error(
+    "Usage: node scripts/pull-votes.mjs --url https://your-app.vercel.app [--date YYYY-MM-DD] [--out exports/votes.jsonl]",
+  );
   process.exit(1);
 }
 

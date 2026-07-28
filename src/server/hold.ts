@@ -6,9 +6,7 @@ const MIN_TARGET_MS = 850;
 const MAX_TARGET_MS = 1700;
 
 function sign(secret: string, challengeId: string, targetMs: number, issuedAt: number): string {
-  return createHmac("sha256", secret)
-    .update(`${challengeId}|${targetMs}|${issuedAt}`)
-    .digest("hex");
+  return createHmac("sha256", secret).update(`${challengeId}|${targetMs}|${issuedAt}`).digest("hex");
 }
 
 export function holdSecret(): string {
@@ -42,8 +40,7 @@ export function verifyHoldSubmission(
   const expected = sign(secret, submission.challengeId, submission.targetMs, submission.issuedAt);
   const expectedBuffer = Buffer.from(expected, "hex");
   const actualBuffer = Buffer.from(String(submission.token), "hex");
-  const tokenValid =
-    expectedBuffer.length === actualBuffer.length && timingSafeEqual(expectedBuffer, actualBuffer);
+  const tokenValid = expectedBuffer.length === actualBuffer.length && timingSafeEqual(expectedBuffer, actualBuffer);
   if (!tokenValid) flags.push("bad_hold_token");
   if (submission.heldMs < Math.max(500, submission.targetMs - 180)) flags.push("hold_too_short");
   if (submission.heldMs > 20_000) flags.push("hold_too_long");
