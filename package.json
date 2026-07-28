@@ -10,6 +10,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "dataset": "node scripts/build-dataset.mjs",
     "check:dataset": "node scripts/check-dataset.mjs",
     "check:production": "node scripts/check-production.mjs",
@@ -35,6 +37,7 @@
     "@types/node": "^22.15.29",
     "@types/three": "^0.165.0",
     "@vercel/node": "^5.1.14",
+    "prettier": "^3.9.6",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vitest": "^3.2.1"

@@ -1,0 +1,20 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Generated data (produced by scripts/build-dataset.mjs — keep in sync with the generator)
+src/data/items.generated.ts
+src/data/items.generated.json
+public/data/items.json
+
+# Static/binary assets
+public/dataset/
+public/assets/
+
+# Lockfile and prose
+package-lock.json
+*.md
+LICENSE
