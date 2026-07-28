@@ -253,6 +253,13 @@ export function selectBattleFamily(input: {
   return selected.family;
 }
 
+/**
+ * Chooses the next matchup. Prefers pairs not yet seen this session, balances
+ * category (family) exposure across the global pool, and — most of the time —
+ * scores the remaining candidates to favour under-exposed items and closer Elo
+ * matchups while penalising repeats. A small fraction of the time it instead
+ * picks a random candidate to keep exploring. Items are returned in random order.
+ */
 export function selectBattlePair(input: {
   items: ArenaItem[];
   votedPairKeys?: Set<string>;

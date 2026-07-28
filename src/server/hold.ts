@@ -13,6 +13,11 @@ export function holdSecret(): string {
   return process.env.HOLD_VERIFY_SECRET || "local-dev-hold-secret";
 }
 
+/**
+ * Issues a signed "hold to verify" challenge: a randomised target duration plus
+ * an HMAC token binding the challenge id, target, and issue time. The token lets
+ * the server verify a later submission without storing any challenge state.
+ */
 export function createHoldChallenge(secret = holdSecret(), now = Date.now(), random = Math.random): HoldChallenge {
   const targetMs = Math.round(MIN_TARGET_MS + random() * (MAX_TARGET_MS - MIN_TARGET_MS));
   const challengeId = randomUUID();
@@ -24,6 +29,11 @@ export function createHoldChallenge(secret = holdSecret(), now = Date.now(), ran
   };
 }
 
+/**
+ * Validates a hold submission against its signed challenge: constant-time token
+ * check, freshness window, and confirmation that the user held for close to (and
+ * not absurdly longer than) the target. Returns the failure flags, if any.
+ */
 export function verifyHoldSubmission(
   submission: HoldSubmission | null | undefined,
   secret = holdSecret(),

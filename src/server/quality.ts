@@ -21,6 +21,11 @@ export function voteTiming(payload: QualityPayload): { elapsedMs: number | null;
   };
 }
 
+/**
+ * Classifies a vote's timing and session signals into quality flags and decides
+ * whether it counts toward scoring. Too-fast votes are rejected unless the user
+ * cleared the hold challenge; duplicate-pair and weak-session votes never count.
+ */
 export function qualityDecision(input: {
   payload: QualityPayload;
   holdSubmitted: boolean;

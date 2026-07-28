@@ -38,6 +38,12 @@ function validationAttempt(item: ArenaItem): number | null {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
+/**
+ * Deterministically seeds an item's starting Elo from its validation and
+ * generation metadata (validity, confidence, reported issues, attempt count,
+ * specificity, repetition, latency, and title tier) plus a stable per-item
+ * jitter, so never-voted models begin in a sensible order rather than all tied.
+ */
 export function initialEloForItem(item: ArenaItem): number {
   const confidence = Number(item.validation?.confidence);
   const attempt = validationAttempt(item);
