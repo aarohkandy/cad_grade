@@ -675,7 +675,7 @@ async function chooseVote(choice: VoteChoice): Promise<void> {
   await submitVote(choice, null);
 }
 
-function showVoteError(error: unknown): void {
+function showVoteError(_error: unknown): void {
   voteInFlight = false;
   dom.holdButton.disabled = false;
   setVoteControls(Boolean(currentBattle));
