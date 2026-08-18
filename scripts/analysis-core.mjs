@@ -55,6 +55,10 @@ function median(values) {
   return clean.length % 2 ? clean[middle] : (clean[middle - 1] + clean[middle]) / 2;
 }
 
+// The rating math down to eloVoteWeight mirrors src/server/elo.ts, which this build-free
+// script cannot import. tests/math-parity.test.mjs sweeps both copies — the weight and
+// update math, and initialEloForItem over the 94 committed items — so a drift fails there
+// instead of quietly publishing ratings the arena never computed.
 function expectedScore(playerElo, opponentElo) {
   return 1 / (1 + 10 ** ((opponentElo - playerElo) / 400));
 }
@@ -68,7 +72,7 @@ function stableUnit(value) {
   return (hash >>> 0) / 0xffffffff;
 }
 
-function initialEloForItem(item) {
+export function initialEloForItem(item) {
   const confidence = Number(item.validation?.confidence);
   const attempt = Number(item.validation?.attempt_count);
   const issueCount = item.validation?.issues?.length || 0;
@@ -95,7 +99,7 @@ function initialEloForItem(item) {
   return Math.round(elo * 1000) / 1000;
 }
 
-function updateElo(winnerElo, loserElo, weight = 1) {
+export function updateElo(winnerElo, loserElo, weight = 1) {
   const expectedWinner = expectedScore(winnerElo, loserElo);
   const delta = DEFAULT_K * Math.max(0, Math.min(1, weight)) * (1 - expectedWinner);
   return {
@@ -104,12 +108,14 @@ function updateElo(winnerElo, loserElo, weight = 1) {
   };
 }
 
-function eloVoteWeight(left, right) {
+export function eloVoteWeight(left, right) {
   const leftBattles = Math.max(0, finiteNumber(left?.battles, 0));
   const rightBattles = Math.max(0, finiteNumber(right?.battles, 0));
   const averageBattles = (leftBattles + rightBattles) / 2;
   const raw = ELO_DECAY_PRIOR_BATTLES / (ELO_DECAY_PRIOR_BATTLES + averageBattles);
-  return Math.max(ELO_MIN_VOTE_WEIGHT, Math.min(1, raw));
+  // The arena rounds the weight before applying it, so an unrounded weight here
+  // re-derives ratings a few thousandths off every stored one and compounds.
+  return Math.round(Math.max(ELO_MIN_VOTE_WEIGHT, Math.min(1, raw)) * 1000) / 1000;
 }
 
 export function pairKey(leftId, rightId) {
