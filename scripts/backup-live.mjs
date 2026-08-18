@@ -7,6 +7,7 @@ import { processData, readArgs, readJsonl, timestampSlug } from "./analysis-core
 
 const VOTE_PREFIX = "votes/v1";
 const PROTECTED_PREFIXES = ["derived/v1/", "session-pairs/v1/"];
+const REMOTE_PRUNE_BATCH = 200;
 
 function parseEnvValue(value) {
   const trimmed = value.trim();
@@ -43,15 +44,36 @@ async function fetchJson(url) {
   return text ? JSON.parse(text) : null;
 }
 
-async function postJson(url, payload) {
+function parseJsonBody(text) {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null; // a proxy or platform error page is not JSON; callers fall back to the raw text
+  }
+}
+
+async function fetchJsonBestEffort(url, errors) {
+  try {
+    return await fetchJson(url);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Continuing without ${url}: ${message}`);
+    errors.push(message);
+    return null;
+  }
+}
+
+// Does not throw on a non-2xx: /api/prune-votes answers 500 for a partial failure and lists
+// what it did delete in the same body.
+async function postJson(url, payload, headers = {}) {
   const response = await fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(payload),
   });
   const text = await response.text();
-  if (!response.ok) throw new Error(`${url} failed with ${response.status}: ${text}`);
-  return text ? JSON.parse(text) : null;
+  return { ok: response.ok, status: response.status, text, body: parseJsonBody(text) };
 }
 
 function dayKey(value) {
@@ -183,6 +205,7 @@ export async function writeBackupFiles({
   stats,
   records,
   exportPayload = null,
+  endpointErrors = [],
   now = new Date(),
 }) {
   const day = now.toISOString().slice(0, 10);
@@ -221,6 +244,7 @@ export async function writeBackupFiles({
     dailyVoteCount: daily.totalDailyVotes,
     newVotesAdded: daily.newVotesAdded,
     fileHashes,
+    endpointErrors,
     blobPaths: records.map((record) => record.pathname).sort(),
   };
   await writeJson(join(snapshotDir, "manifest.json"), manifest);
@@ -306,12 +330,53 @@ async function deleteBlobPaths(paths) {
 
 export async function deleteRemoteVotePaths({ baseUrl, paths }) {
   if (!paths.length) return { deleted: [], failed: [] };
+  const secret = process.env.PRUNE_SECRET;
+  if (!secret) {
+    throw new Error(
+      `Cannot prune ${paths.length} remote vote path(s): PRUNE_SECRET is not set. Put the deployment's prune secret in .env.local, or run with --prune none to keep the blobs.`,
+    );
+  }
   const url = new URL("/api/prune-votes", baseUrl);
-  const payload = await postJson(url, { paths });
-  return {
-    deleted: Array.isArray(payload?.deleted) ? payload.deleted : [],
-    failed: Array.isArray(payload?.failed) ? payload.failed : [],
-  };
+  const deleted = [];
+  const failed = [];
+  // The endpoint caps how many paths it reads per call and has to finish inside the function
+  // timeout, so send the backlog in slices rather than one request that half-succeeds.
+  for (let index = 0; index < paths.length; index += REMOTE_PRUNE_BATCH) {
+    const chunk = paths.slice(index, index + REMOTE_PRUNE_BATCH);
+    const failedBefore = failed.length;
+    let response;
+    try {
+      response = await postJson(url, { paths: chunk }, { "x-prune-secret": secret });
+    } catch (error) {
+      failed.push({ paths: chunk, error: error instanceof Error ? error.message : String(error) });
+      continue;
+    }
+
+    const batchDeleted = Array.isArray(response.body?.deleted)
+      ? response.body.deleted.filter((path) => typeof path === "string")
+      : [];
+    deleted.push(...batchDeleted);
+    if (Array.isArray(response.body?.failed)) failed.push(...response.body.failed);
+
+    // The deployment re-filters against its own clock and still answers 200 for what it
+    // rejected, so anything back in neither list is still live and counts as a failure.
+    const accounted = new Set(batchDeleted);
+    for (const entry of Array.isArray(response.body?.failed) ? response.body.failed : []) {
+      for (const path of Array.isArray(entry?.paths) ? entry.paths : []) accounted.add(path);
+    }
+    const unaccounted = chunk.filter((path) => !accounted.has(path));
+    if (unaccounted.length) {
+      failed.push({
+        paths: unaccounted,
+        error: response.ok
+          ? `Deployment neither deleted nor reported ${unaccounted.length} of ${chunk.length} path(s)`
+          : `${url} failed with ${response.status}: ${response.text}`,
+      });
+    } else if (!response.ok && failed.length === failedBefore) {
+      failed.push({ paths: [], error: `${url} failed with ${response.status}: ${response.text}` });
+    }
+  }
+  return { deleted, failed };
 }
 
 export async function backupLive({
@@ -320,10 +385,13 @@ export async function backupLive({
   prune = "none",
   dryRunPrune = false,
   shouldProcess = true,
+  loadEnv = true,
   now = new Date(),
 } = {}) {
   if (!baseUrl) throw new Error("backupLive requires baseUrl");
-  await loadEnvFile();
+  // loadEnvFile fills in any key that is currently undefined, so a caller that cleared
+  // BLOB_READ_WRITE_TOKEN gets it back and reaches del(). Tests pass loadEnv: false.
+  if (loadEnv) await loadEnvFile();
   let source = "blob";
   let records;
   let exportPayload = null;
@@ -337,9 +405,19 @@ export async function backupLive({
     exportPayload = await fetchExportPayload({ baseUrl });
     records = recordsFromExportPayload(exportPayload);
   }
-  const health = await fetchJson(new URL("/api/health", baseUrl));
-  const stats = await fetchJson(new URL("/api/stats", baseUrl));
-  const backup = await writeBackupFiles({ outRoot, baseUrl, health, stats, records, exportPayload, now });
+  const endpointErrors = [];
+  const health = await fetchJsonBestEffort(new URL("/api/health", baseUrl), endpointErrors);
+  const stats = await fetchJsonBestEffort(new URL("/api/stats", baseUrl), endpointErrors);
+  const backup = await writeBackupFiles({
+    outRoot,
+    baseUrl,
+    health,
+    stats,
+    records,
+    exportPayload,
+    endpointErrors,
+    now,
+  });
 
   const pruneCandidates = prune === "completed-hour" ? pruneCandidatesForCompletedHour(records, now) : [];
   const safety = verifyPruneSafety({
@@ -364,10 +442,17 @@ export async function backupLive({
 
   if (pruneCandidates.length && !dryRunPrune) {
     const prunePaths = pruneCandidates.map((record) => record.pathname);
-    pruneResult =
-      source === "blob"
-        ? await deleteBlobPaths(prunePaths)
-        : await deleteRemoteVotePaths({ baseUrl, paths: prunePaths });
+    try {
+      pruneResult =
+        source === "blob"
+          ? await deleteBlobPaths(prunePaths)
+          : await deleteRemoteVotePaths({ baseUrl, paths: prunePaths });
+    } catch (error) {
+      pruneResult = {
+        deleted: [],
+        failed: [{ paths: prunePaths, error: error instanceof Error ? error.message : String(error) }],
+      };
+    }
   }
 
   await writeJson(join(backup.snapshotDir, "prune-manifest.json"), {
@@ -386,8 +471,14 @@ export async function backupLive({
   }
 
   if (pruneResult.failed.length) {
+    const firstFailure = pruneResult.failed[0]?.error;
     throw new Error(
-      `Prune failed for ${pruneResult.failed.length} chunk(s); see ${join(backup.snapshotDir, "prune-manifest.json")}`,
+      [
+        `Prune failed for ${pruneResult.failed.length} chunk(s); see ${join(backup.snapshotDir, "prune-manifest.json")}`,
+        firstFailure ? `First failure: ${firstFailure}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
     );
   }
 
@@ -427,6 +518,7 @@ async function main() {
     console.log(`summary_votes=${result.manifest.summaryVoteCount}`);
   }
   console.log(`daily_votes=${result.manifest.dailyVoteCount}`);
+  for (const problem of result.manifest.endpointErrors) console.log(`degraded=${problem}`);
   console.log(`prune_candidates=${result.pruneCandidates}`);
   console.log(`deleted=${result.deletedCount}`);
   if (result.processing) console.log(`analysis=${result.processing.latestDir}`);
