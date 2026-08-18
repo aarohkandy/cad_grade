@@ -18,6 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const votedPairKeys = new Set(seenPairs);
   const itemStats = new Map<string, ItemStatLike>();
   const pairStats = new Map<string, PairStatLike>();
+  let historyAvailable = true;
 
   try {
     const summary = await readVoteSummary(dataset.datasetId, dataset.families);
@@ -27,9 +28,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const pair of Object.values(summary.pairStats)) {
       pairStats.set(pair.pair_key, pair);
     }
-  } catch {
+  } catch (error) {
+    console.error("battle: vote summary unavailable, matchmaking without history", error);
     itemStats.clear();
     pairStats.clear();
+    historyAvailable = false;
   }
 
   const candidateItems = requestedFamily === "any" ? activeItems : itemsForFamily(requestedFamily);
@@ -57,6 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       itemCount: activeItems.length,
       familyItemCount: candidateItems.length,
       dataMode: storageMode() === "blob" ? "live" : "local",
+      historyAvailable,
     },
   });
 }

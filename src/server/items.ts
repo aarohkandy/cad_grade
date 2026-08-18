@@ -1,5 +1,5 @@
 import datasetJson from "../data/items.generated.js";
-import type { ArenaFamily, ArenaItem, DatasetPayload } from "../shared/types";
+import type { ArenaFamily, ArenaItem, DatasetPayload, PublicArenaItem } from "../shared/types";
 
 export const dataset = datasetJson as DatasetPayload;
 
@@ -24,6 +24,13 @@ export function normalizeFamily(value: unknown): ArenaFamily | "any" {
   return "any";
 }
 
-export function publicItem(item: ArenaItem): ArenaItem {
-  return item;
+export function publicItem(item: ArenaItem): PublicArenaItem {
+  return {
+    id: item.id,
+    family: item.family,
+    familyLabel: item.familyLabel,
+    title: item.title,
+    stlUrl: item.stlUrl,
+    previewUrl: item.previewUrl,
+  };
 }
