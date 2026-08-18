@@ -4,7 +4,11 @@ const DEFAULT_ELO = 1200;
 const DEFAULT_K = 28;
 const ELO_DECAY_PRIOR_BATTLES = 10;
 const ELO_MIN_VOTE_WEIGHT = 0.16;
-const AGREEMENT_PRIOR_BATTLES = 8;
+const DIRECT_AGREEMENT_PRIOR_VOTES = 8;
+// Agreement shown to a voter runs on a shorter scale than expectedScore's 400:
+// at a 60-point gap this reads 68% where the rating-update curve reads 59%, so a
+// real difference in rating still looks like one on screen.
+const ELO_DISPLAY_SCALE = 180;
 
 export interface EloInput {
   elo?: number | null;
@@ -101,15 +105,31 @@ export function eloVoteWeight(left: EloInput | undefined, right: EloInput | unde
   return Math.round(Math.max(ELO_MIN_VOTE_WEIGHT, Math.min(1, raw)) * 1000) / 1000;
 }
 
-export function agreementPercent(input: {
-  winnerWins: number;
-  battleCount: number;
-  winnerElo?: number | null;
-  loserElo?: number | null;
+export function eloAgreementProbability(winnerElo: number, loserElo: number): number {
+  return 1 / (1 + 10 ** ((loserElo - winnerElo) / ELO_DISPLAY_SCALE));
+}
+
+export function tieAgreementProbability(leftElo: number, rightElo: number): number {
+  const gap = Math.abs(leftElo - rightElo);
+  return 0.2 + 0.36 * Math.exp(-gap / 36);
+}
+
+// A pair with three votes should not read as certain, so the direct win rate is pulled toward
+// the rating prior until there are enough real votes to stand on their own.
+export function directAgreementProbability(input: {
+  directWins: number;
+  sampleSize: number;
+  priorProbability: number;
 }): number {
-  const battleCount = Math.max(0, input.battleCount || 0);
-  const winnerWins = Math.max(0, input.winnerWins || 0);
-  const prior = expectedScore(normalizedElo({ elo: input.winnerElo }), normalizedElo({ elo: input.loserElo }));
-  const smoothed = (winnerWins + prior * AGREEMENT_PRIOR_BATTLES) / Math.max(1, battleCount + AGREEMENT_PRIOR_BATTLES);
-  return Math.round(Math.max(0.04, Math.min(0.96, smoothed)) * 100);
+  return (
+    (input.directWins + input.priorProbability * DIRECT_AGREEMENT_PRIOR_VOTES) /
+    (input.sampleSize + DIRECT_AGREEMENT_PRIOR_VOTES)
+  );
+}
+
+export function boundedPercent(probability: number): number {
+  const bounded = Math.max(0.04, Math.min(0.96, probability));
+  const percent = Math.round(bounded * 100);
+  if (percent === 50 && bounded !== 0.5) return bounded > 0.5 ? 51 : 49;
+  return percent;
 }

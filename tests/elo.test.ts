@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { agreementPercent, eloVoteWeight, expectedScore, initialEloForItem, updateElo } from "../src/server/elo";
+import {
+  boundedPercent,
+  directAgreementProbability,
+  eloAgreementProbability,
+  eloVoteWeight,
+  expectedScore,
+  initialEloForItem,
+  tieAgreementProbability,
+  updateElo,
+} from "../src/server/elo";
 import type { ArenaItem } from "../src/shared/types";
 
 function item(id: string, overrides: Partial<ArenaItem> = {}): ArenaItem {
@@ -38,9 +47,30 @@ describe("elo", () => {
     expect(expectedScore(1200, 1400)).toBeLessThan(0.3);
   });
 
+  it("reads rating gaps on the shorter display scale", () => {
+    expect(eloAgreementProbability(1200, 1200)).toBeCloseTo(0.5);
+    expect(eloAgreementProbability(1260, 1200)).toBeGreaterThan(expectedScore(1260, 1200));
+    expect(eloAgreementProbability(1200, 1260)).toBeLessThan(0.5);
+  });
+
+  it("treats a tie as likelier the closer two models are rated", () => {
+    expect(tieAgreementProbability(1200, 1200)).toBeCloseTo(0.56);
+    expect(tieAgreementProbability(1200, 1400)).toBeLessThan(0.25);
+    expect(tieAgreementProbability(1200, 1300)).toBe(tieAgreementProbability(1300, 1200));
+  });
+
   it("smooths agreement for sparse pairs", () => {
-    expect(agreementPercent({ winnerWins: 0, battleCount: 0, winnerElo: 1200, loserElo: 1200 })).toBe(50);
-    expect(agreementPercent({ winnerWins: 1, battleCount: 1, winnerElo: 1300, loserElo: 1100 })).toBeGreaterThan(50);
+    expect(directAgreementProbability({ directWins: 0, sampleSize: 0, priorProbability: 0.62 })).toBeCloseTo(0.62);
+    expect(directAgreementProbability({ directWins: 5, sampleSize: 5, priorProbability: 0.5 })).toBeCloseTo(9 / 13);
+    expect(directAgreementProbability({ directWins: 0, sampleSize: 5, priorProbability: 0.5 })).toBeCloseTo(4 / 13);
+  });
+
+  it("never reports a certain or perfectly flat crowd read", () => {
+    expect(boundedPercent(0.999)).toBe(96);
+    expect(boundedPercent(0.0001)).toBe(4);
+    expect(boundedPercent(0.5)).toBe(50);
+    expect(boundedPercent(0.502)).toBe(51);
+    expect(boundedPercent(0.498)).toBe(49);
   });
 
   it("creates deterministic seeded ratings for unrated items", () => {
