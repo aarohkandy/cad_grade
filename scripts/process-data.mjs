@@ -8,7 +8,7 @@ const outRoot = args.out || join("exports", "analysis");
 const datasetPath = args.dataset || join("public", "data", "items.json");
 
 // Testing for the directory is not enough: the launchd installer creates
-// exports/live-backups/logs, and an empty tree analyses to zero votes and exits 0.
+// exports/live-backups/logs, and an empty tree analyzes to zero votes and exits 0.
 if (!(await backupVoteFiles(backupRoot)).length) {
   console.error(`No vote snapshots under ${backupRoot}. Run \`npm run backup:live\` first, or pass --in <dir>.`);
   process.exitCode = 1;
