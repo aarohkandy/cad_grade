@@ -12,8 +12,13 @@ across three object categories:
 - 31 wall-hook models
 - 33 snowman models
 
-Prompts and proprietary generation text are not included in the public
-manifest.
+`GET /api/battle` sends only what a voter needs to judge a pair: id, family,
+title, and the STL and preview URLs. The validator's own verdict on each model
+(whether it passed, how confident it was, and its prose description of the spec)
+is stripped before the pair goes out, so nobody is shown the grader's opinion of
+what they are about to rate. That metadata is still in `public/data/items.json`
+for offline analysis; it is just not in front of the voter. Raw generation
+prompts are in neither place.
 
 ## Production Checklist
 
@@ -59,7 +64,7 @@ This repo is set up for Vercel GitHub deploys:
   for public traffic.
 
 The only required manual Vercel pieces are the Blob store attachment and the
-three environment variables below.
+four environment variables below.
 
 ## Environment
 
@@ -69,10 +74,16 @@ Set these in Vercel Project Settings -> Environment Variables:
 BLOB_READ_WRITE_TOKEN
 IP_HASH_SALT
 HOLD_VERIFY_SECRET
+PRUNE_SECRET
 ```
 
 `BLOB_READ_WRITE_TOKEN` is created when Vercel Blob is attached.
 `IP_HASH_SALT` and `HOLD_VERIFY_SECRET` can be any long random secrets.
+
+`PRUNE_SECRET` guards `POST /api/prune-votes`, the one route that deletes stored
+votes. Leave it unset and the route refuses every request; set it and any caller
+has to send the same value in an `x-prune-secret` header. Generate it the same
+way as the other secrets.
 
 Generate local secret values with Node:
 
@@ -87,10 +98,21 @@ folder. Do not set `LOCAL_VOTE_DIR` in Vercel production.
 
 ```bash
 npm install
-npm run dataset
 npm run test
 npm run build
 npm run dev
+```
+
+The dataset is committed, so there is nothing to generate on a fresh clone.
+`npm run check:dataset` verifies that every item in the manifest has its STL and
+preview on disk. It also pins the launch counts (94 items, 30/31/33), so it is
+expected to fail against a dataset rebuilt from a different set of runs.
+`npm run dataset` rebuilds the manifest from the private Cadybara run tree and
+refuses to run without it; if you do have that tree, point at the directory
+containing `projects/`:
+
+```bash
+npm run dataset -- --sources-root ../path/to/parent
 ```
 
 `npm run dev` starts the Vite frontend and local API middleware on
@@ -108,6 +130,12 @@ $env:IP_HASH_SALT="local-hash-salt"
 $env:HOLD_VERIFY_SECRET="local-hold-secret"
 npm run dev
 ```
+
+`npm run test` is the unit and API suite and needs nothing extra. The browser
+tests are separate: `npm run playwright:test` serves the built `dist` with
+`vite preview` and drives the arena in Chromium at desktop and phone sizes, so
+run `npm run build` first, and `npx playwright install chromium` once on a new
+machine.
 
 ## Data Storage
 
@@ -161,6 +189,22 @@ Outputs:
 - CSV and JSON files for items, pairs, sessions, coverage gaps, anomalies, and
   raw-vs-clean rankings
 
+`npm run process:data` needs at least one backup snapshot under
+`exports/live-backups/`, so run `npm run backup:live` first (or pass
+`--in <dir>`). With none it exits 1 and says so rather than writing an analysis
+of zero votes, which reads exactly like a real analysis of an arena nobody
+voted in.
+
+To browse those outputs with the Elo trend graphs:
+
+```bash
+npm run serve:trends
+```
+
+That serves `exports/analysis/latest` on `http://127.0.0.1:5175`
+(`ANALYSIS_PORT` and `ANALYSIS_HOST` override it). It needs
+`npm run process:data` to have run first and exits 1 naming it if not.
+
 Install the hourly macOS backup task:
 
 ```bash
@@ -177,8 +221,14 @@ The macOS task uses `launchd`, runs once an hour, writes logs under
 `exports/live-backups/logs`, pulls from `https://cadbattle.vercel.app`, rebuilds
 analysis, and prunes completed-hour raw vote blobs from Vercel Blob only after
 they exist in both the timestamped local snapshot and the local daily archive.
-When local Blob credentials are unavailable, the backup asks the deployed app to
-delete only those verified old raw vote paths.
+
+The normal path prunes directly with `BLOB_READ_WRITE_TOKEN`. If the Blob
+listing fails the backup falls back to `/api/export` and asks the deployed app
+to delete only those verified old raw vote paths. That fallback needs
+`PRUNE_SECRET` in the local `.env.local`, matching the value set in Vercel.
+Without it the run still writes its snapshot and rebuilds analysis, then exits 1
+with the prune recorded as failed in `prune-manifest.json`. The blobs stay put
+rather than being silently skipped.
 
 Windows scheduled task helpers are still available as
 `backup:install-hourly:windows` and `backup:uninstall-hourly:windows`.
