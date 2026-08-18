@@ -303,6 +303,41 @@ describe("live backup helpers", () => {
     }
   });
 
+  it("says out loud when the export skipped records the backup will not contain", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
+    const originalFetch = globalThis.fetch;
+    const originalToken = process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    globalThis.fetch = async (url) => {
+      const href = String(url);
+      if (href.includes("/api/export")) {
+        return new Response(JSON.stringify({ votes: [vote("old")], unreadableCount: 2 }), { status: 200 });
+      }
+      if (href.includes("/api/health")) return new Response(JSON.stringify({ ready: true }), { status: 200 });
+      if (href.includes("/api/stats")) return new Response(JSON.stringify({ totalVotes: 1 }), { status: 200 });
+      throw new Error(`unexpected fetch ${href}`);
+    };
+    try {
+      const result = await backupLive({
+        baseUrl: "https://cadbattle.vercel.app",
+        outRoot: dir,
+        prune: "none",
+        shouldProcess: false,
+        loadEnv: false,
+        now: new Date("2026-06-14T20:42:00.000Z"),
+      });
+
+      expect(result.recordCount).toBe(1);
+      expect(warn.mock.calls.flat().join(" ")).toMatch(/skipped 2 unreadable record/);
+    } finally {
+      warn.mockRestore();
+      globalThis.fetch = originalFetch;
+      if (originalToken !== undefined) process.env.BLOB_READ_WRITE_TOKEN = originalToken;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("records a failed prune in the manifest instead of abandoning the run", async () => {
     const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
     const originalFetch = globalThis.fetch;

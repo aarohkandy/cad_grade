@@ -404,6 +404,13 @@ export async function backupLive({
     );
     exportPayload = await fetchExportPayload({ baseUrl });
     records = recordsFromExportPayload(exportPayload);
+    // /api/export skips a stored record it cannot parse rather than failing the pull, so
+    // this backup is short by that many votes and no one would otherwise know.
+    if (exportPayload?.unreadableCount) {
+      console.warn(
+        `/api/export skipped ${exportPayload.unreadableCount} unreadable record(s); this backup is incomplete.`,
+      );
+    }
   }
   const endpointErrors = [];
   const health = await fetchJsonBestEffort(new URL("/api/health", baseUrl), endpointErrors);
