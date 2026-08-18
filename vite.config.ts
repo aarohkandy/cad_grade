@@ -11,6 +11,7 @@ const apiModules: Record<string, () => Promise<{ default: ApiHandler }>> = {
   "/api/battle": () => import("./api/battle") as Promise<{ default: ApiHandler }>,
   "/api/export": () => import("./api/export") as Promise<{ default: ApiHandler }>,
   "/api/health": () => import("./api/health") as Promise<{ default: ApiHandler }>,
+  "/api/prune-votes": () => import("./api/prune-votes") as Promise<{ default: ApiHandler }>,
   "/api/stats": () => import("./api/stats") as Promise<{ default: ApiHandler }>,
   "/api/vote": () => import("./api/vote") as Promise<{ default: ApiHandler }>,
 };
