@@ -4,11 +4,24 @@ const FAST_VOTE_MS = 1200;
 const FAST_LOAD_MS = 300;
 const FAST_AFTER_LOAD_MS = 900;
 
-type QualityPayload = Pick<VotePayload, "started_at" | "models_loaded_at" | "voted_at" | "session_id">;
+type QualityPayload = Pick<VotePayload, "started_at" | "models_loaded_at" | "voted_at"> & {
+  // Not narrowed to string: this is read straight off a POST body and replayed from
+  // stored records, and a session id that is not a string is not a session id.
+  session_id: unknown;
+};
 
 function timestampMs(value: string): number | null {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+// voteTiming answers an unparseable timestamp with null, and every check below reads a
+// null as "no timing problem". Not knowing how long a vote took is not the same as knowing
+// it was unhurried, so the three fields are checked separately from the durations.
+function unusableTimestamps(payload: QualityPayload): boolean {
+  return [payload.started_at, payload.models_loaded_at, payload.voted_at].some(
+    (value) => timestampMs(String(value ?? "")) === null,
+  );
 }
 
 export function voteTiming(payload: QualityPayload): { elapsedMs: number | null; loadMs: number | null } {
@@ -47,11 +60,13 @@ export function qualityDecision(input: {
   const modelsLoadedTooFast =
     loadMs !== null && loadMs < FAST_LOAD_MS && (voteAfterLoadMs === null || voteAfterLoadMs < FAST_AFTER_LOAD_MS);
   const votedAfterLoadTooFast = voteAfterLoadMs !== null && voteAfterLoadMs < FAST_AFTER_LOAD_MS;
-  const weakSession = !input.payload.session_id || input.payload.session_id.length < 12;
-  const holdRequired = tooFast || modelsLoadedTooFast || votedAfterLoadTooFast || weakSession;
+  const weakSession = typeof input.payload.session_id !== "string" || input.payload.session_id.length < 12;
+  const badTimestamps = unusableTimestamps(input.payload);
+  const holdRequired = tooFast || modelsLoadedTooFast || votedAfterLoadTooFast || badTimestamps || weakSession;
   if (tooFast) qualityFlags.push("too_fast");
   if (modelsLoadedTooFast) qualityFlags.push("models_loaded_too_fast");
   if (votedAfterLoadTooFast) qualityFlags.push("vote_after_load_too_fast");
+  if (badTimestamps) qualityFlags.push("bad_timestamps");
   if (holdRequired && !input.holdSubmitted) qualityFlags.push("hold_required");
   if (input.holdSubmitted && !input.holdPassed) qualityFlags.push("hold_failed");
   if (input.duplicatePair) qualityFlags.push("duplicate_pair");
@@ -62,7 +77,7 @@ export function qualityDecision(input: {
     tooFast,
     qualityFlags,
     acceptedForScoring:
-      ((!tooFast && !modelsLoadedTooFast && !votedAfterLoadTooFast) || input.holdPassed) &&
+      ((!tooFast && !modelsLoadedTooFast && !votedAfterLoadTooFast && !badTimestamps) || input.holdPassed) &&
       !input.duplicatePair &&
       !weakSession &&
       !(input.holdSubmitted && !input.holdPassed),

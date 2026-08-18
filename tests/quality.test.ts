@@ -17,6 +17,15 @@ function payload(overrides: Partial<VotePayload> = {}): VotePayload {
   };
 }
 
+function sessionQuality(session: unknown) {
+  return qualityDecision({
+    payload: { ...payload(), session_id: session },
+    holdSubmitted: false,
+    holdPassed: false,
+    duplicatePair: false,
+  });
+}
+
 describe("vote quality", () => {
   it("accepts normal human-paced votes without a hold challenge", () => {
     const quality = qualityDecision({
@@ -74,6 +83,34 @@ describe("vote quality", () => {
     expect(quality.acceptedForScoring).toBe(false);
     expect(quality.qualityFlags).toContain("models_loaded_too_fast");
     expect(quality.qualityFlags).toContain("vote_after_load_too_fast");
+  });
+
+  // A number has no .length, so `session_id.length < 12` was `undefined < 12` — false —
+  // and a scraper counting upwards cleared the only anti-abuse check in the arena.
+  it("treats a numeric session id as weak", () => {
+    for (const session of [12345, 1755500000000]) {
+      const quality = sessionQuality(session);
+
+      expect(quality.qualityFlags).toContain("weak_session");
+      expect(quality.qualityFlags).toContain("hold_required");
+      expect(quality.acceptedForScoring).toBe(false);
+    }
+  });
+
+  it("treats an object session id as weak", () => {
+    const quality = sessionQuality({ id: "session-1234567890" });
+
+    expect(quality.qualityFlags).toContain("weak_session");
+    expect(quality.acceptedForScoring).toBe(false);
+  });
+
+  it("treats a missing or empty session id as weak", () => {
+    for (const session of ["", undefined]) {
+      const quality = sessionQuality(session);
+
+      expect(quality.qualityFlags).toContain("weak_session");
+      expect(quality.acceptedForScoring).toBe(false);
+    }
   });
 
   it("can accept a fast vote after a valid hold check", () => {

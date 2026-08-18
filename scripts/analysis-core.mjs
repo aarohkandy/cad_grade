@@ -130,15 +130,19 @@ function currentQuality(vote) {
   const votedAfterLoadTooFast = voteAfterLoadMs !== null && voteAfterLoadMs < FAST_AFTER_LOAD_MS;
   const modelsLoadedTooFast =
     loadMs !== null && loadMs < FAST_LOAD_MS && (voteAfterLoadMs === null || votedAfterLoadTooFast);
-  const weakSession = !vote.session_id || String(vote.session_id).length < 12;
+  const weakSession = typeof vote.session_id !== "string" || vote.session_id.length < 12;
+  const badTimestamps = [vote.started_at, vote.models_loaded_at, vote.voted_at].some(
+    (value) => timestampMs(value) === null,
+  );
   const duplicatePair = Boolean(vote.duplicate_pair);
   const holdSubmitted = vote.hold_duration_ms !== null && vote.hold_duration_ms !== undefined;
   const holdPassed = Boolean(vote.hold_passed);
-  const holdRequired = tooFast || modelsLoadedTooFast || votedAfterLoadTooFast || weakSession;
+  const holdRequired = tooFast || modelsLoadedTooFast || votedAfterLoadTooFast || badTimestamps || weakSession;
   const flags = [];
   if (tooFast) flags.push("too_fast");
   if (modelsLoadedTooFast) flags.push("models_loaded_too_fast");
   if (votedAfterLoadTooFast) flags.push("vote_after_load_too_fast");
+  if (badTimestamps) flags.push("bad_timestamps");
   if (holdRequired && !holdSubmitted) flags.push("hold_required");
   if (holdSubmitted && !holdPassed) flags.push("hold_failed");
   if (duplicatePair) flags.push("duplicate_pair");
@@ -150,7 +154,7 @@ function currentQuality(vote) {
     duplicatePair,
     trustedLocal,
     acceptedForScoring:
-      (trustedLocal || (!tooFast && !modelsLoadedTooFast && !votedAfterLoadTooFast) || holdPassed) &&
+      (trustedLocal || (!tooFast && !modelsLoadedTooFast && !votedAfterLoadTooFast && !badTimestamps) || holdPassed) &&
       !duplicatePair &&
       !weakSession &&
       !(holdSubmitted && !holdPassed),
