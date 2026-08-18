@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import voteHandler from "../api/vote";
 import { dataset } from "../src/server/items";
-import { markSessionPair, readVoteRecords, readVoteSummary, updateVoteSummary } from "../src/server/voteStore";
+import { loadVoteRecords, markSessionPair, readVoteSummary, updateVoteSummary } from "../src/server/voteStore";
 
 vi.mock("../src/server/voteStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/server/voteStore")>();
@@ -92,7 +92,7 @@ describe("vote api with a broken summary", () => {
     expect(logged).toHaveBeenCalled();
 
     // The blob is the source of truth, so the vote itself must survive.
-    const stored = await readVoteRecords({});
+    const { records: stored } = await loadVoteRecords({});
     expect(stored).toHaveLength(1);
     expect(stored[0].winner_item_id).toBe(left.id);
   });
@@ -119,7 +119,7 @@ describe("vote api with a broken summary", () => {
     expect(response.body).toMatchObject({ saved: true });
     expect(logged).toHaveBeenCalled();
 
-    const stored = await readVoteRecords({});
+    const { records: stored } = await loadVoteRecords({});
     expect(stored).toHaveLength(1);
     expect(stored[0].winner_item_id).toBe(left.id);
   });
@@ -144,7 +144,7 @@ describe("vote api with a broken summary", () => {
     expect(response.body).toMatchObject({ saved: true, summaryUpdated: false });
     expect(logged).toHaveBeenCalled();
 
-    const stored = await readVoteRecords({});
+    const { records: stored } = await loadVoteRecords({});
     expect(stored).toHaveLength(1);
     expect(stored[0].winner_item_id).toBe(left.id);
   });

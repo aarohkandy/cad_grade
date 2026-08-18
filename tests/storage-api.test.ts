@@ -309,7 +309,14 @@ describe("local storage api flow", () => {
     logged.mockRestore();
   });
 
-  it("answers an unreadable vote record with an error code, not the internal failure", async () => {
+  it("exports the readable votes and counts the one it could not read", async () => {
+    const [left, right] = dataset.items.filter((item) => item.family === "wall_hook");
+    await submitVote({
+      leftItemId: left.id,
+      rightItemId: right.id,
+      winnerItemId: left.id,
+      sessionId: "session-unreadable-1234567890",
+    });
     const voteFile = join(tempDir, VOTES_PREFIX, "2026-06-22", "truncated.json");
     await mkdir(dirname(voteFile), { recursive: true });
     await writeFile(voteFile, "{ truncated", "utf8");
@@ -317,8 +324,8 @@ describe("local storage api flow", () => {
 
     const exportResponse = mockResponse();
     await exportHandler({ method: "GET", headers: {}, query: {} } as never, exportResponse as never);
-    expect(exportResponse.statusCode).toBe(500);
-    expect(exportResponse.body).toEqual({ error: "export_failed" });
+    expect(exportResponse.statusCode).toBe(200);
+    expect(exportResponse.body).toMatchObject({ voteCount: 1, unreadableCount: 1 });
 
     expect(logged).toHaveBeenCalledTimes(1);
     logged.mockRestore();

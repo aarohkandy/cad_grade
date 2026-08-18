@@ -11,6 +11,10 @@ export const VOTES_PREFIX = "votes/v1";
 export const SESSION_PAIR_PREFIX = "session-pairs/v1";
 export const SUMMARY_PATH = "derived/v1/stats-summary.json";
 
+// A blob listing page holds up to 1,000 objects, and reading a page with Promise.all means
+// that many concurrent GETs out of one serverless function.
+export const VOTE_READ_CONCURRENCY = 24;
+
 const SUMMARY_VERSION = 1;
 
 export type StorageMode = "blob" | "local" | "unconfigured";
@@ -103,6 +107,11 @@ export interface VoteSummary {
 interface SummaryReadResult {
   summary: VoteSummary | null;
   etag?: string;
+}
+
+export interface VoteRecordsResult {
+  records: StoredVoteRecord[];
+  unreadableCount: number;
 }
 
 export function storageMode(): StorageMode {
@@ -320,8 +329,18 @@ export function summaryFromVotes(
     );
 }
 
+let blobModule: Promise<typeof import("@vercel/blob")> | null = null;
+
+// Reading a page of votes asks for the client once per object, and a dynamic import per
+// blob GET is pure overhead once the module is resolved. A failed load is dropped rather
+// than cached — a rejected promise is truthy, so keeping it would make one bad import
+// break every later read in this instance.
 async function blobClient() {
-  return import("@vercel/blob");
+  blobModule ||= import("@vercel/blob").catch((error) => {
+    blobModule = null;
+    throw error;
+  });
+  return blobModule;
 }
 
 function isMissingBlob(error: unknown): boolean {
@@ -394,11 +413,41 @@ async function walkLocalFiles(root: string): Promise<string[]> {
   return paths.flat();
 }
 
-async function localJsonByPrefix<T>(prefix: string): Promise<T[]> {
-  const prefixPath = localFilePath(prefix);
-  const files = await walkLocalFiles(prefixPath);
-  const rows = await Promise.all(files.filter((file) => file.endsWith(".json")).map((file) => readFile(file, "utf8")));
-  return rows.map((row) => JSON.parse(row) as T);
+async function mapWithLimit<T, R>(items: T[], concurrency: number, run: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await run(items[index]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+async function readLocalVoteRecords(prefix: string, limit: number): Promise<VoteRecordsResult> {
+  const files = (await walkLocalFiles(localFilePath(prefix))).filter((file) => file.endsWith(".json")).sort();
+  // A vote path is votes/v1/<day>/<ISO timestamp>_<uuid>.json, so path order is write
+  // order — the same property prune.ts leans on. Taking the tail means the parse cost
+  // tracks the limit instead of the size of the store. The limit is therefore a scan
+  // bound, not a delivery guarantee: a damaged file inside the tail comes back short
+  // rather than reaching further into the store for a replacement.
+  const newest = files.slice(Math.max(0, files.length - limit));
+  let unreadableCount = 0;
+
+  const rows = await mapWithLimit(newest, VOTE_READ_CONCURRENCY, async (file) => {
+    try {
+      return JSON.parse(await readFile(file, "utf8")) as StoredVoteRecord;
+    } catch (error) {
+      console.error(`voteStore: skipping unreadable vote record ${file}`, error);
+      unreadableCount += 1;
+      return null;
+    }
+  });
+
+  return { records: rows.filter((row): row is StoredVoteRecord => row !== null), unreadableCount };
 }
 
 async function readBlobJson<T>(pathname: string): Promise<SummaryReadResult & { value?: T }> {
@@ -524,32 +573,44 @@ export async function updateVoteSummary(
   return next;
 }
 
-export async function readVoteRecords(options: { date?: string; limit?: number } = {}): Promise<StoredVoteRecord[]> {
+// One damaged object should cost the vote it holds and nothing else. Every read path here
+// skips what it cannot parse and counts it, so /api/export can report the loss instead of
+// 500ing and taking the backup loop down with it.
+export async function loadVoteRecords(options: { date?: string; limit?: number } = {}): Promise<VoteRecordsResult> {
   const mode = storageMode();
-  if (mode === "unconfigured") return [];
+  if (mode === "unconfigured") return { records: [], unreadableCount: 0 };
   const prefix = options.date ? `${VOTES_PREFIX}/${options.date}` : VOTES_PREFIX;
   const limit = Math.max(1, Math.min(options.limit || 10_000, 10_000));
 
   if (mode === "local") {
-    return (await localJsonByPrefix<StoredVoteRecord>(prefix))
-      .sort((left, right) => right.created_at.localeCompare(left.created_at))
-      .slice(0, limit);
+    const result = await readLocalVoteRecords(prefix, limit);
+    return {
+      records: result.records.sort((left, right) => right.created_at.localeCompare(left.created_at)),
+      unreadableCount: result.unreadableCount,
+    };
   }
 
   const records: StoredVoteRecord[] = [];
+  let unreadableCount = 0;
   let cursor: string | undefined;
   do {
     const { list } = await blobClient();
     const page = await list({ prefix, limit: Math.min(1000, limit - records.length), cursor });
-    const rows = await Promise.all(
-      page.blobs.map(async (blob) => {
-        const result = await readBlobJson<StoredVoteRecord>(blob.pathname);
-        return result.value;
-      }),
-    );
+    const rows = await mapWithLimit(page.blobs, VOTE_READ_CONCURRENCY, async (blob) => {
+      try {
+        return (await readBlobJson<StoredVoteRecord>(blob.pathname)).value;
+      } catch (error) {
+        console.error(`voteStore: skipping unreadable vote blob ${blob.pathname}`, error);
+        unreadableCount += 1;
+        return undefined;
+      }
+    });
     records.push(...rows.filter((row): row is StoredVoteRecord => Boolean(row)));
     cursor = page.cursor;
   } while (cursor && records.length < limit);
 
-  return records.sort((left, right) => right.created_at.localeCompare(left.created_at)).slice(0, limit);
+  return {
+    records: records.sort((left, right) => right.created_at.localeCompare(left.created_at)).slice(0, limit),
+    unreadableCount,
+  };
 }

@@ -4,7 +4,13 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import handler from "../api/export";
 import { dataset } from "../src/server/items";
-import { SUMMARY_PATH, updateVoteSummary, writeVoteRecord, type StoredVoteRecord } from "../src/server/voteStore";
+import {
+  SUMMARY_PATH,
+  updateVoteSummary,
+  votePath,
+  writeVoteRecord,
+  type StoredVoteRecord,
+} from "../src/server/voteStore";
 import type { ArenaItem } from "../src/shared/types";
 
 function mockResponse() {
@@ -104,6 +110,36 @@ describe("export api", () => {
       expect((response.body as { item_stats: unknown[] }).item_stats.length).toBeGreaterThan(0);
       expect((response.body as { pair_stats: unknown[] }).pair_stats.length).toBe(1);
     } finally {
+      if (previousVoteDir === undefined) delete process.env.LOCAL_VOTE_DIR;
+      else process.env.LOCAL_VOTE_DIR = previousVoteDir;
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports the damaged records it skipped instead of failing the pull", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "cad-export-damaged-"));
+    const previousVoteDir = process.env.LOCAL_VOTE_DIR;
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      process.env.LOCAL_VOTE_DIR = tempDir;
+      const [left, right] = dataset.items.filter((item) => item.family === "wall_hook");
+      for (const id of ["kept-vote-a", "kept-vote-b"]) {
+        const vote = storedVote(id, left, right);
+        vote.storage.path = votePath(vote.created_at, id);
+        await writeVoteRecord(vote);
+      }
+
+      const damaged = join(tempDir, votePath("2026-06-22T20:00:01.000Z", "truncated"));
+      await mkdir(dirname(damaged), { recursive: true });
+      await writeFile(damaged, '{"id": "trunc', "utf8");
+
+      const response = mockResponse();
+      await handler({ method: "GET", headers: {}, query: { format: "json" } } as never, response as never);
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toMatchObject({ rawVoteCount: 2, unreadableCount: 1 });
+      expect(logged).toHaveBeenCalled();
+    } finally {
+      logged.mockRestore();
       if (previousVoteDir === undefined) delete process.env.LOCAL_VOTE_DIR;
       else process.env.LOCAL_VOTE_DIR = previousVoteDir;
       await rm(tempDir, { recursive: true, force: true });

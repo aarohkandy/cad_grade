@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { toCsv } from "../src/server/export.js";
 import { firstQueryValue, methodAllowed, noStore } from "../src/server/http.js";
 import { dataset, itemById } from "../src/server/items.js";
-import { readVoteRecords, readVoteSummary, storageConfigured, summaryFromVotes } from "../src/server/voteStore.js";
+import { loadVoteRecords, readVoteSummary, storageConfigured, summaryFromVotes } from "../src/server/voteStore.js";
 
 const TABLES = ["votes", "item_stats", "pair_stats", "quality_flags"] as const;
 type ExportTable = (typeof TABLES)[number];
@@ -20,7 +20,7 @@ function richerSummary(
 
 function rowsForTable(
   table: ExportTable,
-  votes: Awaited<ReturnType<typeof readVoteRecords>>,
+  votes: Awaited<ReturnType<typeof loadVoteRecords>>["records"],
   summary: ReturnType<typeof summaryFromVotes>,
 ) {
   if (table === "item_stats") return Object.values(summary.itemStats);
@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const date = firstQueryValue(req.query.date);
     const limit = Number(firstQueryValue(req.query.limit) || 10_000);
-    const votes = await readVoteRecords({ date, limit });
+    const { records: votes, unreadableCount } = await loadVoteRecords({ date, limit });
     const format = firstQueryValue(req.query.format) === "csv" ? "csv" : "json";
     const table = tableFromQuery(firstQueryValue(req.query.table));
     const rawSummary = summaryFromVotes(dataset.datasetId, dataset.families, votes, itemById);
@@ -71,6 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       date: date || null,
       voteCount: votes.length,
       rawVoteCount: votes.length,
+      unreadableCount,
       summaryAvailable,
       summaryVoteCount: summary.totalVotes,
       acceptedVoteCount: summary.acceptedVotes,
