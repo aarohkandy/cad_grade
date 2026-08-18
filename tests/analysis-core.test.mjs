@@ -284,6 +284,26 @@ describe("local analysis core", () => {
     expect(first.rankingsRaw.slice(0, 3)).toEqual(second.rankingsRaw.slice(0, 3));
   });
 
+  // A session id is whatever the voter posted, and sessions.csv is the file someone opens
+  // in a spreadsheet. src/server/export.ts guards the same shape for /api/export?format=csv.
+  it("keeps a session id that opens like a formula from being one in sessions.csv", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cad-analysis-csv-"));
+    try {
+      const analysis = analyzeVotes({
+        dataset: dataset(),
+        votes: [vote({ id: "formula", session_id: `=cmd|' /C calc'!A1` })],
+      });
+      await writeAnalysisOutputs(analysis, dir);
+      const sessions = await readFile(join(dir, "sessions.csv"), "utf8");
+      expect(sessions).toContain(`'=cmd|' /C calc'!A1,`);
+      expect(sessions).not.toMatch(/^=cmd/m);
+      // The numeric columns next to it still have to read as numbers.
+      expect(sessions).toMatch(/,1,/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("writes dashboard and data files", async () => {
     const dir = await mkdtemp(join(tmpdir(), "cad-analysis-"));
     try {

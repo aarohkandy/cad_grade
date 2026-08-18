@@ -195,12 +195,16 @@ export function timestampSlug(date = new Date()) {
 export function toCsv(rows) {
   if (!rows.length) return "";
   const headers = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+  // sessions.csv is keyed on voter-supplied session ids, so it needs the same formula
+  // guard src/server/export.ts uses.
   const escape = (value) => {
     if (value === null || value === undefined) return "";
-    const text = Array.isArray(value) || typeof value === "object" ? JSON.stringify(value) : String(value);
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    const raw = Array.isArray(value) || typeof value === "object" ? JSON.stringify(value) : String(value);
+    const text = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
     return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   };
-  return `${headers.join(",")}\n${rows.map((row) => headers.map((header) => escape(row[header])).join(",")).join("\n")}\n`;
+  return `${headers.map(escape).join(",")}\n${rows.map((row) => headers.map((header) => escape(row[header])).join(",")).join("\n")}\n`;
 }
 
 export async function readJsonl(path) {
