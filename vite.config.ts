@@ -40,7 +40,14 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
   if (!chunks.length) return undefined;
   const body = Buffer.concat(chunks).toString("utf8");
   const contentType = String(req.headers["content-type"] || "");
-  return contentType.includes("application/json") ? JSON.parse(body) : body;
+  if (!contentType.includes("application/json")) return body;
+  try {
+    return JSON.parse(body);
+  } catch {
+    // Hand the raw string on so readJsonBody raises JsonBodyError and the handler answers
+    // 400, the way it does on Vercel. Parsing here made a bad body a 500 under `npm run dev`.
+    return body;
+  }
 }
 
 function vercelResponse(res: ServerResponse): ServerResponse {
