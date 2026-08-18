@@ -7,8 +7,17 @@ import { loadVoteRecords, readVoteSummary, storageConfigured, summaryFromVotes }
 const TABLES = ["votes", "item_stats", "pair_stats", "quality_flags"] as const;
 type ExportTable = (typeof TABLES)[number];
 
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const DEFAULT_LIMIT = 10_000;
+
 function tableFromQuery(value: string | undefined): ExportTable {
   return TABLES.includes(value as ExportTable) ? (value as ExportTable) : "votes";
+}
+
+function limitFromQuery(value: string | undefined): number | null {
+  if (!value) return DEFAULT_LIMIT;
+  const limit = Number(value);
+  return Number.isInteger(limit) && limit > 0 ? limit : null;
 }
 
 function richerSummary(
@@ -40,9 +49,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  // An empty ?date= means no date filter, the way an empty ?limit= means the default.
+  const date = firstQueryValue(req.query.date);
+  if (date && !DATE_PATTERN.test(date)) {
+    res.status(400).json({ error: "invalid_date" });
+    return;
+  }
+
+  const limit = limitFromQuery(firstQueryValue(req.query.limit));
+  if (limit === null) {
+    res.status(400).json({ error: "invalid_limit" });
+    return;
+  }
+
   try {
-    const date = firstQueryValue(req.query.date);
-    const limit = Number(firstQueryValue(req.query.limit) || 10_000);
     const { records: votes, unreadableCount } = await loadVoteRecords({ date, limit });
     const format = firstQueryValue(req.query.format) === "csv" ? "csv" : "json";
     const table = tableFromQuery(firstQueryValue(req.query.table));

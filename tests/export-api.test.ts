@@ -116,6 +116,43 @@ describe("export api", () => {
     }
   });
 
+  it("answers 400 for a date that is not a calendar day", async () => {
+    for (const date of ["../../../../etc", "2026-6-1", "yesterday"]) {
+      const response = mockResponse();
+      await handler({ method: "GET", headers: {}, query: { date } } as never, response as never);
+      expect(response.statusCode).toBe(400);
+      expect(response.body).toMatchObject({ error: "invalid_date" });
+    }
+  });
+
+  it("answers 400 for a limit that is not a positive whole number", async () => {
+    for (const limit of ["abc", "-5", "0", "2.5"]) {
+      const response = mockResponse();
+      await handler({ method: "GET", headers: {}, query: { limit } } as never, response as never);
+      expect(response.statusCode).toBe(400);
+      expect(response.body).toMatchObject({ error: "invalid_limit" });
+    }
+  });
+
+  it("still serves a well-formed date and limit", async () => {
+    const response = mockResponse();
+    await handler(
+      { method: "GET", headers: {}, query: { date: "2026-06-22", limit: "25" } } as never,
+      response as never,
+    );
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({ date: "2026-06-22" });
+  });
+
+  it("treats a present but empty date or limit as absent", async () => {
+    for (const query of [{ date: "" }, { limit: "" }, { date: "", limit: "" }]) {
+      const response = mockResponse();
+      await handler({ method: "GET", headers: {}, query } as never, response as never);
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toMatchObject({ date: null });
+    }
+  });
+
   it("reports the damaged records it skipped instead of failing the pull", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "cad-export-damaged-"));
     const previousVoteDir = process.env.LOCAL_VOTE_DIR;
