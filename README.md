@@ -58,8 +58,8 @@ This repo is set up for Vercel GitHub deploys:
   headers for public dataset assets, and basic browser security headers.
 - API routes live in `api/*.ts` and are deployed as Vercel Functions.
 - Static assets and the public dataset live under `public/`.
-- `.github/workflows/ci.yml` runs dataset validation, tests, and production
-  build on pushes and pull requests.
+- `.github/workflows/ci.yml` runs the formatting check, dataset validation,
+  tests, and the production build on pushes and pull requests.
 - `npm run check:production` verifies that the deployed URL is actually ready
   for public traffic.
 
