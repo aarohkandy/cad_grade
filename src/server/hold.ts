@@ -1,6 +1,9 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { HoldChallenge, HoldSubmission } from "../shared/types";
 
+// A token is signed but never spent, and nothing ties it to a session or a battle, so one
+// cleared challenge replays across every vote sent inside this window. Binding it needs a
+// nonce issued by api/battle.ts and consumed by api/vote.ts; until then this is the limit.
 const MAX_AGE_MS = 10 * 60 * 1000;
 const MIN_TARGET_MS = 850;
 const MAX_TARGET_MS = 1700;
@@ -41,18 +44,33 @@ export function verifyHoldSubmission(
 ): { valid: boolean; flags: string[] } {
   const flags: string[] = [];
   if (!submission) return { valid: false, flags: ["missing_hold"] };
-  if (!submission.challengeId || !submission.token || !submission.issuedAt || !submission.targetMs) {
+  // heldMs arrives as caller JSON, and NaN is neither too short nor too long — without this
+  // an absent duration passes both checks and clears the hold on a replayed token alone.
+  const heldMs = Number(submission.heldMs);
+  if (
+    !submission.challengeId ||
+    !submission.token ||
+    !submission.issuedAt ||
+    !submission.targetMs ||
+    !Number.isFinite(heldMs)
+  ) {
     return { valid: false, flags: ["bad_hold_payload"] };
   }
   if (now - submission.issuedAt > MAX_AGE_MS || submission.issuedAt - now > 30_000) {
     flags.push("hold_expired");
   }
   const expected = sign(secret, submission.challengeId, submission.targetMs, submission.issuedAt);
+  const token = String(submission.token);
   const expectedBuffer = Buffer.from(expected, "hex");
-  const actualBuffer = Buffer.from(String(submission.token), "hex");
-  const tokenValid = expectedBuffer.length === actualBuffer.length && timingSafeEqual(expectedBuffer, actualBuffer);
+  const actualBuffer = Buffer.from(token, "hex");
+  // Hex decoding stops at the first bad character, so the length check is what keeps
+  // "<signature>x" from decoding to the signature and passing.
+  const tokenValid =
+    token.length === expected.length &&
+    expectedBuffer.length === actualBuffer.length &&
+    timingSafeEqual(expectedBuffer, actualBuffer);
   if (!tokenValid) flags.push("bad_hold_token");
-  if (submission.heldMs < Math.max(500, submission.targetMs - 180)) flags.push("hold_too_short");
-  if (submission.heldMs > 20_000) flags.push("hold_too_long");
+  if (heldMs < Math.max(500, submission.targetMs - 180)) flags.push("hold_too_short");
+  if (heldMs > 20_000) flags.push("hold_too_long");
   return { valid: flags.length === 0, flags };
 }
