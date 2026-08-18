@@ -1,6 +1,12 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomUUID } from "node:crypto";
-import { initialEloForItem } from "../src/server/elo.js";
+import {
+  boundedPercent,
+  directAgreementProbability,
+  eloAgreementProbability,
+  initialEloForItem,
+  tieAgreementProbability,
+} from "../src/server/elo.js";
 import { isVercelRuntime, missingProductionEnv, productionVoteEnvReady } from "../src/server/env.js";
 import { safeHash } from "../src/server/hash.js";
 import { verifyHoldSubmission } from "../src/server/hold.js";
@@ -9,6 +15,7 @@ import { dataset, itemById } from "../src/server/items.js";
 import { pairGroup, pairKey } from "../src/server/pairs.js";
 import { qualityDecision } from "../src/server/quality.js";
 import {
+  emptySummary,
   markSessionPair,
   readVoteSummary,
   sessionPairAlreadySeen,
@@ -24,33 +31,15 @@ import type { ArenaItem, VotePayload } from "../src/shared/types";
 
 const DIRECT_AGREEMENT_MIN_VOTES = 5;
 const DIRECT_AGREEMENT_HIGH_CONFIDENCE_VOTES = 15;
-const DIRECT_AGREEMENT_PRIOR_VOTES = 8;
-const ELO_DISPLAY_SCALE = 180;
-
-function winnerWins(pair: StoredPairStat | undefined, winnerId: string): number {
-  if (!pair) return 0;
-  return winnerId === pair.item_a_id ? pair.item_a_wins : pair.item_b_wins;
-}
-
-function boundedPercent(probability: number): number {
-  const bounded = Math.max(0.04, Math.min(0.96, probability));
-  const percent = Math.round(bounded * 100);
-  if (percent === 50 && bounded !== 0.5) return bounded > 0.5 ? 51 : 49;
-  return percent;
-}
-
-function eloAgreementProbability(winnerElo: number, loserElo: number): number {
-  return 1 / (1 + 10 ** ((loserElo - winnerElo) / ELO_DISPLAY_SCALE));
-}
 
 function itemElo(item: ArenaItem, value?: number | null): number {
   const elo = Number(value);
   return Number.isFinite(elo) ? elo : initialEloForItem(item);
 }
 
-function tieAgreementProbability(leftElo: number, rightElo: number): number {
-  const gap = Math.abs(leftElo - rightElo);
-  return 0.2 + 0.36 * Math.exp(-gap / 36);
+function directWinCount(pair: StoredPairStat, winner: ArenaItem | null, isDraw: boolean): number {
+  if (isDraw || !winner) return pair.draw_count || 0;
+  return winner.id === pair.item_a_id ? pair.item_a_wins : pair.item_b_wins;
 }
 
 function eloPriorProbability(input: {
@@ -64,21 +53,6 @@ function eloPriorProbability(input: {
     return tieAgreementProbability(input.leftElo, input.rightElo);
   }
   return eloAgreementProbability(input.winnerElo, input.loserElo);
-}
-
-function directAgreementProbability(input: {
-  pair: StoredPairStat;
-  sampleSize: number;
-  winner: ArenaItem | null;
-  isDraw: boolean;
-  priorProbability: number;
-}): number {
-  const directWins =
-    input.isDraw || !input.winner ? input.pair.draw_count || 0 : winnerWins(input.pair, input.winner.id);
-  const smoothedProbability =
-    (directWins + input.priorProbability * DIRECT_AGREEMENT_PRIOR_VOTES) /
-    (input.sampleSize + DIRECT_AGREEMENT_PRIOR_VOTES);
-  return smoothedProbability;
 }
 
 function crowdConfidence(source: "direct" | "elo", sampleSize: number): "low" | "medium" | "high" {
@@ -115,10 +89,8 @@ function crowdEstimate(input: {
   const agreementProbability =
     hasDirectSignal && input.pair
       ? directAgreementProbability({
-          pair: input.pair,
+          directWins: directWinCount(input.pair, input.winner, input.isDraw),
           sampleSize,
-          winner: input.winner,
-          isDraw: input.isDraw,
           priorProbability,
         })
       : priorProbability;
@@ -228,17 +200,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     await writeVoteRecord(record);
+
+    // Nothing below here may 500: the blob is already written, and telling the voter it
+    // failed makes them vote again, which stores the same preference twice.
+    let summaryUpdated = true;
     if (!duplicatePair) {
-      await markSessionPair(markerPath, {
-        created_at: createdAt,
-        session_hash: sessionHash,
-        family,
-        pair_key: pairKey(left.id, right.id),
-        vote_id: id,
-      });
+      try {
+        await markSessionPair(markerPath, {
+          created_at: createdAt,
+          session_hash: sessionHash,
+          family,
+          pair_key: pairKey(left.id, right.id),
+          vote_id: id,
+        });
+      } catch (error) {
+        console.error("vote: session pair marker failed after writing vote", record.id, error);
+      }
     }
 
-    let summary = await readVoteSummary(dataset.datasetId, dataset.families);
+    let summary = emptySummary(dataset.datasetId, dataset.families);
+    try {
+      summary = await readVoteSummary(dataset.datasetId, dataset.families);
+    } catch (error) {
+      console.error("vote: summary read failed after writing vote", record.id, error);
+      summaryUpdated = false;
+    }
     const priorPair = summary.pairStats[pairKey(left.id, right.id)];
     const priorCrowd = crowdEstimate({
       pair: priorPair,
@@ -253,13 +239,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       loserElo: loser ? summary.itemStats[loser.id]?.elo : null,
     });
     try {
-      summary = await updateVoteSummary(dataset.datasetId, dataset.families, record, left, right, winner, loser);
+      await updateVoteSummary(dataset.datasetId, dataset.families, record, left, right, winner, loser);
     } catch (error) {
-      console.error(error);
+      console.error("vote: summary update failed after writing vote", record.id, error);
+      summaryUpdated = false;
     }
 
     res.status(200).json({
       saved: true,
+      summaryUpdated,
       acceptedForScoring: quality.acceptedForScoring,
       agreementPercent: priorCrowd.agreementPercent,
       agreementLabel: crowdAgreementLabel(priorCrowd, isDraw),
@@ -268,7 +256,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       qualityFlags,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "vote_failed";
-    res.status(500).json({ error: "vote_failed", message });
+    console.error("vote: request failed", error);
+    res.status(500).json({ error: "vote_failed" });
   }
 }
