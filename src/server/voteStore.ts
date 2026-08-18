@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import { eloVoteWeight, initialEloForItem, updateElo } from "./elo.js";
 import { hasBlobCredentials, isVercelRuntime } from "./env.js";
@@ -357,11 +357,23 @@ async function readLocalJson<T>(pathname: string): Promise<T | null> {
 
 async function writeLocalJson(pathname: string, value: unknown, allowOverwrite: boolean): Promise<void> {
   const filePath = localFilePath(pathname);
+  const body = `${JSON.stringify(value, null, 2)}\n`;
   await mkdir(dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, {
-    encoding: "utf8",
-    flag: allowOverwrite ? "w" : "wx",
-  });
+  if (!allowOverwrite) {
+    await writeFile(filePath, body, { encoding: "utf8", flag: "wx" });
+    return;
+  }
+  // Overwriting in place lets two concurrent local requests interleave and leave one
+  // writer's tail after the other's document, which reads back as invalid JSON. Writing
+  // a private file and renaming it over the target keeps every reader on a whole one.
+  const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
+  await writeFile(temporaryPath, body, { encoding: "utf8", flag: "wx" });
+  try {
+    await rename(temporaryPath, filePath);
+  } catch (error) {
+    await rm(temporaryPath, { force: true });
+    throw error;
+  }
 }
 
 async function walkLocalFiles(root: string): Promise<string[]> {
