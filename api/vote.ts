@@ -10,7 +10,7 @@ import {
 import { isVercelRuntime, missingProductionEnv, productionVoteEnvReady } from "../src/server/env.js";
 import { safeHash } from "../src/server/hash.js";
 import { verifyHoldSubmission } from "../src/server/hold.js";
-import { clientIp, methodAllowed, noStore, readJsonBody } from "../src/server/http.js";
+import { JsonBodyError, clientIp, methodAllowed, noStore, readJsonBody } from "../src/server/http.js";
 import { dataset, itemById } from "../src/server/items.js";
 import { pairGroup, pairKey } from "../src/server/pairs.js";
 import { qualityDecision } from "../src/server/quality.js";
@@ -27,10 +27,99 @@ import {
   type StoredPairStat,
   type StoredVoteRecord,
 } from "../src/server/voteStore.js";
-import type { ArenaItem, VotePayload } from "../src/shared/types";
+import type { ArenaItem, HoldSubmission } from "../src/shared/types";
 
 const DIRECT_AGREEMENT_MIN_VOTES = 5;
 const DIRECT_AGREEMENT_HIGH_CONFIDENCE_VOTES = 15;
+// The longest string the arena issues is a battle_id: "battle_", two item ids, a uuid.
+const MAX_FIELD_LENGTH = 300;
+
+interface CheckedVotePayload {
+  battle_id: string;
+  left_item_id: string;
+  right_item_id: string;
+  winner_item_id: unknown;
+  vote_result: unknown;
+  started_at: string;
+  models_loaded_at: string;
+  voted_at: string;
+  // Left as it arrived. qualityDecision has to tell a session id from a number pretending
+  // to be one, and String(Date.now()) is thirteen characters — past the twelve-char bar.
+  session_id: unknown;
+  hold: HoldSubmission | null;
+}
+
+type PayloadCheck = { ok: true; payload: CheckedVotePayload; sessionId: string } | { ok: false; error: string };
+
+function boundedText(value: unknown): string | null {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "object") return null;
+  const text = String(value);
+  return text.length > MAX_FIELD_LENGTH ? null : text;
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+// A hold whose numbers are not numbers is not a hold: verifyHoldSubmission compares heldMs
+// against the target, and `"abc" < 900` is false, so junk cleared the challenge. A scalar
+// reads as no hold at all; only a shape claiming to be a submission gets the zeroed one.
+function checkedHold(value: unknown): HoldSubmission | null {
+  if (value === null || typeof value !== "object") return null;
+  const malformed: HoldSubmission = { challengeId: "", targetMs: 0, issuedAt: 0, heldMs: 0, token: "" };
+  const hold = value as Record<string, unknown>;
+  const challengeId = boundedText(hold.challengeId);
+  const token = boundedText(hold.token);
+  const targetMs = finiteNumber(hold.targetMs);
+  const issuedAt = finiteNumber(hold.issuedAt);
+  const heldMs = finiteNumber(hold.heldMs);
+  if (!challengeId || !token || targetMs === null || issuedAt === null || heldMs === null) return malformed;
+  return { challengeId, targetMs, issuedAt, heldMs, token };
+}
+
+// VotePayload describes what the arena's own client sends, not what arrives. Over-long
+// values are refused rather than truncated: a stored battle_id should be one the arena
+// could have issued, and a truncated one is a fabricated one.
+function checkVotePayload(body: unknown): PayloadCheck {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return { ok: false, error: "invalid_payload" };
+  const raw = body as Record<string, unknown>;
+  const battleId = boundedText(raw.battle_id);
+  const leftItemId = boundedText(raw.left_item_id);
+  const rightItemId = boundedText(raw.right_item_id);
+  const startedAt = boundedText(raw.started_at);
+  const modelsLoadedAt = boundedText(raw.models_loaded_at);
+  const votedAt = boundedText(raw.voted_at);
+  const sessionId = boundedText(raw.session_id);
+  if (
+    battleId === null ||
+    leftItemId === null ||
+    rightItemId === null ||
+    startedAt === null ||
+    modelsLoadedAt === null ||
+    votedAt === null ||
+    sessionId === null
+  ) {
+    return { ok: false, error: "invalid_payload" };
+  }
+
+  return {
+    ok: true,
+    sessionId,
+    payload: {
+      battle_id: battleId,
+      left_item_id: leftItemId,
+      right_item_id: rightItemId,
+      winner_item_id: raw.winner_item_id,
+      vote_result: raw.vote_result,
+      started_at: startedAt,
+      models_loaded_at: modelsLoadedAt,
+      voted_at: votedAt,
+      session_id: raw.session_id,
+      hold: checkedHold(raw.hold),
+    },
+  };
+}
 
 function itemElo(item: ArenaItem, value?: number | null): number {
   const elo = Number(value);
@@ -117,7 +206,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!methodAllowed(req, res, ["POST"])) return;
 
   try {
-    const payload = readJsonBody<VotePayload>(req);
+    const checked = checkVotePayload(readJsonBody<unknown>(req));
+    if (!checked.ok) {
+      res.status(400).json({ error: checked.error });
+      return;
+    }
+    const payload = checked.payload;
     const left = itemById(payload.left_item_id);
     const right = itemById(payload.right_item_id);
     const isDraw = payload.vote_result === "draw" || payload.winner_item_id === null;
@@ -143,7 +237,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const family = pairGroup(left, right);
     const holdSubmitted = Boolean(payload.hold);
     const hold = holdSubmitted ? verifyHoldSubmission(payload.hold) : { valid: false, flags: [] };
-    const sessionHash = safeHash(payload.session_id || "missing-session");
+    const sessionHash = safeHash(checked.sessionId || "missing-session");
     const markerPath = sessionPairPath(sessionHash, family, left.id, right.id);
     const duplicatePair = await sessionPairAlreadySeen(markerPath);
     const quality = qualityDecision({
@@ -170,7 +264,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       winner_item_id: winner?.id || null,
       loser_item_id: loser?.id || null,
       vote_result: isDraw ? "draw" : "winner",
-      session_id: payload.session_id,
+      session_id: checked.sessionId,
       started_at: payload.started_at,
       models_loaded_at: payload.models_loaded_at,
       voted_at: payload.voted_at,
@@ -256,6 +350,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       qualityFlags,
     });
   } catch (error) {
+    if (error instanceof JsonBodyError) {
+      res.status(400).json({ error: "invalid_json" });
+      return;
+    }
     console.error("vote: request failed", error);
     res.status(500).json({ error: "vote_failed" });
   }
