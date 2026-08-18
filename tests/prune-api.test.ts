@@ -105,6 +105,18 @@ describe("prune-votes api", () => {
     expect(response.body).toMatchObject({ requestedCount: 1200, skippedCount: 200, deletedCount: 1000 });
   });
 
+  it("answers a body that is not JSON with 400, after checking the secret", async () => {
+    process.env.PRUNE_SECRET = PRUNE_SECRET;
+    const response = mockResponse();
+    await pruneHandler(
+      { method: "POST", headers: { "x-prune-secret": PRUNE_SECRET }, body: "{paths:" } as never,
+      response as never,
+    );
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toEqual({ error: "invalid_json" });
+    expect(blob.del).not.toHaveBeenCalled();
+  });
+
   it("still prunes old raw vote blobs for an authorized caller", async () => {
     process.env.PRUNE_SECRET = PRUNE_SECRET;
     const response = await prune([OLD_VOTE_PATH], { "x-prune-secret": PRUNE_SECRET });

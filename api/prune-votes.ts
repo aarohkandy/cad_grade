@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { methodAllowed, noStore, readJsonBody } from "../src/server/http.js";
+import { JsonBodyError, methodAllowed, noStore, readJsonBody } from "../src/server/http.js";
 import { completedUtcHour, prunableRawVotePaths } from "../src/server/prune.js";
 import { storageConfigured } from "../src/server/voteStore.js";
 
@@ -76,6 +76,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       currentUtcHour: completedUtcHour().toISOString(),
     });
   } catch (error) {
+    if (error instanceof JsonBodyError) {
+      res.status(400).json({ error: "invalid_json" });
+      return;
+    }
     console.error("prune-votes failed:", error);
     res.status(500).json({ error: "prune_failed" });
   }
