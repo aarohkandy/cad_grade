@@ -1,11 +1,13 @@
 import { createServer } from "node:http";
-import { existsSync, readFileSync } from "node:fs";
-import { extname, normalize, resolve } from "node:path";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { extname, normalize, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const PORT = Number(process.env.ANALYSIS_PORT || 5175);
 const HOST = process.env.ANALYSIS_HOST || "127.0.0.1";
 const ANALYSIS_ROOT = resolve(process.cwd(), "exports", "analysis", "latest");
 const DATASET_PATH = resolve(process.cwd(), "public", "data", "items.json");
+const DEFAULT_CONTEXT = { analysisRoot: ANALYSIS_ROOT, datasetPath: DATASET_PATH };
 
 const contentTypes = new Map([
   [".html", "text/html; charset=utf-8"],
@@ -60,14 +62,49 @@ function familyName(family) {
   return family === "wall_planter" ? "Wall planter" : family === "wall_hook" ? "Wall hook" : "Snowman";
 }
 
-function localFile(pathname) {
-  const clean = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
-  return resolve(ANALYSIS_ROOT, normalize(clean));
+function localFile(pathname, analysisRoot) {
+  let clean;
+  try {
+    clean = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
+  } catch {
+    // A malformed escape like /%ff is the client's mistake, not a server fault.
+    return null;
+  }
+  return resolve(analysisRoot, normalize(clean));
 }
 
-function buildDashboardData() {
-  const analysis = readJson(resolve(ANALYSIS_ROOT, "analysis.json"));
-  const dataset = readJson(DATASET_PATH);
+// resolve() has already normalized the path, so a prefix test keeps the request inside the run —
+// but it has to carry the separator, or a sibling like latest-old/ reads as "inside" it.
+function isServableFile(path, analysisRoot) {
+  if (!path || !path.startsWith(`${analysisRoot}${sep}`) || !existsSync(path)) return false;
+  return statSync(path).isFile();
+}
+
+export function startupProblem({ analysisRoot, datasetPath } = DEFAULT_CONTEXT) {
+  if (!existsSync(resolve(analysisRoot, "analysis.json"))) {
+    return `No analysis at ${analysisRoot}. Run \`npm run process:data\` first.`;
+  }
+  if (!existsSync(datasetPath)) {
+    return `No dataset at ${datasetPath}. It is committed to the repo, so restore it with \`git checkout -- ${datasetPath}\`.`;
+  }
+  return null;
+}
+
+export function listenProblem(error, port = PORT) {
+  if (error?.code === "EADDRINUSE") {
+    return `Port ${port} is already in use. Stop the other trend server, or set ANALYSIS_PORT to a free port.`;
+  }
+  return null;
+}
+
+export function classicPage(analysisRoot = ANALYSIS_ROOT) {
+  const page = resolve(analysisRoot, "index.html");
+  return existsSync(page) ? readFileSync(page) : null;
+}
+
+function buildDashboardData({ analysisRoot, datasetPath } = DEFAULT_CONTEXT) {
+  const analysis = readJson(resolve(analysisRoot, "analysis.json"));
+  const dataset = readJson(datasetPath);
   const items = new Map(dataset.items.map((item) => [item.id, item]));
   const rankingRows = analysis.rankingsClean || [];
   const points = rankingRows
@@ -166,8 +203,8 @@ function buildDashboardData() {
   };
 }
 
-function html() {
-  const data = buildDashboardData();
+function html(context = DEFAULT_CONTEXT) {
+  const data = buildDashboardData(context);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -605,21 +642,26 @@ function html() {
 </html>`;
 }
 
-function serveStatic(request, response) {
+function serveStatic(request, response, context = DEFAULT_CONTEXT) {
   const url = new URL(request.url || "/", `http://${HOST}:${PORT}`);
   if (url.pathname === "/" || url.pathname === "/trends") {
     response.setHeader("content-type", "text/html; charset=utf-8");
-    response.end(html());
+    response.end(html(context));
     return;
   }
   if (url.pathname === "/classic") {
-    const classic = resolve(ANALYSIS_ROOT, "index.html");
+    const page = classicPage(context.analysisRoot);
+    if (!page) {
+      response.statusCode = 404;
+      response.end("this analysis run has no classic report");
+      return;
+    }
     response.setHeader("content-type", "text/html; charset=utf-8");
-    response.end(readFileSync(classic));
+    response.end(page);
     return;
   }
-  const path = localFile(url.pathname);
-  if (!path.startsWith(ANALYSIS_ROOT) || !existsSync(path)) {
+  const path = localFile(url.pathname, context.analysisRoot);
+  if (!isServableFile(path, context.analysisRoot)) {
     response.statusCode = 404;
     response.end("not found");
     return;
@@ -628,6 +670,32 @@ function serveStatic(request, response) {
   response.end(readFileSync(path));
 }
 
-createServer(serveStatic).listen(PORT, HOST, () => {
-  console.log(`trend graphs http://${HOST}:${PORT}/`);
-});
+export function handleRequest(request, response, context = DEFAULT_CONTEXT) {
+  try {
+    serveStatic(request, response, context);
+  } catch (error) {
+    console.error(`failed to serve ${request.url}`, error);
+    if (!response.headersSent) {
+      response.statusCode = 500;
+      response.setHeader("content-type", "text/plain; charset=utf-8");
+    }
+    response.end("the dashboard failed to render, see the server log");
+  }
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const problem = startupProblem();
+  if (problem) {
+    console.error(problem);
+    process.exitCode = 1;
+  } else {
+    const server = createServer(handleRequest);
+    server.on("error", (error) => {
+      console.error(listenProblem(error) || error);
+      process.exitCode = 1;
+    });
+    server.listen(PORT, HOST, () => {
+      console.log(`trend graphs http://${HOST}:${PORT}/`);
+    });
+  }
+}

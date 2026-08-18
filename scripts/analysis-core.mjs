@@ -216,14 +216,17 @@ async function walkFiles(root) {
   return nested.flat();
 }
 
-export async function loadVotesFromBackupRoot(root) {
+export async function backupVoteFiles(root) {
   const dailyRoot = join(root, "daily");
   const dailyFiles = (await walkFiles(dailyRoot)).filter((path) =>
     basename(path).match(/^votes-\d{4}-\d{2}-\d{2}\.jsonl$/),
   );
-  const sourceFiles = dailyFiles.length
-    ? dailyFiles
-    : (await walkFiles(root)).filter((path) => basename(path) === "votes.jsonl");
+  if (dailyFiles.length) return dailyFiles;
+  return (await walkFiles(root)).filter((path) => basename(path) === "votes.jsonl");
+}
+
+export async function loadVotesFromBackupRoot(root) {
+  const sourceFiles = await backupVoteFiles(root);
   const seen = new Set();
   const votes = [];
   for (const file of sourceFiles.sort()) {
