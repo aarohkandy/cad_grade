@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
+import { EMPTY_STL_ERROR } from "./stlParse";
 
 const GEOMETRY_CACHE_LIMIT = 24;
 const EDGE_VERTEX_LIMIT = 150000;
@@ -32,10 +33,20 @@ function geometryFromArrays(positions: Float32Array, normals: Float32Array): THR
   return geometry;
 }
 
-function parseInWorker(stlUrl: string): Promise<THREE.BufferGeometry> | null {
-  if (typeof Worker === "undefined") return null;
-  worker ||= new Worker(new URL("./stlParseWorker.ts", import.meta.url), { type: "module" });
-  worker.onmessage ||= (
+// A worker that never answers leaves its requests pending forever and the arena sits in
+// its loading state with no error and no retry. Fail them all and drop the worker so the
+// next load rebuilds it.
+function failPendingRequests(reason: string): void {
+  worker?.terminate();
+  worker = null;
+  const pending = [...workerRequests.values()];
+  workerRequests.clear();
+  for (const request of pending) request.reject(new Error(reason));
+}
+
+function createWorker(): Worker {
+  const created = new Worker(new URL("./stlParseWorker.ts", import.meta.url), { type: "module" });
+  created.onmessage = (
     event: MessageEvent<{
       id: number;
       positions?: Float32Array;
@@ -52,11 +63,19 @@ function parseInWorker(stlUrl: string): Promise<THREE.BufferGeometry> | null {
     }
     request.resolve(geometryFromArrays(event.data.positions, event.data.normals));
   };
+  created.onerror = () => failPendingRequests("STL worker failed to run");
+  created.onmessageerror = () => failPendingRequests("STL worker sent an unreadable message");
+  return created;
+}
+
+function parseInWorker(stlUrl: string): Promise<THREE.BufferGeometry> | null {
+  if (typeof Worker === "undefined") return null;
+  const target = (worker ||= createWorker());
 
   return new Promise((resolve, reject) => {
     const id = workerRequestId++;
     workerRequests.set(id, { resolve, reject });
-    worker?.postMessage({ id, url: stlUrl });
+    target.postMessage({ id, url: stlUrl });
   });
 }
 
@@ -68,6 +87,12 @@ async function loadGeometry(stlUrl: string): Promise<THREE.BufferGeometry> {
     // Fall back to Three's loader if a browser blocks module workers.
   }
   const geometry = await stlLoader.loadAsync(stlUrl);
+  // Three's loader accepts a header claiming zero faces and hands back an empty mesh,
+  // so the fallback needs the same guard the worker parser has.
+  if (!geometry.attributes.position?.count) {
+    geometry.dispose();
+    throw new Error(EMPTY_STL_ERROR);
+  }
   if (!geometry.attributes.normal) geometry.computeVertexNormals();
   geometry.computeBoundingBox();
   return geometry;
@@ -83,14 +108,21 @@ async function cachedGeometry(stlUrl: string): Promise<THREE.BufferGeometry> {
 
   const loading = loadGeometry(stlUrl);
   geometryCache.set(stlUrl, loading);
-  void loading.then(() => {
-    while (geometryCache.size > GEOMETRY_CACHE_LIMIT) {
-      const oldest = geometryCache.entries().next().value as [string, Promise<THREE.BufferGeometry>] | undefined;
-      if (!oldest) break;
-      geometryCache.delete(oldest[0]);
-      oldest[1].then((geometry) => geometry.dispose()).catch(() => undefined);
-    }
-  });
+  void loading.then(
+    () => {
+      while (geometryCache.size > GEOMETRY_CACHE_LIMIT) {
+        const oldest = geometryCache.entries().next().value as [string, Promise<THREE.BufferGeometry>] | undefined;
+        if (!oldest) break;
+        geometryCache.delete(oldest[0]);
+        oldest[1].then((geometry) => geometry.dispose()).catch(() => undefined);
+      }
+    },
+    // Keeping the rejected promise would blacklist the URL for the life of the page:
+    // the retry in main.ts re-throws the cached failure without touching the network.
+    () => {
+      if (geometryCache.get(stlUrl) === loading) geometryCache.delete(stlUrl);
+    },
+  );
   return (await loading).clone();
 }
 
@@ -106,6 +138,7 @@ export class StlViewer {
   private camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
   private controls: OrbitControls;
   private root = new THREE.Group();
+  private grid: THREE.GridHelper;
   private frame = 0;
   private needsRender = true;
   private activeUntil = 0;
@@ -152,10 +185,10 @@ export class StlViewer {
     rim.position.set(-120, -90, 160);
     this.scene.add(rim);
 
-    const grid = new THREE.GridHelper(180, 18, 0x86a894, 0x355247);
-    grid.rotation.x = Math.PI / 2;
-    grid.name = "floor-grid";
-    this.scene.add(grid);
+    this.grid = new THREE.GridHelper(180, 18, 0x86a894, 0x355247);
+    this.grid.rotation.x = Math.PI / 2;
+    this.grid.name = "floor-grid";
+    this.scene.add(this.grid);
 
     window.addEventListener("resize", this.resize);
     this.resize();
@@ -197,6 +230,7 @@ export class StlViewer {
     this.canvas.removeEventListener("wheel", this.beginInteraction);
     cancelAnimationFrame(this.frame);
     this.clearRoot();
+    this.grid.dispose();
     this.controls.dispose();
     this.renderer.dispose();
   }
