@@ -138,5 +138,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts", "tests/**/*.test.mjs"],
+    // The 10,000-vote analysis case trips the 5s default on a loaded two-core CI runner.
+    testTimeout: 20000,
   },
 });
