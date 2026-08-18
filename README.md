@@ -273,6 +273,15 @@ Limit to one day when pulling often:
 curl "https://YOUR_DEPLOYMENT/api/export?format=json&date=2026-06-12"
 ```
 
+`date` has to be `YYYY-MM-DD` and `limit` a positive whole number; anything else
+is a `400` (`invalid_date` / `invalid_limit`) rather than a 500. Leaving either
+one off, or passing it empty, means "no date filter" and the 10,000 default.
+
+The JSON body also carries `unreadableCount`: stored records that would not parse
+and were skipped, so one damaged object degrades a pull instead of failing it.
+Non-zero means something in the store needs a human — the path is in the function
+log. The CSV format has nowhere to put that field and does not report it.
+
 CSV export supports `table=votes`, `table=item_stats`, `table=pair_stats`, or
 `table=quality_flags`:
 
@@ -316,6 +325,15 @@ npm run pull:data -- \
 - `GET /api/stats`
 - `GET /api/export?format=json|csv`
 - `GET /api/health`
+
+`POST /api/vote` answers a body it cannot use with a 400 rather than a 500:
+`invalid_json` for a body that is not JSON, `invalid_payload` for one that is not
+an object or whose ids and timestamps are nested values or run past 300
+characters, and `invalid_items` for item ids that are not in the dataset. A
+storage backend that is not configured is a 503. A vote it can store but
+does not trust is still a 200 — it lands with `accepted_for_scoring: false` and
+the reasons in `quality_flags`, because a rejected vote is more useful in the
+dataset than missing from it.
 
 ## Data Notes
 
