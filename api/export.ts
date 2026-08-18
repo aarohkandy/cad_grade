@@ -47,8 +47,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const format = firstQueryValue(req.query.format) === "csv" ? "csv" : "json";
     const table = tableFromQuery(firstQueryValue(req.query.table));
     const rawSummary = summaryFromVotes(dataset.datasetId, dataset.families, votes, itemById);
-    const storedSummary = await readVoteSummary(dataset.datasetId, dataset.families);
-    const summary = richerSummary(rawSummary, storedSummary);
+    // An unreadable stored summary should cost the derived stats, not the votes the backup
+    // script came here for.
+    let summaryAvailable = true;
+    let summary = rawSummary;
+    try {
+      summary = richerSummary(rawSummary, await readVoteSummary(dataset.datasetId, dataset.families));
+    } catch (error) {
+      console.error("export: stored summary unavailable, deriving stats from raw votes", error);
+      summaryAvailable = false;
+    }
 
     if (format === "csv") {
       const rows = rowsForTable(table, votes, summary);
@@ -63,6 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       date: date || null,
       voteCount: votes.length,
       rawVoteCount: votes.length,
+      summaryAvailable,
       summaryVoteCount: summary.totalVotes,
       acceptedVoteCount: summary.acceptedVotes,
       mixedVoteCount: summary.mixedVotes || 0,
@@ -84,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       quality_flags: summary.qualityFlagCounts,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "export_failed";
-    res.status(500).json({ error: "export_failed", message });
+    console.error("export: read failed", error);
+    res.status(500).json({ error: "export_failed" });
   }
 }

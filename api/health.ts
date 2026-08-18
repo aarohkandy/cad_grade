@@ -10,14 +10,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const mode = storageMode();
   let storage: "ok" | "not_configured" | "error" = mode === "unconfigured" ? "not_configured" : "ok";
-  let storageMessage = "";
 
   if (mode !== "unconfigured") {
     try {
       await readVoteSummary(dataset.datasetId, dataset.families);
     } catch (error) {
+      // This route is public and unauthenticated, so the cause goes to the log and the caller
+      // gets the code, same as /api/stats and /api/export.
+      console.error("health: stored summary unreadable:", error);
       storage = "error";
-      storageMessage = error instanceof Error ? error.message : "storage_error";
     }
   }
   const runtime = isVercelRuntime() ? "vercel" : "local";
@@ -32,7 +33,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     itemCount: dataset.itemCount,
     storage,
     storageMode: mode,
-    storageMessage,
     runtime,
     vercelEnv: process.env.VERCEL_ENV || null,
     missingEnv,

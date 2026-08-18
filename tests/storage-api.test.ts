@@ -1,13 +1,14 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import exportHandler from "../api/export";
 import statsHandler from "../api/stats";
 import voteHandler from "../api/vote";
 import { initialEloForItem } from "../src/server/elo";
 import { createHoldChallenge } from "../src/server/hold";
 import { dataset } from "../src/server/items";
+import { SUMMARY_PATH, VOTES_PREFIX } from "../src/server/voteStore";
 import type { VoteResponse } from "../src/shared/types";
 
 function mockResponse() {
@@ -122,6 +123,7 @@ describe("local storage api flow", () => {
     expect(voteResponse.statusCode).toBe(200);
     expect(voteResponse.body).toMatchObject({
       saved: true,
+      summaryUpdated: true,
       acceptedForScoring: true,
       dataMode: "local",
       crowd: {
@@ -290,6 +292,36 @@ describe("local storage api flow", () => {
       sampleSize: 5,
     });
     expect(tieRead.crowd.agreementPercent).toBeGreaterThan(50);
+  });
+
+  it("answers a broken summary with an error code, not the internal failure", async () => {
+    const summaryFile = join(tempDir, SUMMARY_PATH);
+    await mkdir(dirname(summaryFile), { recursive: true });
+    await writeFile(summaryFile, "{ truncated", "utf8");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const statsResponse = mockResponse();
+    await statsHandler({ method: "GET", headers: {}, query: {} } as never, statsResponse as never);
+    expect(statsResponse.statusCode).toBe(500);
+    expect(statsResponse.body).toEqual({ error: "stats_failed" });
+
+    expect(logged).toHaveBeenCalledTimes(1);
+    logged.mockRestore();
+  });
+
+  it("answers an unreadable vote record with an error code, not the internal failure", async () => {
+    const voteFile = join(tempDir, VOTES_PREFIX, "2026-06-22", "truncated.json");
+    await mkdir(dirname(voteFile), { recursive: true });
+    await writeFile(voteFile, "{ truncated", "utf8");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const exportResponse = mockResponse();
+    await exportHandler({ method: "GET", headers: {}, query: {} } as never, exportResponse as never);
+    expect(exportResponse.statusCode).toBe(500);
+    expect(exportResponse.body).toEqual({ error: "export_failed" });
+
+    expect(logged).toHaveBeenCalledTimes(1);
+    logged.mockRestore();
   });
 
   it("saves draw votes as tie judgments", async () => {
