@@ -6,6 +6,8 @@ export default defineConfig({
   timeout: 60_000,
   use: {
     baseURL: "http://127.0.0.1:4173",
+    // The totals are rendered with toLocaleString, so the spec's "1,207" depends on this.
+    locale: "en-US",
     trace: "retain-on-failure",
   },
   webServer: {

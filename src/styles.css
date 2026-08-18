@@ -686,3 +686,84 @@ button {
     text-align: right;
   }
 }
+
+/* Arena totals readout and the load-failure retry control. */
+
+.stats-meter {
+  grid-column: 1;
+  justify-self: start;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  color: rgba(248, 255, 243, 0.78);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.stats-meter strong {
+  color: var(--mint);
+  font-size: 15px;
+}
+
+.stats-flag {
+  padding: 3px 7px;
+  border: 1px solid rgba(248, 196, 113, 0.55);
+  border-radius: 999px;
+  color: #f8c471;
+}
+
+/* result-copy fades the panel after 760ms, which is right for a vote that landed and wrong for
+   one that did not. Both classes hold the copy on screen; only is-stalled takes clicks. */
+.feedback-panel.is-stalled,
+.feedback-panel.is-persistent {
+  animation: none;
+  opacity: 1;
+}
+
+.feedback-panel.is-stalled {
+  pointer-events: auto;
+}
+
+.retry-action {
+  min-height: 48px;
+  margin-top: 16px;
+  border: 1px solid rgba(228, 247, 121, 0.86);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f0ff94, var(--lime));
+  color: #102217;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 900;
+  padding: 0 26px;
+  box-shadow: 0 12px 30px rgba(228, 247, 121, 0.22);
+  transition:
+    filter 120ms ease,
+    transform 120ms ease;
+}
+
+.retry-action:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.retry-action:disabled {
+  cursor: wait;
+  filter: saturate(0.72);
+  opacity: 0.62;
+  transform: none;
+}
+
+@media (max-width: 740px) {
+  .stats-meter {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    gap: 7px;
+    font-size: 10px;
+  }
+}

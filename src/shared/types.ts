@@ -26,6 +26,21 @@ export interface ArenaItem {
   sourceHash: string;
 }
 
+/**
+ * What a battle is allowed to tell the browser about a model. Everything else on
+ * an ArenaItem — the validator's verdict and reasoning, the generating model and
+ * provider, latency, seed, source hash — is the arena's own opinion of the thing
+ * the voter is being asked to judge, so it stays on the server.
+ */
+export interface PublicArenaItem {
+  id: string;
+  family: ArenaFamily;
+  familyLabel: string;
+  title: string;
+  stlUrl: string;
+  previewUrl: string;
+}
+
 export interface DatasetPayload {
   datasetId: string;
   generatedAtUtc: string;
@@ -49,13 +64,14 @@ export interface BattleResponse {
   battleId: string;
   datasetId: string;
   family: BattleGroup;
-  left: ArenaItem;
-  right: ArenaItem;
+  left: PublicArenaItem;
+  right: PublicArenaItem;
   hold: HoldChallenge;
   stats: {
     itemCount: number;
     familyItemCount: number;
     dataMode: "live" | "local";
+    historyAvailable: boolean;
   };
 }
 
@@ -74,6 +90,7 @@ export interface VotePayload {
 
 export interface VoteResponse {
   saved: boolean;
+  summaryUpdated: boolean;
   acceptedForScoring: boolean;
   agreementPercent: number;
   agreementLabel: string;

@@ -1,8 +1,16 @@
 import "./styles.css";
-import dataset from "./data/items.generated.json";
 import { preloadStlGeometry, StlViewer } from "./client/stlViewer";
-import { initialEloForItem } from "./server/elo";
-import type { ArenaItem, BattleGroup, BattleResponse, HoldChallenge, VoteResponse } from "./shared/types";
+import { boundedPercent, eloAgreementProbability, initialEloForItem, tieAgreementProbability } from "./server/elo";
+import type {
+  ArenaItem,
+  BattleGroup,
+  BattleResponse,
+  DatasetPayload,
+  HoldChallenge,
+  PublicArenaItem,
+  PublicStats,
+  VoteResponse,
+} from "./shared/types";
 
 const SESSION_KEY = "capybara-arena-session";
 const SEEN_PAIRS_KEY = "capybara-arena-seen-pairs";
@@ -15,10 +23,11 @@ const RAPID_VOTE_LIMIT = 12;
 const STREAK_RESET_MS = 10 * 60 * 1000;
 const AUTO_NEXT_DELAY_MS = 720;
 const PANEL_CLICK_MOVE_THRESHOLD_PX = 8;
-const ELO_DISPLAY_SCALE = 180;
 
+// /api/battle sends six fields; the offline fallback's crowd estimate needs the full entries.
 interface CurrentBattle extends BattleResponse {
   localOnly?: boolean;
+  localPair?: { left: ArenaItem; right: ArenaItem };
 }
 
 type VoteChoice = string | "draw";
@@ -29,6 +38,11 @@ if (!app) throw new Error("Missing app root");
 app.innerHTML = `
   <div class="arena-app">
     <header class="top-bar" id="top" aria-label="Capybara Arena">
+      <div class="stats-meter is-hidden" id="stats-meter" aria-label="Arena totals">
+        <span title="Votes accepted for scoring">Votes <strong id="stats-votes">0</strong></span>
+        <span>Models <strong id="stats-items">0</strong></span>
+        <span class="stats-flag is-hidden" id="stats-flag"></span>
+      </div>
       <h1 class="brand-word">Capybara Arena</h1>
       <div class="streak-meter" aria-label="Voting streak">
         <span>Streak <strong id="streak-now">0</strong></span>
@@ -89,6 +103,7 @@ app.innerHTML = `
     <section class="feedback-panel is-hidden" id="feedback-panel" role="status" aria-live="polite" aria-atomic="true">
       <h2 id="feedback-title">Vote saved</h2>
       <p id="feedback-copy"></p>
+      <button type="button" class="retry-action is-hidden" id="retry-battle">Retry</button>
     </section>
 
     <div class="result-flash" id="result-flash" aria-hidden="true"></div>
@@ -120,11 +135,16 @@ const dom = {
   feedbackPanel: document.querySelector("#feedback-panel") as HTMLElement,
   feedbackTitle: document.querySelector("#feedback-title") as HTMLElement,
   feedbackCopy: document.querySelector("#feedback-copy") as HTMLElement,
+  retryBattle: document.querySelector("#retry-battle") as HTMLButtonElement,
   resultFlash: document.querySelector("#result-flash") as HTMLElement,
   confettiLayer: document.querySelector("#confetti-layer") as HTMLElement,
   roundPulse: document.querySelector("#round-pulse") as HTMLElement,
   streakNow: document.querySelector("#streak-now") as HTMLElement,
   streakBest: document.querySelector("#streak-best") as HTMLElement,
+  statsMeter: document.querySelector("#stats-meter") as HTMLElement,
+  statsVotes: document.querySelector("#stats-votes") as HTMLElement,
+  statsItems: document.querySelector("#stats-items") as HTMLElement,
+  statsFlag: document.querySelector("#stats-flag") as HTMLElement,
 };
 
 let currentBattle: CurrentBattle | null = null;
@@ -216,6 +236,19 @@ function updateStreakHud(now = Date.now()): void {
   const current = activeStoredStreak(now);
   dom.streakNow.textContent = String(current);
   dom.streakBest.textContent = String(storedNumber(BEST_STREAK_KEY));
+}
+
+function setArenaFlag(flag: [string, string] | null): void {
+  dom.statsFlag.textContent = flag ? flag[0] : "";
+  dom.statsFlag.title = flag ? flag[1] : "";
+  dom.statsFlag.classList.toggle("is-hidden", !flag);
+}
+
+async function updateStatsHud(): Promise<void> {
+  const stats = await getJson<PublicStats>("/api/stats");
+  dom.statsVotes.textContent = stats.acceptedVotes.toLocaleString();
+  dom.statsItems.textContent = stats.itemCount.toLocaleString();
+  dom.statsMeter.classList.remove("is-hidden");
 }
 
 function recordAgreementStreak(agreesWithMajority: boolean, now = Date.now()): StreakResult {
@@ -324,6 +357,16 @@ async function getJson<T>(url: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+let localDatasetRequest: Promise<DatasetPayload> | null = null;
+
+function localDataset(): Promise<DatasetPayload> {
+  localDatasetRequest ||= getJson<DatasetPayload>("/data/items.json").catch((error) => {
+    localDatasetRequest = null;
+    throw error;
+  });
+  return localDatasetRequest;
+}
+
 async function fetchBattle(): Promise<CurrentBattle> {
   try {
     const params = new URLSearchParams({
@@ -363,22 +406,6 @@ async function postJson<T>(url: string, payload: unknown): Promise<T> {
   return data;
 }
 
-function boundedPercent(probability: number): number {
-  const bounded = Math.max(0.04, Math.min(0.96, probability));
-  const percent = Math.round(bounded * 100);
-  if (percent === 50 && bounded !== 0.5) return bounded > 0.5 ? 51 : 49;
-  return percent;
-}
-
-function calibratedExpectedScore(playerElo: number, opponentElo: number): number {
-  return 1 / (1 + 10 ** ((opponentElo - playerElo) / ELO_DISPLAY_SCALE));
-}
-
-function tieAgreementProbability(leftElo: number, rightElo: number): number {
-  const gap = Math.abs(leftElo - rightElo);
-  return 0.2 + 0.36 * Math.exp(-gap / 36);
-}
-
 function localCrowdEstimate(left: ArenaItem, right: ArenaItem, choice: VoteChoice): VoteResponse["crowd"] {
   const leftElo = initialEloForItem(left);
   const rightElo = initialEloForItem(right);
@@ -386,8 +413,8 @@ function localCrowdEstimate(left: ArenaItem, right: ArenaItem, choice: VoteChoic
     choice === "draw"
       ? tieAgreementProbability(leftElo, rightElo)
       : choice === left.id
-        ? calibratedExpectedScore(leftElo, rightElo)
-        : calibratedExpectedScore(rightElo, leftElo);
+        ? eloAgreementProbability(leftElo, rightElo)
+        : eloAgreementProbability(rightElo, leftElo);
   return {
     agreementPercent: boundedPercent(probability),
     agreesWithMajority: probability > 0.5,
@@ -402,10 +429,11 @@ function localAgreementLabel(crowd: VoteResponse["crowd"], isDraw: boolean): str
   return `${crowd.agreementPercent}% would ${action} (rating estimate).`;
 }
 
-function localBattle(): CurrentBattle {
+async function localBattle(): Promise<CurrentBattle> {
+  const dataset = await localDataset();
   const priorPairs = seenPairs();
   const seenItemBattles = localSeenItemBattles(priorPairs);
-  const items = (dataset.items as ArenaItem[]).filter((item) => item.active !== false);
+  const items = dataset.items.filter((item) => item.active !== false);
   const pairs = allLocalPairs(items);
   const candidates = pairs.filter(([left, right]) => !priorPairs.has(pairKeyClient(left.id, right.id)));
   const scoredPairs = (candidates.length ? candidates : pairs)
@@ -437,10 +465,12 @@ function localBattle(): CurrentBattle {
     right,
     hold,
     localOnly: true,
+    localPair: { left, right },
     stats: {
       itemCount: dataset.itemCount,
       familyItemCount: items.length,
       dataMode: "local",
+      historyAvailable: false,
     },
   };
 }
@@ -449,7 +479,7 @@ function markArenaLive(): void {
   dom.roundPulse.textContent = "VS";
 }
 
-function displayModelTitle(item: ArenaItem): string {
+function displayModelTitle(item: PublicArenaItem): string {
   const title = item.title.trim();
   const family = item.familyLabel.trim();
   if (!title) return "";
@@ -473,7 +503,15 @@ function clearFeedback(): void {
   flashTimer = 0;
   confettiTimer = 0;
   dom.feedbackPanel.classList.add("is-hidden");
-  dom.feedbackPanel.classList.remove("is-draw", "is-majority", "is-milestone", "is-against");
+  dom.feedbackPanel.classList.remove(
+    "is-draw",
+    "is-majority",
+    "is-milestone",
+    "is-against",
+    "is-stalled",
+    "is-persistent",
+  );
+  dom.retryBattle.classList.add("is-hidden");
   dom.resultFlash.classList.remove("is-good", "is-bad", "is-active");
   dom.confettiLayer.replaceChildren();
   dom.holdPanel.classList.add("is-hidden");
@@ -516,7 +554,19 @@ async function loadBattle(): Promise<void> {
 
   const pendingBattle = preparedBattle;
   preparedBattle = null;
-  const nextBattle = pendingBattle ? await pendingBattle : await fetchBattle();
+  let nextBattle: CurrentBattle;
+  try {
+    nextBattle = pendingBattle ? await pendingBattle : await fetchBattle();
+  } catch (error) {
+    showBattleError(error);
+    return;
+  }
+
+  setArenaFlag(
+    nextBattle.stats.historyAvailable === false
+      ? ["no ranking history", "The arena could not read its stored ratings, so this pair was picked without them"]
+      : null,
+  );
 
   leftViewer ||= new StlViewer(dom.leftCanvas);
   rightViewer ||= new StlViewer(dom.rightCanvas);
@@ -541,6 +591,8 @@ async function loadBattle(): Promise<void> {
     dom.arena.classList.remove("is-loading-next");
     markArenaLive();
   } catch (error) {
+    console.warn("Model load failed", error);
+    currentBattle = null;
     const message = error instanceof Error ? error.message : "Could not load STL";
     dom.leftStatus.textContent = message;
     dom.rightStatus.textContent = message;
@@ -549,7 +601,7 @@ async function loadBattle(): Promise<void> {
     dom.leftFrame.classList.remove("is-loading");
     dom.rightFrame.classList.remove("is-loading");
     dom.arena.classList.remove("is-loading-next");
-    dom.roundPulse.textContent = "retry";
+    offerRetry("No models", "The model files did not load.");
   }
 }
 
@@ -607,10 +659,12 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   const right = currentBattle.right;
   cancelAnimationFrame(holdFrame);
   dom.holdButton.classList.remove("holding");
-  const localCrowd = currentBattle.localOnly ? localCrowdEstimate(left, right, choice) : null;
+  const localPair = currentBattle.localOnly ? currentBattle.localPair : null;
+  const localCrowd = localPair ? localCrowdEstimate(localPair.left, localPair.right, choice) : null;
   const response = currentBattle.localOnly
     ? ({
         saved: true,
+        summaryUpdated: false,
         acceptedForScoring: false,
         agreementPercent: localCrowd?.agreementPercent || 50,
         agreementLabel: localCrowd ? localAgreementLabel(localCrowd, isDraw) : "Vote saved.",
@@ -637,6 +691,10 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
         hold,
       });
 
+  if (!currentBattle.localOnly && !response.summaryUpdated) {
+    setArenaFlag(["totals behind", "Your vote was stored, but the arena could not fold it into the running totals"]);
+  }
+
   const now = Date.now();
   rememberVoteTime(now);
   const streak = recordAgreementStreak(response.crowd.agreesWithMajority, now);
@@ -644,7 +702,7 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   startPreparingNextBattle();
   dom.holdButton.disabled = false;
   dom.holdPanel.classList.add("is-hidden");
-  dom.feedbackPanel.classList.remove("is-hidden");
+  dom.feedbackPanel.classList.remove("is-hidden", "is-stalled", "is-persistent");
   dom.feedbackPanel.classList.toggle("is-draw", isDraw);
   dom.feedbackPanel.classList.toggle("is-majority", response.crowd.agreesWithMajority);
   dom.feedbackPanel.classList.toggle("is-against", !response.crowd.agreesWithMajority);
@@ -656,7 +714,7 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   dom.roundPulse.textContent = "next";
   window.clearTimeout(autoNextTimer);
   autoNextTimer = window.setTimeout(() => {
-    loadBattle().catch(showVoteError);
+    loadBattle().catch(showBattleError);
   }, AUTO_NEXT_DELAY_MS);
 }
 
@@ -675,18 +733,58 @@ async function chooseVote(choice: VoteChoice): Promise<void> {
   await submitVote(choice, null);
 }
 
+function offerRetry(title: string, copy: string): void {
+  dom.feedbackPanel.classList.remove("is-hidden", "is-draw", "is-majority", "is-milestone", "is-against");
+  dom.feedbackPanel.classList.add("is-stalled");
+  dom.feedbackTitle.textContent = title;
+  dom.feedbackCopy.textContent = copy;
+  dom.retryBattle.classList.remove("is-hidden");
+  dom.retryBattle.disabled = false;
+  dom.retryBattle.focus();
+  dom.roundPulse.textContent = "retry";
+}
+
 function showVoteError(_error: unknown): void {
   voteInFlight = false;
   dom.holdButton.disabled = false;
   setVoteControls(Boolean(currentBattle));
   dom.leftPanel.classList.remove("is-voting");
   dom.rightPanel.classList.remove("is-voting");
-  dom.holdLabel.textContent = "Try again";
-  dom.feedbackPanel.classList.remove("is-hidden");
-  dom.feedbackPanel.classList.remove("is-majority");
+  // "Tap a model again" means the hold prompt has to come down with it — left open it also
+  // kills the arrow keys, since handleVoteShortcut bails while the hold panel is on screen.
+  dom.holdPanel.classList.add("is-hidden");
+  dom.retryBattle.classList.add("is-hidden");
+  dom.feedbackPanel.classList.remove("is-hidden", "is-majority", "is-stalled");
+  // is-persistent, not is-stalled: this copy has to outlive the 760ms fade, but the panel
+  // covers the very models the visitor is being told to tap, so it must not take clicks.
+  dom.feedbackPanel.classList.add("is-persistent");
   dom.feedbackTitle.textContent = "Try again";
   dom.feedbackCopy.textContent = "The arena did not catch that vote. Tap a model again.";
   dom.roundPulse.textContent = "try again";
+}
+
+function showBattleError(error: unknown): void {
+  console.warn("Battle load failed", error);
+  currentBattle = null;
+  preparedBattle = null;
+  voteInFlight = false;
+  selectedChoice = null;
+  setVoteControls(false);
+  dom.holdPanel.classList.add("is-hidden");
+  dom.leftPanel.classList.remove("is-voting");
+  dom.rightPanel.classList.remove("is-voting");
+  dom.leftFrame.classList.remove("is-loading");
+  dom.rightFrame.classList.remove("is-loading");
+  dom.arena.classList.remove("is-loading-next");
+  dom.leftStatus.textContent = "No model";
+  dom.rightStatus.textContent = "No model";
+  dom.leftStatus.classList.remove("is-hidden");
+  dom.rightStatus.classList.remove("is-hidden");
+  dom.leftTitle.textContent = "";
+  dom.rightTitle.textContent = "";
+  dom.leftSubtitle.textContent = "";
+  dom.rightSubtitle.textContent = "";
+  offerRetry("No battle", "Could not reach the arena.");
 }
 
 dom.voteLeft.addEventListener("click", () => {
@@ -699,6 +797,11 @@ dom.voteRight.addEventListener("click", () => {
 
 dom.voteDraw.addEventListener("click", () => {
   if (currentBattle) chooseVote("draw").catch(showVoteError);
+});
+
+dom.retryBattle.addEventListener("click", () => {
+  dom.retryBattle.disabled = true;
+  loadBattle().catch(showBattleError);
 });
 
 function targetAcceptsVoteShortcut(target: EventTarget | null): boolean {
@@ -782,4 +885,7 @@ dom.holdButton.addEventListener("pointerleave", cancelHold);
 
 updateStreakHud();
 markArenaLive();
-loadBattle().catch(showVoteError);
+loadBattle().catch(showBattleError);
+updateStatsHud().catch((error) => {
+  console.warn("Arena stats unavailable", error);
+});
