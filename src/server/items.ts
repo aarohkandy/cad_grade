@@ -11,8 +11,12 @@ export const familyLabels: Record<ArenaFamily, string> = {
   snowman: "Snowman",
 };
 
+// api/vote resolves three items per vote and /api/export four per stored record, so the
+// lookup is indexed once here instead of rescanning activeItems on every call.
+const itemsById = new Map(activeItems.map((item) => [item.id, item]));
+
 export function itemById(id: string): ArenaItem | undefined {
-  return activeItems.find((item) => item.id === id);
+  return itemsById.get(id);
 }
 
 export function itemsForFamily(family: ArenaFamily): ArenaItem[] {
@@ -20,7 +24,7 @@ export function itemsForFamily(family: ArenaFamily): ArenaItem[] {
 }
 
 export function normalizeFamily(value: unknown): ArenaFamily | "any" {
-  if (value === "wall_planter" || value === "wall_hook" || value === "snowman") return value;
+  if (typeof value === "string" && Object.hasOwn(familyLabels, value)) return value as ArenaFamily;
   return "any";
 }
 
