@@ -3,7 +3,9 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "tests",
   testMatch: /.*\.spec\.ts/,
-  timeout: 60_000,
+  // A spec waits up to 60s for two STLs to render, so the per-test budget has to be well
+  // clear of that or a slow machine fails the test before the arena has finished loading.
+  timeout: 120_000,
   use: {
     baseURL: "http://127.0.0.1:4173",
     // The totals are rendered with toLocaleString, so the spec's "1,207" depends on this.
