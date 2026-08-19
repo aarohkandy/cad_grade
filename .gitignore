@@ -11,6 +11,7 @@ exports/
 .local-data/
 *.log
 *.tsbuildinfo
+.DS_Store
 public/dataset/v1-staging-*/
 public/data/*.staging
 src/data/*.staging
