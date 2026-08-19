@@ -3,6 +3,10 @@ import { existsSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 
 export const TEST_SESSION_PREFIXES = ["production-check-", "production-browser-check-"];
+// The daily archive file names that backup-live.mjs writes, shared so the writer and both
+// readers agree. A vote whose created_at is not a usable date lands in votes-unknown.jsonl,
+// and a reader that leaves that file out reports fewer votes than the archive holds.
+export const DAILY_VOTES_FILE = /^votes-(\d{4}-\d{2}-\d{2}|unknown)\.jsonl$/;
 
 const DEFAULT_ELO = 1200;
 const DEFAULT_K = 28;
@@ -232,9 +236,7 @@ async function walkFiles(root) {
 
 export async function backupVoteFiles(root) {
   const dailyRoot = join(root, "daily");
-  const dailyFiles = (await walkFiles(dailyRoot)).filter((path) =>
-    basename(path).match(/^votes-\d{4}-\d{2}-\d{2}\.jsonl$/),
-  );
+  const dailyFiles = (await walkFiles(dailyRoot)).filter((path) => DAILY_VOTES_FILE.test(basename(path)));
   if (dailyFiles.length) return dailyFiles;
   return (await walkFiles(root)).filter((path) => basename(path) === "votes.jsonl");
 }

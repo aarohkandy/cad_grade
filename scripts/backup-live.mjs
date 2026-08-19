@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { processData, readArgs, readJsonl, timestampSlug } from "./analysis-core.mjs";
+import { DAILY_VOTES_FILE, processData, readArgs, readJsonl, timestampSlug } from "./analysis-core.mjs";
 
 const VOTE_PREFIX = "votes/v1";
 const PROTECTED_PREFIXES = ["derived/v1/", "session-pairs/v1/", "holds/v1/"];
@@ -76,8 +76,12 @@ async function postJson(url, payload, headers = {}) {
   return { ok: response.ok, status: response.status, text, body: parseJsonBody(text) };
 }
 
+// The vote's created_at comes off the wire and this names a file with it, so anything that
+// is not a plain YYYY-MM-DD goes to the unknown archive rather than to a path of its own
+// choosing. Sliced first: a full ISO timestamp is a date followed by the time.
 function dayKey(value) {
-  return typeof value === "string" && value.length >= 10 ? value.slice(0, 10) : "unknown";
+  const day = typeof value === "string" ? value.slice(0, 10) : "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "unknown";
 }
 
 function voteKey(vote) {
@@ -109,7 +113,7 @@ async function walkFiles(root) {
 }
 
 async function readExistingDailyVotes(dailyRoot) {
-  const files = (await walkFiles(dailyRoot)).filter((path) => basename(path).match(/^votes-\d{4}-\d{2}-\d{2}\.jsonl$/));
+  const files = (await walkFiles(dailyRoot)).filter((path) => DAILY_VOTES_FILE.test(basename(path)));
   const map = new Map();
   for (const file of files) {
     for (const vote of await readJsonl(file)) {

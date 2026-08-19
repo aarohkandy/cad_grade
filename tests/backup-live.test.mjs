@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it, vi } from "vitest";
@@ -29,7 +29,7 @@ import {
   verifyPruneSafety,
   writeBackupFiles,
 } from "../scripts/backup-live.mjs";
-import { readJsonl } from "../scripts/analysis-core.mjs";
+import { loadVotesFromBackupRoot, readJsonl } from "../scripts/analysis-core.mjs";
 
 function vote(id, createdAt = "2026-06-14T19:30:00.000Z") {
   return {
@@ -75,6 +75,51 @@ describe("live backup helpers", () => {
     }
   });
 
+  it("reads back the archive it writes for a vote with no usable date", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
+    const undated = { ...vote("undated"), created_at: "" };
+    try {
+      await mergeDailyVotes(dir, [undated]);
+      const second = await mergeDailyVotes(dir, [undated]);
+      expect(await readdir(join(dir, "daily"))).toEqual(["votes-unknown.jsonl"]);
+      expect(second).toMatchObject({ totalDailyVotes: 1, newVotesAdded: 0 });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  // created_at arrives from /api/export and nothing on the way in checks it is a date.
+  // Slicing ten characters off whatever turns up used to name the daily file after it,
+  // which put the vote in a file no reader matches and, for a created_at with slashes in
+  // it, outside the daily directory entirely.
+  it("files a vote whose created_at is not a date under the unknown archive", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
+    const junk = { ...vote("junk"), created_at: "not-a-real-timestamp" };
+    const escaping = { ...vote("escaping"), created_at: "/../../etc" };
+    try {
+      await mergeDailyVotes(dir, [junk, escaping]);
+      const second = await mergeDailyVotes(dir, [junk, escaping]);
+      expect(await readdir(join(dir, "daily"))).toEqual(["votes-unknown.jsonl"]);
+      expect((await readdir(dir)).sort()).toEqual(["daily", "index"]);
+      expect(second).toMatchObject({ totalDailyVotes: 2, newVotesAdded: 0 });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  // backupLive() runs the analysis over the same archive at the end of the same command, so
+  // the writer and the analysis reader have to agree on which files are part of it.
+  it("hands the analysis every daily file the backup wrote", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
+    const undated = { ...vote("undated"), created_at: "" };
+    try {
+      await mergeDailyVotes(dir, [vote("dated"), undated]);
+      const votes = await loadVotesFromBackupRoot(dir);
+      expect(votes.map((row) => row.id).sort()).toEqual(["dated", "undated"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
   it("writes snapshot, daily files, and a manifest", async () => {
     const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
     try {
