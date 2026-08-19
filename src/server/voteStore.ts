@@ -217,15 +217,14 @@ function involvedFamilies(left: ArenaItem, right: ArenaItem): ArenaFamily[] {
   return left.family === right.family ? [left.family] : [left.family, right.family];
 }
 
-export function applyVoteToSummary(
-  summary: VoteSummary,
+function foldVoteIntoSummary(
+  next: VoteSummary,
   vote: StoredVoteRecord,
   left: ArenaItem,
   right: ArenaItem,
   winner: ArenaItem | null,
   loser: ArenaItem | null,
 ): VoteSummary {
-  const next: VoteSummary = structuredClone(summary);
   const updatedAt = vote.created_at;
   next.version = SUMMARY_VERSION;
   next.updatedAtUtc = updatedAt;
@@ -309,6 +308,21 @@ export function applyVoteToSummary(
   return next;
 }
 
+// updateVoteSummary hands this the summary it just read out of storage and keeps the copy
+// it got back, so the single-vote path stays pure. summaryFromVotes owns its accumulator
+// and folds into it directly: one clone per vote costs more than everything else the
+// derivation does put together once an export is counted in thousands.
+export function applyVoteToSummary(
+  summary: VoteSummary,
+  vote: StoredVoteRecord,
+  left: ArenaItem,
+  right: ArenaItem,
+  winner: ArenaItem | null,
+  loser: ArenaItem | null,
+): VoteSummary {
+  return foldVoteIntoSummary(structuredClone(summary), vote, left, right, winner, loser);
+}
+
 export function summaryFromVotes(
   datasetId: string,
   families: ArenaFamily[],
@@ -323,7 +337,7 @@ export function summaryFromVotes(
         const right = itemLookup(vote.right_item_id);
         const winner = vote.winner_item_id ? itemLookup(vote.winner_item_id) || null : null;
         const loser = vote.loser_item_id ? itemLookup(vote.loser_item_id) || null : null;
-        return left && right ? applyVoteToSummary(summary, vote, left, right, winner, loser) : summary;
+        return left && right ? foldVoteIntoSummary(summary, vote, left, right, winner, loser) : summary;
       },
       emptySummary(datasetId, families),
     );
