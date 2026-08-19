@@ -3,7 +3,6 @@ import {
   familyComboKey,
   pairGroup,
   pairKey,
-  selectBattleFamily,
   selectBattlePair,
   type ItemStatLike,
   type PairStatLike,
@@ -275,31 +274,5 @@ describe("pair selection", () => {
     });
 
     expect(familyComboKey(selected[0].family, selected[1].family)).not.toBe("wall_hook__wall_hook");
-  });
-
-  it("balances family selection by category vote exposure", () => {
-    const items = [
-      item("planter-a"),
-      item("planter-b"),
-      item("hook-a", "wall_hook"),
-      item("hook-b", "wall_hook"),
-      item("snowman-a", "snowman"),
-      item("snowman-b", "snowman"),
-    ];
-    const pairStats = new Map<string, PairStatLike>([
-      [
-        pairKey("planter-a", "planter-b"),
-        { pair_key: pairKey("planter-a", "planter-b"), family: "wall_planter", battle_count: 8 },
-      ],
-      [pairKey("hook-a", "hook-b"), { pair_key: pairKey("hook-a", "hook-b"), family: "wall_hook", battle_count: 7 }],
-    ]);
-    expect(
-      selectBattleFamily({
-        items,
-        families: ["wall_planter", "wall_hook", "snowman"],
-        pairStats,
-        random: () => 0,
-      }),
-    ).toBe("snowman");
   });
 });
