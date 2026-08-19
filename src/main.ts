@@ -295,13 +295,12 @@ function flashShouldBurst(response: VoteResponse, streak: StreakResult): boolean
   return response.crowd.agreesWithMajority && streak.milestone;
 }
 
-function fireConfetti(streak: StreakResult): void {
+function fireConfetti(): void {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const colors = ["#eaff68", "#7fe8ad", "#4dd0ee", "#f6ffe0", "#b8ffd0"];
   const originX = window.innerWidth * 0.5;
   const originY = window.innerHeight * 0.42;
-  const count = streak.milestone ? 20 : 0;
-  if (!count) return;
+  const count = 20;
   dom.confettiLayer.replaceChildren();
   window.clearTimeout(confettiTimer);
   for (let index = 0; index < count; index += 1) {
@@ -703,7 +702,7 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
   dom.feedbackTitle.textContent = feedbackTitle(response, isDraw, streak);
   dom.feedbackCopy.textContent = feedbackLine(response, streak);
   flashResult(response.crowd.agreesWithMajority);
-  if (flashShouldBurst(response, streak)) fireConfetti(streak);
+  if (flashShouldBurst(response, streak)) fireConfetti();
   dom.roundPulse.textContent = "next";
   window.clearTimeout(autoNextTimer);
   autoNextTimer = window.setTimeout(() => {
