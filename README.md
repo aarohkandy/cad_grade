@@ -5,6 +5,18 @@ shows two STL models, lets a visitor choose the better model or mark the pair as
 a tie, and stores append-only preference data in private Vercel Blob objects for
 export and offline analysis.
 
+It is live at https://cadbattle.vercel.app. Voting needs no account and no
+setup: open it and pick.
+
+![The arena: two generated models side by side, with "A is better", "Tie" and "B is better" controls](docs/screenshot-arena.png)
+
+That is the arena running locally on a fresh clone, which is why the vote
+counter reads zero. `npm run capture:screenshot` takes the picture again from
+the built app in a headless Chromium, so it can be refreshed instead of drifting
+out of date. It draws a real pair, so the two models change from run to run.
+
+## Why
+
 The public dataset contains 94 renderable hosted Cadybara outputs, balanced
 across three object categories:
 
@@ -12,13 +24,140 @@ across three object categories:
 - 31 wall-hook models
 - 33 snowman models
 
-`GET /api/battle` sends only what a voter needs to judge a pair: id, family,
-title, and the STL and preview URLs. The validator's own verdict on each model
-(whether it passed, how confident it was, and its prose description of the spec)
-is stripped before the pair goes out, so nobody is shown the grader's opinion of
-what they are about to rate. That metadata is still in `public/data/items.json`
-for offline analysis; it is just not in front of the voter. Raw generation
-prompts are in neither place.
+Every one of them already passed automated validation. All 94 items in
+`public/data/items.json` carry `validation.valid: true`, which is the whole
+reason this exists: a validator that has already called all 94 correct has no
+opinion left to give about which of them is better, and they are plainly not
+equally good. Two models can both pass every check and still be far apart on
+proportion, on detail, and on whether the shape reads as the object it was asked
+for. Ranking that takes a person, and one pair at a time is the cheapest honest
+way to ask.
+
+Cadybara is the CAD generator the models come from; it is not part of this repo.
+What the manifest records about it is that all 94 items were produced by
+`cadybara-agent-default` through the `cadybara_api` provider, across nine
+experiment runs. Seven of the nine run ids carry a date, 2026-06-08 through
+2026-06-15; the other two carry none, and the items have no timestamp of their
+own.
+
+## Status
+
+- Deployed and taking votes. `/api/health` on the deployment reports
+  `ready: true`, `storage: "ok"` and `storageMode: "blob"`.
+- `npm run test` is 196 unit and API tests across 26 files. The browser suite is
+  separate: `npm run playwright:test` drives the built app in Chromium at
+  desktop and phone sizes.
+- The offline analysis pipeline works but needs at least one backup snapshot.
+  With none, `npm run process:data` exits 1 instead of writing an analysis of
+  zero votes.
+- `npm run dataset` rebuilds the manifest only from the private Cadybara run
+  tree and refuses to run without it. A fresh clone never needs it: the dataset
+  is committed.
+- `/api/export` is unauthenticated by design, and `?format=csv` reports neither
+  `unreadableCount` nor `summaryAvailable`. Pull JSON if you need either.
+- The hourly prune deletes through `BLOB_READ_WRITE_TOKEN`. Only if the Blob
+  listing fails does it fall back to `/api/export`, which needs `PRUNE_SECRET`
+  set in Vercel and in the local `.env.local`. Without it that fallback run
+  still writes its snapshot and rebuilds analysis, then exits 1 with the prune
+  recorded as failed.
+
+## Local Setup
+
+```bash
+npm install
+npm run test
+npm run build
+npm run dev
+```
+
+The dataset is committed, so there is nothing to generate on a fresh clone.
+`npm run check:dataset` verifies that every item in the manifest has its STL and
+preview on disk. It also pins the launch counts (94 items, 30/31/33), so it is
+expected to fail against a dataset rebuilt from a different set of runs.
+`npm run dataset` rebuilds the manifest from the private Cadybara run tree and
+refuses to run without it; if you do have that tree, point at the directory
+containing `projects/`:
+
+```bash
+npm run dataset -- --sources-root ../path/to/parent
+```
+
+`npm run dev` starts the Vite frontend and local API middleware on
+`http://127.0.0.1:5173`. Local API votes are written to the ignored
+`.local-data/blob` folder by default.
+
+To match Vercel's runtime locally, set `LOCAL_VOTE_DIR` before starting the
+server.
+
+PowerShell example:
+
+```powershell
+$env:LOCAL_VOTE_DIR=".local-data/blob"
+$env:IP_HASH_SALT="local-hash-salt"
+$env:HOLD_VERIFY_SECRET="local-hold-secret"
+npm run dev
+```
+
+`npm run test` is the unit and API suite and needs nothing extra. The browser
+tests are separate: `npm run playwright:test` serves the built `dist` with
+`vite preview` and drives the arena in Chromium at desktop and phone sizes, so
+run `npm run build` first, and `npx playwright install chromium` once on a new
+machine. `npm run capture:screenshot` uses the same built `dist` and the same
+Chromium to rewrite `docs/screenshot-arena.png`.
+
+## Repo Layout
+
+```text
+api/                Vercel Functions: battle, vote, stats, export, health, prune-votes
+src/server/         matchmaking, Elo, quality flags and vote storage, used by the
+                    API functions. scripts/analysis-core.mjs keeps a build-free copy
+                    of the same math, held to it by tests/math-parity.test.mjs
+src/client/         STL parsing (main thread and worker) and the three.js viewer
+src/main.ts         the arena UI
+src/data/           the generated manifest the API functions read
+public/data/        the same manifest as a fetchable file, for the client's offline
+                    fallback and the analysis scripts
+public/dataset/v1/  the 94 committed STL and preview pairs, 102 MB
+scripts/            the offline pipeline: dataset build, backups, analysis, screenshot
+tests/              vitest unit and API suites, plus one Playwright browser spec
+```
+
+## Battle Selection
+
+Visitors do not choose a model family. The server selects global battles across
+all active models automatically so the data stays useful:
+
+- prioritize under-sampled items
+- avoid pairs already seen by the current browser session when possible
+- avoid over-repeating the same pair
+- prefer closer Elo matchups once both items have enough scoring history
+- add a small random jitter so the queue does not feel repetitive
+
+Items without live votes still receive deterministic starting Elo estimates from
+their validation metadata, specificity, generation attempt, latency, prompt
+label, and source hash. Live votes then move those ratings normally.
+
+`GET /api/battle?family=wall_planter`, `wall_hook`, or `snowman` remains
+available as a debug filter for same-family battles.
+
+## Data Storage
+
+No Supabase database is required.
+
+Every vote is written as one private JSON object:
+
+```text
+votes/v1/YYYY-MM-DD/<timestamp>_<vote-id>.json
+```
+
+The API also writes private session-pair marker objects to reduce repeat voting
+from the same browser session. Public stats come from a best-effort summary
+object at `derived/v1/stats-summary.json`. The summary can be slightly stale
+under high concurrency; raw vote blobs are the source of truth.
+
+The app stores salted IP and user-agent hashes, not raw IP addresses or raw
+user agents. Internal Elo-like scoring is private and derived from accepted
+votes.
 
 ## Production Checklist
 
@@ -93,68 +232,6 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 For local serverless API testing, `LOCAL_VOTE_DIR` can point at a private local
 folder. Do not set `LOCAL_VOTE_DIR` in Vercel production.
-
-## Local Setup
-
-```bash
-npm install
-npm run test
-npm run build
-npm run dev
-```
-
-The dataset is committed, so there is nothing to generate on a fresh clone.
-`npm run check:dataset` verifies that every item in the manifest has its STL and
-preview on disk. It also pins the launch counts (94 items, 30/31/33), so it is
-expected to fail against a dataset rebuilt from a different set of runs.
-`npm run dataset` rebuilds the manifest from the private Cadybara run tree and
-refuses to run without it; if you do have that tree, point at the directory
-containing `projects/`:
-
-```bash
-npm run dataset -- --sources-root ../path/to/parent
-```
-
-`npm run dev` starts the Vite frontend and local API middleware on
-`http://127.0.0.1:5173`. Local API votes are written to the ignored
-`.local-data/blob` folder by default.
-
-To match Vercel's runtime locally, set `LOCAL_VOTE_DIR` before starting the
-server.
-
-PowerShell example:
-
-```powershell
-$env:LOCAL_VOTE_DIR=".local-data/blob"
-$env:IP_HASH_SALT="local-hash-salt"
-$env:HOLD_VERIFY_SECRET="local-hold-secret"
-npm run dev
-```
-
-`npm run test` is the unit and API suite and needs nothing extra. The browser
-tests are separate: `npm run playwright:test` serves the built `dist` with
-`vite preview` and drives the arena in Chromium at desktop and phone sizes, so
-run `npm run build` first, and `npx playwright install chromium` once on a new
-machine.
-
-## Data Storage
-
-No Supabase database is required.
-
-Every vote is written as one private JSON object:
-
-```text
-votes/v1/YYYY-MM-DD/<timestamp>_<vote-id>.json
-```
-
-The API also writes private session-pair marker objects to reduce repeat voting
-from the same browser session. Public stats come from a best-effort summary
-object at `derived/v1/stats-summary.json`. The summary can be slightly stale
-under high concurrency; raw vote blobs are the source of truth.
-
-The app stores salted IP and user-agent hashes, not raw IP addresses or raw
-user agents. Internal Elo-like scoring is private and derived from accepted
-votes.
 
 ## Local Backups And Analysis
 
@@ -240,24 +317,6 @@ locally:
 npm run backup:test-click
 ```
 
-## Battle Selection
-
-Visitors do not choose a model family. The server selects global battles across
-all active models automatically so the data stays useful:
-
-- prioritize under-sampled items
-- avoid pairs already seen by the current browser session when possible
-- avoid over-repeating the same pair
-- prefer closer Elo matchups once both items have enough scoring history
-- add a small random jitter so the queue does not feel repetitive
-
-Items without live votes still receive deterministic starting Elo estimates from
-their validation metadata, specificity, generation attempt, latency, prompt
-label, and source hash. Live votes then move those ratings normally.
-
-`GET /api/battle?family=wall_planter`, `wall_hook`, or `snowman` remains
-available as a debug filter for same-family battles.
-
 ## Export
 
 Export is intentionally unlisted but not locked behind login. Anyone who knows
@@ -328,6 +387,14 @@ npm run pull:data -- \
 - `GET /api/stats`
 - `GET /api/export?format=json|csv`
 - `GET /api/health`
+
+`GET /api/battle` sends only what a voter needs to judge a pair: id, family and
+its display label, title, and the STL and preview URLs. The validator's own
+verdict on each model (whether it passed, how confident it was, and its prose
+description of the spec) is stripped before the pair goes out, so nobody is
+shown the grader's opinion of what they are about to rate. That metadata is still in `public/data/items.json`
+for offline analysis; it is just not in front of the voter. Raw generation
+prompts are in neither place.
 
 `POST /api/vote` answers a body it cannot use with a 400 rather than a 500:
 `invalid_json` for a body that is not JSON, `invalid_payload` for one that is not
