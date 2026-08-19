@@ -26,7 +26,8 @@
     "pull:votes": "node scripts/pull-votes.mjs",
     "serve:trends": "node scripts/serve-trends.mjs",
     "playwright": "node scripts/browser-smoke.mjs",
-    "playwright:test": "playwright test"
+    "playwright:test": "playwright test",
+    "capture:screenshot": "node scripts/capture-arena-screenshot.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.4.0",
