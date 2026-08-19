@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createHoldChallenge } from "../src/server/hold.js";
+import { createHoldChallenge, holdSecret } from "../src/server/hold.js";
 import { activeItems, dataset, itemsForFamily, normalizeFamily, publicItem } from "../src/server/items.js";
 import { battleId, pairGroup, selectBattlePair, type ItemStatLike, type PairStatLike } from "../src/server/pairs.js";
 import { firstQueryValue, methodAllowed, noStore } from "../src/server/http.js";
@@ -48,14 +48,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     pairStats,
   });
   const family = pairGroup(left, right);
+  const id = battleId(left.id, right.id);
 
   res.status(200).json({
-    battleId: battleId(left.id, right.id),
+    battleId: id,
     datasetId: dataset.datasetId,
     family,
     left: publicItem(left),
     right: publicItem(right),
-    hold: createHoldChallenge(),
+    hold: createHoldChallenge(holdSecret(), Date.now(), Math.random, id),
     stats: {
       itemCount: activeItems.length,
       familyItemCount: candidateItems.length,

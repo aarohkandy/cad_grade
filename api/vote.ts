@@ -9,7 +9,7 @@ import {
 } from "../src/server/elo.js";
 import { isVercelRuntime, missingProductionEnv, productionVoteEnvReady } from "../src/server/env.js";
 import { safeHash } from "../src/server/hash.js";
-import { verifyHoldSubmission } from "../src/server/hold.js";
+import { holdSecret, verifyHoldSubmission } from "../src/server/hold.js";
 import { JsonBodyError, clientIp, methodAllowed, noStore, readJsonBody } from "../src/server/http.js";
 import { dataset, itemById } from "../src/server/items.js";
 import { pairGroup, pairKey } from "../src/server/pairs.js";
@@ -236,7 +236,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const loser = winner ? (winner.id === left.id ? right : left) : null;
     const family = pairGroup(left, right);
     const holdSubmitted = Boolean(payload.hold);
-    const hold = holdSubmitted ? verifyHoldSubmission(payload.hold) : { valid: false, flags: [] };
+    const hold = holdSubmitted
+      ? verifyHoldSubmission(payload.hold, holdSecret(), Date.now(), payload.battle_id)
+      : { valid: false, flags: [] };
     const sessionHash = safeHash(checked.sessionId || "missing-session");
     const markerPath = sessionPairPath(sessionHash, family, left.id, right.id);
     const duplicatePair = await sessionPairAlreadySeen(markerPath);

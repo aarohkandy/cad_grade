@@ -209,7 +209,7 @@ describe("vote payload validation", () => {
   });
 
   it("accepts the same fast vote when the hold is real", async () => {
-    const challenge = createHoldChallenge("hold-secret", now - 1000, () => 0);
+    const challenge = createHoldChallenge("hold-secret", now - 1000, () => 0, "battle-validation");
     const response = await post(
       humanPacedVote({
         session_id: "session-real-hold-1",

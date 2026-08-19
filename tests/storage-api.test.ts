@@ -93,7 +93,7 @@ describe("local storage api flow", () => {
     const right = items.at(-1);
     if (!left || !right) throw new Error("missing test items");
     const now = Date.now();
-    const hold = createHoldChallenge("hold-secret", now - 1000, () => 0);
+    const hold = createHoldChallenge("hold-secret", now - 1000, () => 0, "battle-test");
     const voteResponse = mockResponse();
 
     await voteHandler(

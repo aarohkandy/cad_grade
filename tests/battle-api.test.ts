@@ -3,7 +3,9 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import battleHandler from "../api/battle";
+import { holdSecret, verifyHoldSubmission } from "../src/server/hold";
 import { SUMMARY_PATH } from "../src/server/voteStore";
+import type { HoldChallenge } from "../src/shared/types";
 
 const GRADER_ONLY_FIELDS = [
   "validation",
@@ -18,6 +20,7 @@ const GRADER_ONLY_FIELDS = [
 
 interface BattleBody {
   battleId: string;
+  hold: HoldChallenge;
   left: Record<string, unknown>;
   right: Record<string, unknown>;
   stats: { historyAvailable: boolean; dataMode: string };
@@ -88,6 +91,20 @@ describe("battle api", () => {
     // The validator's prose is the most damaging field to leak: it tells the
     // voter which model the arena thinks is correct before they pick one.
     expect(JSON.stringify(battle)).not.toContain("brief_reason");
+  });
+
+  it("issues a hold challenge good only for the battle it came with", async () => {
+    const battle = await requestBattle();
+    const otherBattle = await requestBattle();
+    const submission = { ...battle.hold, heldMs: battle.hold.targetMs };
+
+    expect(verifyHoldSubmission(submission, holdSecret(), Date.now(), battle.battleId)).toEqual({
+      valid: true,
+      flags: [],
+    });
+    expect(verifyHoldSubmission(submission, holdSecret(), Date.now(), otherBattle.battleId).flags).toEqual([
+      "bad_hold_token",
+    ]);
   });
 
   it("reports history as available when the summary reads cleanly", async () => {

@@ -1,15 +1,15 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { HoldChallenge, HoldSubmission } from "../shared/types";
 
-// A token is signed but never spent, and nothing ties it to a session or a battle, so one
-// cleared challenge replays across every vote sent inside this window. Binding it needs a
-// nonce issued by api/battle.ts and consumed by api/vote.ts; until then this is the limit.
+// The signature covers the battle the challenge was issued for and api/vote.ts spends the
+// challenge id on the vote that clears it, so this window only bounds how long an unused
+// challenge stays good.
 const MAX_AGE_MS = 10 * 60 * 1000;
 const MIN_TARGET_MS = 850;
 const MAX_TARGET_MS = 1700;
 
-function sign(secret: string, challengeId: string, targetMs: number, issuedAt: number): string {
-  return createHmac("sha256", secret).update(`${challengeId}|${targetMs}|${issuedAt}`).digest("hex");
+function sign(secret: string, challengeId: string, targetMs: number, issuedAt: number, battleId: string): string {
+  return createHmac("sha256", secret).update(`${challengeId}|${targetMs}|${issuedAt}|${battleId}`).digest("hex");
 }
 
 export function holdSecret(): string {
@@ -17,30 +17,39 @@ export function holdSecret(): string {
 }
 
 /**
- * Issues a signed "hold to verify" challenge: a randomised target duration plus
- * an HMAC token binding the challenge id, target, and issue time. The token lets
- * the server verify a later submission without storing any challenge state.
+ * Issues a signed "hold to verify" challenge: a randomised target duration plus an
+ * HMAC token binding the challenge id, target, issue time, and the battle the
+ * challenge belongs to. A token minted for one battle does not verify against
+ * another, so a cleared hold cannot be carried over to a different vote.
  */
-export function createHoldChallenge(secret = holdSecret(), now = Date.now(), random = Math.random): HoldChallenge {
+export function createHoldChallenge(
+  secret = holdSecret(),
+  now = Date.now(),
+  random = Math.random,
+  battleId = "",
+): HoldChallenge {
   const targetMs = Math.round(MIN_TARGET_MS + random() * (MAX_TARGET_MS - MIN_TARGET_MS));
   const challengeId = randomUUID();
   return {
     challengeId,
     targetMs,
     issuedAt: now,
-    token: sign(secret, challengeId, targetMs, now),
+    token: sign(secret, challengeId, targetMs, now, battleId),
   };
 }
 
 /**
  * Validates a hold submission against its signed challenge: constant-time token
  * check, freshness window, and confirmation that the user held for close to (and
- * not absurdly longer than) the target. Returns the failure flags, if any.
+ * not absurdly longer than) the target. The signature is recomputed over the battle
+ * id the caller is voting on, so a token pointed at another battle fails as a bad
+ * token. Returns the failure flags, if any.
  */
 export function verifyHoldSubmission(
   submission: HoldSubmission | null | undefined,
   secret = holdSecret(),
   now = Date.now(),
+  battleId = "",
 ): { valid: boolean; flags: string[] } {
   const flags: string[] = [];
   if (!submission) return { valid: false, flags: ["missing_hold"] };
@@ -59,7 +68,7 @@ export function verifyHoldSubmission(
   if (now - submission.issuedAt > MAX_AGE_MS || submission.issuedAt - now > 30_000) {
     flags.push("hold_expired");
   }
-  const expected = sign(secret, submission.challengeId, submission.targetMs, submission.issuedAt);
+  const expected = sign(secret, submission.challengeId, submission.targetMs, submission.issuedAt, battleId);
   const token = String(submission.token);
   const expectedBuffer = Buffer.from(expected, "hex");
   const actualBuffer = Buffer.from(token, "hex");

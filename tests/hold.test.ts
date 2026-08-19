@@ -54,6 +54,20 @@ describe("hold verification", () => {
     });
   });
 
+  it("only verifies against the battle the challenge was issued for", () => {
+    const challenge = createHoldChallenge(SECRET, ISSUED_AT, () => 0.5, "battle_alpha");
+    const submission = { ...challenge, heldMs: challenge.targetMs };
+
+    expect(verifyHoldSubmission(submission, SECRET, SOON_AFTER, "battle_alpha")).toEqual({ valid: true, flags: [] });
+    expect(verifyHoldSubmission(submission, SECRET, SOON_AFTER, "battle_beta")).toEqual({
+      valid: false,
+      flags: ["bad_hold_token"],
+    });
+    // There is nothing for a caller to strip: the signature is recomputed over the battle id
+    // the vote claims, so leaving it out is just another battle the token was not minted for.
+    expect(verifyHoldSubmission(submission, SECRET, SOON_AFTER).flags).toEqual(["bad_hold_token"]);
+  });
+
   it("expires a submission past the ten-minute window", () => {
     const submission = held();
     expect(verifyHoldSubmission(submission, SECRET, ISSUED_AT + MAX_AGE_MS)).toEqual({ valid: true, flags: [] });
