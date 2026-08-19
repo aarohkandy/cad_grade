@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -123,9 +123,50 @@ async function readExistingDailyVotes(dailyRoot) {
   return map;
 }
 
+// readJsonl throws on a line it cannot parse, which is what the merge wants. The prune check
+// wants the opposite: a half-written line is exactly what it is looking for, so drop it and
+// let the vote come back missing rather than taking the run down with a syntax error.
+async function readJsonlBestEffort(path) {
+  if (!existsSync(path)) return [];
+  const rows = [];
+  for (const line of (await readFile(path, "utf8")).split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      rows.push(JSON.parse(trimmed));
+    } catch {
+      continue;
+    }
+  }
+  return rows;
+}
+
 async function writeJsonl(path, rows) {
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, rows.map((row) => JSON.stringify(row)).join("\n") + (rows.length ? "\n" : ""), "utf8");
+  const body = rows.map((row) => JSON.stringify(row)).join("\n") + (rows.length ? "\n" : "");
+  // The daily archive is the accumulated history and it is rewritten whole on every run, so
+  // a process killed part way through a plain writeFile leaves a truncated file that the
+  // next run reads back as the complete archive. Same temp-file-and-rename as writeLocalJson.
+  const temporaryPath = `${path}.${randomUUID()}.tmp`;
+  await writeFile(temporaryPath, body, "utf8");
+  try {
+    await rename(temporaryPath, path);
+  } catch (error) {
+    await rm(temporaryPath, { force: true });
+    throw error;
+  }
+}
+
+// writeJsonl cleans up after a failed rename, but not after a process killed between the
+// write and the rename, and the archive is rewritten whole every hour. Every temp name is a
+// fresh uuid, so anything matching here is from a run that is over. Sweeping assumes one
+// backup at a time, which is what the hourly job does.
+const ARCHIVE_TEMP_FILE = /\.jsonl\.[0-9a-f-]{36}\.tmp$/;
+
+async function removeStaleArchiveTemps(dailyRoot) {
+  for (const path of await walkFiles(dailyRoot)) {
+    if (ARCHIVE_TEMP_FILE.test(basename(path))) await rm(path, { force: true });
+  }
 }
 
 export function completedHourCutoff(now = new Date()) {
@@ -160,8 +201,26 @@ export function verifyPruneSafety({ candidates, snapshotVotes, dailyVotes }) {
   return { ok: failures.length === 0, failures };
 }
 
+// verifyPruneSafety only proves a vote reached the array that was handed to the writer.
+// Deleting a raw vote blob cannot be undone, so read the snapshot and the daily archive back
+// off disk first and check the candidates against the bytes that actually landed.
+export async function verifyPruneSafetyOnDisk({ candidates, snapshotDir, outRoot }) {
+  if (!candidates.length) return { ok: true, failures: [] };
+  const dailyFiles = (await walkFiles(join(outRoot, "daily"))).filter((path) => DAILY_VOTES_FILE.test(basename(path)));
+  const dailyVotes = [];
+  for (const file of dailyFiles) {
+    dailyVotes.push(...(await readJsonlBestEffort(file)));
+  }
+  return verifyPruneSafety({
+    candidates,
+    snapshotVotes: await readJsonlBestEffort(join(snapshotDir, "votes.jsonl")),
+    dailyVotes,
+  });
+}
+
 export async function mergeDailyVotes(outRoot, votes) {
   const dailyRoot = join(outRoot, "daily");
+  await removeStaleArchiveTemps(dailyRoot);
   const existing = await readExistingDailyVotes(dailyRoot);
   const beforeCount = existing.size;
   for (const vote of votes) {
@@ -431,10 +490,10 @@ export async function backupLive({
   });
 
   const pruneCandidates = prune === "completed-hour" ? pruneCandidatesForCompletedHour(records, now) : [];
-  const safety = verifyPruneSafety({
+  const safety = await verifyPruneSafetyOnDisk({
     candidates: pruneCandidates,
-    snapshotVotes: backup.votes,
-    dailyVotes: backup.dailyVotes,
+    snapshotDir: backup.snapshotDir,
+    outRoot,
   });
 
   let pruneResult = { deleted: [], failed: [] };

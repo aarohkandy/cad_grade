@@ -1,4 +1,5 @@
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it, vi } from "vitest";
@@ -18,6 +19,27 @@ vi.mock("@vercel/blob", () => ({
   },
 }));
 
+// The daily archive lands with a rename, so wrapping rename is the one place a test can act
+// in the window between the archive being written and the prune reading it back — the window
+// a killed process leaves a half-written file in. Everything else is the real fs.
+const archiveWrites = vi.hoisted(() => ({ renamed: [], truncate: null, fail: null }));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    rename: async (from, to) => {
+      const target = String(to);
+      if (archiveWrites.fail && target.endsWith(archiveWrites.fail)) throw new Error("rename interrupted");
+      await actual.rename(from, to);
+      archiveWrites.renamed.push(target);
+      if (archiveWrites.truncate && target.endsWith(archiveWrites.truncate)) {
+        await actual.writeFile(to, '{"id":"old","created', "utf8");
+      }
+    },
+  };
+});
+
 import {
   backupLive,
   completedHourCutoff,
@@ -27,6 +49,7 @@ import {
   mergeDailyVotes,
   pruneCandidatesForCompletedHour,
   verifyPruneSafety,
+  verifyPruneSafetyOnDisk,
   writeBackupFiles,
 } from "../scripts/backup-live.mjs";
 import { loadVotesFromBackupRoot, readJsonl } from "../scripts/analysis-core.mjs";
@@ -120,6 +143,49 @@ describe("live backup helpers", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("swaps a whole daily archive in instead of rewriting it in place", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
+    archiveWrites.renamed.length = 0;
+    try {
+      await mergeDailyVotes(dir, [vote("a"), vote("b")]);
+      const dailyRoot = join(dir, "daily");
+      expect(archiveWrites.renamed).toEqual([join(dailyRoot, "votes-2026-06-14.jsonl")]);
+      expect(await readdir(dailyRoot)).toEqual(["votes-2026-06-14.jsonl"]);
+      expect((await readJsonl(join(dailyRoot, "votes-2026-06-14.jsonl"))).map((row) => row.id)).toEqual(["a", "b"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves no temp file behind when the archive swap fails", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
+    archiveWrites.fail = "votes-2026-06-14.jsonl";
+    try {
+      await expect(mergeDailyVotes(dir, [vote("a")])).rejects.toThrow("rename interrupted");
+      expect(await readdir(join(dir, "daily"))).toEqual([]);
+    } finally {
+      archiveWrites.fail = null;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  // A process killed between the archive write and the rename leaves its temp file behind,
+  // and nothing else in the repo ever looks at one again.
+  it("clears a temp file a killed run left in the archive", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
+    const dailyRoot = join(dir, "daily");
+    const leftover = join(dailyRoot, `votes-2026-06-14.jsonl.${randomUUID()}.tmp`);
+    try {
+      await mkdir(dailyRoot, { recursive: true });
+      await writeFile(leftover, '{"id":"half-writ', "utf8");
+      await mergeDailyVotes(dir, [vote("a")]);
+      expect(await readdir(dailyRoot)).toEqual(["votes-2026-06-14.jsonl"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("writes snapshot, daily files, and a manifest", async () => {
     const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
     try {
@@ -429,6 +495,60 @@ describe("live backup helpers", () => {
     }
   });
 
+  it("refuses to prune a vote the archive on disk lost after it was written", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
+    const originalFetch = globalThis.fetch;
+    const originalToken = process.env.BLOB_READ_WRITE_TOKEN;
+    const originalSecret = process.env.PRUNE_SECRET;
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    // A usable secret on purpose: a guard that passes would reach a real prune request, and
+    // the assertion below has to fail loudly rather than be saved by a missing credential.
+    process.env.PRUNE_SECRET = "prune-secret-value";
+    const requested = [];
+    globalThis.fetch = async (url) => {
+      const href = String(url);
+      requested.push(href);
+      if (href.includes("/api/export")) {
+        return new Response(JSON.stringify({ votes: [vote("old", "2026-06-14T19:59:59.000Z")] }), { status: 200 });
+      }
+      if (href.includes("/api/health")) return new Response(JSON.stringify({ ready: true }), { status: 200 });
+      if (href.includes("/api/stats")) return new Response(JSON.stringify({ totalVotes: 1 }), { status: 200 });
+      if (href.includes("/api/prune-votes")) {
+        return new Response(JSON.stringify({ deleted: ["votes/v1/2026-06-14/old.json"], failed: [] }), { status: 200 });
+      }
+      throw new Error(`unexpected fetch ${href}`);
+    };
+    // Cut the archive short the instant it lands, which is what a process killed between the
+    // write and the prune leaves behind.
+    archiveWrites.truncate = "votes-2026-06-14.jsonl";
+    try {
+      await expect(
+        backupLive({
+          baseUrl: "https://cadbattle.vercel.app",
+          outRoot: dir,
+          prune: "completed-hour",
+          shouldProcess: false,
+          loadEnv: false,
+          now: new Date("2026-06-14T20:42:00.000Z"),
+        }),
+      ).rejects.toThrow("Refusing to prune: votes/v1/2026-06-14/old.json: missing from daily archive");
+
+      expect(requested.some((href) => href.includes("/api/prune-votes"))).toBe(false);
+      const manifestPath = join(dir, "2026-06-14", "20-42-00-000Z", "prune-manifest.json");
+      const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+      expect(manifest.ok).toBe(false);
+      expect(manifest.deleted).toEqual([]);
+      expect(manifest.failures).toEqual(["votes/v1/2026-06-14/old.json: missing from daily archive"]);
+    } finally {
+      archiveWrites.truncate = null;
+      globalThis.fetch = originalFetch;
+      if (originalToken !== undefined) process.env.BLOB_READ_WRITE_TOKEN = originalToken;
+      if (originalSecret === undefined) delete process.env.PRUNE_SECRET;
+      else process.env.PRUNE_SECRET = originalSecret;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("selects only old raw vote blobs for completed-hour pruning", () => {
     const candidates = pruneCandidatesForCompletedHour(
       [
@@ -446,5 +566,37 @@ describe("live backup helpers", () => {
     expect(verifyPruneSafety({ candidates, snapshotVotes: [], dailyVotes: [vote("old")] }).ok).toBe(false);
     expect(verifyPruneSafety({ candidates, snapshotVotes: [vote("old")], dailyVotes: [] }).ok).toBe(false);
     expect(verifyPruneSafety({ candidates, snapshotVotes: [vote("old")], dailyVotes: [vote("old")] }).ok).toBe(true);
+  });
+
+  it("checks candidates against the archives on disk, not the arrays they were written from", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
+    const candidates = [{ vote: vote("old"), pathname: "votes/v1/2026-06-14/old.json" }];
+    try {
+      const backup = await writeBackupFiles({
+        outRoot: dir,
+        baseUrl: "https://cadbattle.vercel.app",
+        health: { ready: true },
+        stats: { totalVotes: 1 },
+        records: candidates,
+        now: new Date("2026-06-14T20:42:00.000Z"),
+      });
+      const snapshotDir = backup.snapshotDir;
+      expect(await verifyPruneSafetyOnDisk({ candidates, snapshotDir, outRoot: dir })).toEqual({
+        ok: true,
+        failures: [],
+      });
+
+      await writeFile(join(snapshotDir, "votes.jsonl"), '{"id":"old","crea', "utf8");
+      expect(await verifyPruneSafetyOnDisk({ candidates, snapshotDir, outRoot: dir })).toEqual({
+        ok: false,
+        failures: ["votes/v1/2026-06-14/old.json: missing from snapshot"],
+      });
+
+      await rm(join(dir, "daily"), { recursive: true, force: true });
+      const bothGone = await verifyPruneSafetyOnDisk({ candidates, snapshotDir, outRoot: dir });
+      expect(bothGone.failures).toContain("votes/v1/2026-06-14/old.json: missing from daily archive");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
