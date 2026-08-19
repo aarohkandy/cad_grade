@@ -5,6 +5,10 @@ import { EMPTY_STL_ERROR } from "./stlParse";
 
 const GEOMETRY_CACHE_LIMIT = 24;
 const EDGE_VERTEX_LIMIT = 150000;
+// The worker fetches the model as well as parsing it, and the largest STL in the dataset is
+// 3.6 MB, so this has to cover a slow phone downloading one. Twice the 30s the browser specs
+// allow for a model to appear.
+const WORKER_REQUEST_TIMEOUT_MS = 60_000;
 const geometryCache = new Map<string, Promise<THREE.BufferGeometry>>();
 const stlLoader = new STLLoader();
 let worker: Worker | null = null;
@@ -18,6 +22,7 @@ const workerRequests = new Map<
   {
     resolve: (geometry: THREE.BufferGeometry) => void;
     reject: (error: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
   }
 >();
 
@@ -33,15 +38,36 @@ function geometryFromArrays(positions: Float32Array, normals: Float32Array): THR
   return geometry;
 }
 
-// A worker that never answers leaves its requests pending forever and the arena sits in
-// its loading state with no error and no retry. Fail them all and drop the worker so the
-// next load rebuilds it.
+// The worker awaits its fetch, so it handles a second message while the first is still in
+// flight: requests overlap rather than queue. A deadline therefore belongs to one request
+// and not to whatever else happens to be on the worker at the time.
+function timeOutRequest(id: number): void {
+  const request = workerRequests.get(id);
+  if (!request) return;
+  workerRequests.delete(id);
+  clearTimeout(request.timer);
+  request.reject(new Error(`STL worker did not answer within ${WORKER_REQUEST_TIMEOUT_MS / 1000}s`));
+  // A worker that missed a deadline is wedged, and terminating is the only way to reclaim
+  // it. Waiting until it is idle keeps that from cancelling a load that still has time on
+  // its own clock; those requests will arrive here in turn if the worker really is stuck.
+  if (workerRequests.size === 0) {
+    worker?.terminate();
+    worker = null;
+  }
+}
+
+// A worker that died takes every request on it down, so these get failed together: nothing
+// is going to answer them and the arena would sit in its loading state with no error and
+// no retry. Dropping the handle makes the next load build a fresh worker.
 function failPendingRequests(reason: string): void {
   worker?.terminate();
   worker = null;
   const pending = [...workerRequests.values()];
   workerRequests.clear();
-  for (const request of pending) request.reject(new Error(reason));
+  for (const request of pending) {
+    clearTimeout(request.timer);
+    request.reject(new Error(reason));
+  }
 }
 
 function createWorker(): Worker {
@@ -57,6 +83,7 @@ function createWorker(): Worker {
     const request = workerRequests.get(event.data.id);
     if (!request) return;
     workerRequests.delete(event.data.id);
+    clearTimeout(request.timer);
     if (event.data.error || !event.data.positions || !event.data.normals) {
       request.reject(new Error(event.data.error || "STL parse failed"));
       return;
@@ -74,7 +101,10 @@ function parseInWorker(stlUrl: string): Promise<THREE.BufferGeometry> | null {
 
   return new Promise((resolve, reject) => {
     const id = workerRequestId++;
-    workerRequests.set(id, { resolve, reject });
+    // onerror only fires for a worker that died. One that is alive and silent has to be
+    // given up on from this side.
+    const timer = setTimeout(() => timeOutRequest(id), WORKER_REQUEST_TIMEOUT_MS);
+    workerRequests.set(id, { resolve, reject, timer });
     target.postMessage({ id, url: stlUrl });
   });
 }
@@ -124,6 +154,16 @@ async function cachedGeometry(stlUrl: string): Promise<THREE.BufferGeometry> {
     },
   );
   return (await loading).clone();
+}
+
+// For tests. The module keeps one worker for the life of the page, which is right in a
+// browser and wrong in a suite: a test that stubs Worker otherwise hands its stub to
+// whichever test runs next, and the file only passes in the order it was written.
+export function resetStlWorkerForTests(): void {
+  worker?.terminate();
+  worker = null;
+  for (const request of workerRequests.values()) clearTimeout(request.timer);
+  workerRequests.clear();
 }
 
 export function preloadStlGeometry(stlUrl: string): void {
