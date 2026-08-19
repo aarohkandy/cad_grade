@@ -198,6 +198,8 @@ export class StlViewer {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
+    // Two of these run side by side on whatever phone the voter has. Three lights and the
+    // edge overlay carry the shape, so nothing here pays for a shadow pass.
     this.renderer.shadowMap.enabled = false;
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -214,7 +216,6 @@ export class StlViewer {
 
     const key = new THREE.DirectionalLight(0xffffff, 2.1);
     key.position.set(120, -150, 160);
-    key.castShadow = true;
     this.scene.add(key);
 
     const fill = new THREE.DirectionalLight(0x9bdcff, 0.85);
@@ -227,7 +228,6 @@ export class StlViewer {
 
     this.grid = new THREE.GridHelper(180, 18, 0x86a894, 0x355247);
     this.grid.rotation.x = Math.PI / 2;
-    this.grid.name = "floor-grid";
     this.scene.add(this.grid);
 
     window.addEventListener("resize", this.resize);
@@ -252,8 +252,6 @@ export class StlViewer {
       }),
     );
     mesh.name = label;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
     this.clearRoot();
     this.root.add(mesh);
     this.root.rotation.set(0, 0, 0);
@@ -384,7 +382,6 @@ export class StlViewer {
     this.controls.target.set(center.x, center.y, center.z);
     this.controls.update();
 
-    const floor = this.scene.getObjectByName("floor-grid");
-    if (floor) floor.position.set(center.x, center.y, box.min.z - 0.5);
+    this.grid.position.set(center.x, center.y, box.min.z - 0.5);
   }
 }
