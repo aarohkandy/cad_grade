@@ -391,6 +391,18 @@ async function deleteBlobPaths(paths) {
   return { deleted, failed };
 }
 
+// This list lands in prune-manifest.json, which is where someone looks to find out what is
+// still live, so it gets one shape whatever the endpoint sent.
+function failureEntry(entry) {
+  // String(entry) on an object is "[object Object]", which throws away the one thing the
+  // manifest is for. A deployment running a different build is exactly when that happens.
+  const reason = entry?.error ?? entry;
+  return {
+    paths: Array.isArray(entry?.paths) ? entry.paths.filter((path) => typeof path === "string") : [],
+    error: typeof reason === "object" && reason !== null ? JSON.stringify(reason) : String(reason),
+  };
+}
+
 export async function deleteRemoteVotePaths({ baseUrl, paths }) {
   if (!paths.length) return { deleted: [], failed: [] };
   const secret = process.env.PRUNE_SECRET;
@@ -418,14 +430,15 @@ export async function deleteRemoteVotePaths({ baseUrl, paths }) {
     const batchDeleted = Array.isArray(response.body?.deleted)
       ? response.body.deleted.filter((path) => typeof path === "string")
       : [];
+    const batchFailed = (Array.isArray(response.body?.failed) ? response.body.failed : []).map(failureEntry);
     deleted.push(...batchDeleted);
-    if (Array.isArray(response.body?.failed)) failed.push(...response.body.failed);
+    failed.push(...batchFailed);
 
     // The deployment re-filters against its own clock and still answers 200 for what it
     // rejected, so anything back in neither list is still live and counts as a failure.
     const accounted = new Set(batchDeleted);
-    for (const entry of Array.isArray(response.body?.failed) ? response.body.failed : []) {
-      for (const path of Array.isArray(entry?.paths) ? entry.paths : []) accounted.add(path);
+    for (const entry of batchFailed) {
+      for (const path of entry.paths) accounted.add(path);
     }
     const unaccounted = chunk.filter((path) => !accounted.has(path));
     if (unaccounted.length) {

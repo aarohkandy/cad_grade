@@ -377,6 +377,42 @@ describe("live backup helpers", () => {
     }
   });
 
+  it("gives the manifest one shape for whatever the deployment calls a failure", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalSecret = process.env.PRUNE_SECRET;
+    process.env.PRUNE_SECRET = "prune-secret-value";
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          deleted: [],
+          failed: [
+            { error: "no paths on this one" },
+            "just a string",
+            // A shape this build does not know about, which is the case the normalization
+            // exists for: keep whatever the deployment said rather than "[object Object]".
+            { path: "votes/v1/2026-06-14/other.json", message: "blob store rejected" },
+          ],
+        }),
+        { status: 200 },
+      );
+    try {
+      const result = await deleteRemoteVotePaths({
+        baseUrl: "https://cadbattle.vercel.app",
+        paths: ["votes/v1/2026-06-14/old.json"],
+      });
+      expect(result.failed).toEqual([
+        { paths: [], error: "no paths on this one" },
+        { paths: [], error: "just a string" },
+        { paths: [], error: '{"path":"votes/v1/2026-06-14/other.json","message":"blob store rejected"}' },
+        { paths: ["votes/v1/2026-06-14/old.json"], error: expect.stringContaining("neither deleted nor reported") },
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalSecret === undefined) delete process.env.PRUNE_SECRET;
+      else process.env.PRUNE_SECRET = originalSecret;
+    }
+  });
+
   it("still archives the votes when the deployment's health and stats endpoints are down", async () => {
     const dir = await mkdtemp(join(tmpdir(), "cad-backup-"));
     const originalFetch = globalThis.fetch;
