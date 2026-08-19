@@ -362,7 +362,16 @@ describe("local storage api flow", () => {
       saved: true,
       acceptedForScoring: true,
     });
-    expect((voteResponse.body as VoteResponse).agreementLabel.toLowerCase()).toContain("tie");
+    // No one has voted on this pair yet, so the tie read comes off the ratings. This is the
+    // object the feedback panel renders from: "Good tie" over "N% agreed - rating estimate".
+    const tieCrowd = (voteResponse.body as VoteResponse).crowd;
+    expect(tieCrowd).toMatchObject({
+      agreesWithMajority: true,
+      source: "elo",
+      confidence: "low",
+      sampleSize: 0,
+    });
+    expect(tieCrowd.agreementPercent).toBeGreaterThan(50);
 
     const statsResponse = mockResponse();
     await statsHandler({ method: "GET", headers: {}, query: {} } as never, statsResponse as never);

@@ -196,13 +196,6 @@ function crowdEstimate(input: {
   } as const;
 }
 
-function crowdAgreementLabel(input: ReturnType<typeof crowdEstimate>, isDraw: boolean): string {
-  const action = isDraw ? "call it a tie" : "pick the same model";
-  const source =
-    input.confidence === "high" ? "crowd read" : input.source === "direct" ? "early crowd read" : "rating estimate";
-  return `${input.agreementPercent}% would ${action} (${source}).`;
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);
   if (!methodAllowed(req, res, ["POST"])) return;
@@ -365,8 +358,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       saved: true,
       summaryUpdated,
       acceptedForScoring: quality.acceptedForScoring,
-      agreementPercent: priorCrowd.agreementPercent,
-      agreementLabel: crowdAgreementLabel(priorCrowd, isDraw),
       crowd: priorCrowd,
       dataMode: mode === "blob" ? "live" : "local",
       qualityFlags,

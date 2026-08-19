@@ -424,11 +424,6 @@ function localCrowdEstimate(left: ArenaItem, right: ArenaItem, choice: VoteChoic
   };
 }
 
-function localAgreementLabel(crowd: VoteResponse["crowd"], isDraw: boolean): string {
-  const action = isDraw ? "call it a tie" : "pick the same model";
-  return `${crowd.agreementPercent}% would ${action} (rating estimate).`;
-}
-
 async function localBattle(): Promise<CurrentBattle> {
   const dataset = await localDataset();
   const priorPairs = seenPairs();
@@ -666,8 +661,6 @@ async function submitVote(choice: VoteChoice, heldMs: number | null): Promise<vo
         saved: true,
         summaryUpdated: false,
         acceptedForScoring: false,
-        agreementPercent: localCrowd?.agreementPercent || 50,
-        agreementLabel: localCrowd ? localAgreementLabel(localCrowd, isDraw) : "Vote saved.",
         crowd: localCrowd || {
           agreementPercent: 50,
           agreesWithMajority: false,

@@ -92,8 +92,6 @@ export interface VoteResponse {
   saved: boolean;
   summaryUpdated: boolean;
   acceptedForScoring: boolean;
-  agreementPercent: number;
-  agreementLabel: string;
   crowd: {
     agreementPercent: number;
     agreesWithMajority: boolean;
