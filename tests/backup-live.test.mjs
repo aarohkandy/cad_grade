@@ -57,6 +57,7 @@ describe("live backup helpers", () => {
     expect(isProtectedBlobPath("votes/v1/2026-06-14/a.json")).toBe(false);
     expect(isProtectedBlobPath("derived/v1/stats-summary.json")).toBe(true);
     expect(isProtectedBlobPath("session-pairs/v1/session/pair.json")).toBe(true);
+    expect(isProtectedBlobPath("holds/v1/challenge.json")).toBe(true);
     expect(isProtectedBlobPath("other/path.json")).toBe(true);
   });
 

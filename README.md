@@ -335,6 +335,15 @@ does not trust is still a 200: it lands with `accepted_for_scoring: false` and
 the reasons in `quality_flags`, because a rejected vote is more useful in the
 dataset than missing from it.
 
+The hold challenge `GET /api/battle` issues is signed for that battle and is
+spent by the first vote that clears it. Sending it again, or pointing it at a
+different battle, stores the vote with `hold_passed: false` and a `hold_replayed`
+or `bad_hold_token` flag. Spending it is a create-if-absent write, so a burst of
+replays sent at once settles the same way a loop does: one of them keeps the
+vote and the rest are flagged. The challenge is claimed just before the vote is
+written, so a storage failure at that moment burns it: the voter's retry is
+still stored, it just does not count toward scoring.
+
 ## Data Notes
 
 Public STL and preview assets are committed under `public/dataset/v1`. Ratings,

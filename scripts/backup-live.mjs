@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { processData, readArgs, readJsonl, timestampSlug } from "./analysis-core.mjs";
 
 const VOTE_PREFIX = "votes/v1";
-const PROTECTED_PREFIXES = ["derived/v1/", "session-pairs/v1/"];
+const PROTECTED_PREFIXES = ["derived/v1/", "session-pairs/v1/", "holds/v1/"];
 const REMOTE_PRUNE_BATCH = 200;
 
 function parseEnvValue(value) {

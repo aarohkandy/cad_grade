@@ -222,4 +222,84 @@ describe("vote payload validation", () => {
     expect(response.statusCode).toBe(200);
     expect((response.body as VoteResponse).acceptedForScoring).toBe(true);
   });
+
+  // One cleared hold used to buy every vote a scraper could send inside the ten-minute
+  // window: a fresh session id per request steps around the duplicate-pair marker, and
+  // nothing else objected. Six 120ms votes off one challenge, the way a loop would send them.
+  it("spends a cleared hold on one vote and flags the replays", async () => {
+    const snowmen = dataset.items.filter((item) => item.family === "snowman");
+    const battleId = "battle-hold-replay";
+    const challenge = createHoldChallenge("hold-secret", now - 1000, () => 0, battleId);
+    const hold = { ...challenge, heldMs: challenge.targetMs };
+    const accepted: boolean[] = [];
+
+    for (let index = 0; index < 6; index += 1) {
+      const votedAt = now + index * 120;
+      const response = await post(
+        humanPacedVote({
+          battle_id: battleId,
+          left_item_id: snowmen[index * 2].id,
+          right_item_id: snowmen[index * 2 + 1].id,
+          winner_item_id: snowmen[index * 2].id,
+          started_at: new Date(votedAt - 120).toISOString(),
+          models_loaded_at: new Date(votedAt - 20).toISOString(),
+          voted_at: new Date(votedAt).toISOString(),
+          session_id: `session-replay-${index}-0123456789`,
+          hold,
+        }),
+      );
+
+      expect(response.statusCode).toBe(200);
+      const body = response.body as VoteResponse;
+      accepted.push(body.acceptedForScoring);
+      if (index > 0) {
+        expect(body.qualityFlags).toContain("hold_replayed");
+        expect(body.qualityFlags).toContain("hold_failed");
+      }
+    }
+
+    expect(accepted).toEqual([true, false, false, false, false, false]);
+
+    const stored = await storedVotes(tempDir);
+    expect(stored).toHaveLength(6);
+    expect(stored.filter((vote) => vote.hold_passed)).toHaveLength(1);
+    expect(stored.filter((vote) => vote.accepted_for_scoring)).toHaveLength(1);
+  });
+
+  // Sending the replays at once instead of one after another used to clear every one of
+  // them: the check read the marker, and the marker was only written after the vote landed,
+  // so twelve requests all read an empty store before any of them wrote to it.
+  it("spends a cleared hold once even when the replays arrive together", async () => {
+    const snowmen = dataset.items.filter((item) => item.family === "snowman");
+    const battleId = "battle-hold-burst";
+    const challenge = createHoldChallenge("hold-secret", now - 1000, () => 0, battleId);
+    const hold = { ...challenge, heldMs: challenge.targetMs };
+
+    const responses = await Promise.all(
+      Array.from({ length: 12 }, (_unused, index) =>
+        post(
+          humanPacedVote({
+            battle_id: battleId,
+            left_item_id: snowmen[index * 2].id,
+            right_item_id: snowmen[index * 2 + 1].id,
+            winner_item_id: snowmen[index * 2].id,
+            started_at: new Date(now - 120).toISOString(),
+            models_loaded_at: new Date(now - 20).toISOString(),
+            session_id: `session-burst-${index}-0123456789`,
+            hold,
+          }),
+        ),
+      ),
+    );
+
+    const bodies = responses.map((response) => response.body as VoteResponse);
+    expect(responses.every((response) => response.statusCode === 200)).toBe(true);
+    expect(bodies.filter((body) => body.acceptedForScoring)).toHaveLength(1);
+    expect(bodies.filter((body) => body.qualityFlags.includes("hold_replayed"))).toHaveLength(11);
+
+    const stored = await storedVotes(tempDir);
+    expect(stored).toHaveLength(12);
+    expect(stored.filter((vote) => vote.hold_passed)).toHaveLength(1);
+    expect(stored.filter((vote) => vote.accepted_for_scoring)).toHaveLength(1);
+  });
 });

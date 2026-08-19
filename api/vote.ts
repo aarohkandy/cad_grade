@@ -15,6 +15,7 @@ import { dataset, itemById } from "../src/server/items.js";
 import { pairGroup, pairKey } from "../src/server/pairs.js";
 import { qualityDecision } from "../src/server/quality.js";
 import {
+  claimOnce,
   emptySummary,
   markSessionPair,
   readVoteSummary,
@@ -33,6 +34,7 @@ const DIRECT_AGREEMENT_MIN_VOTES = 5;
 const DIRECT_AGREEMENT_HIGH_CONFIDENCE_VOTES = 15;
 // The longest string the arena issues is a battle_id: "battle_", two item ids, a uuid.
 const MAX_FIELD_LENGTH = 300;
+const SPENT_HOLD_PREFIX = "holds/v1";
 
 interface CheckedVotePayload {
   battle_id: string;
@@ -236,23 +238,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const loser = winner ? (winner.id === left.id ? right : left) : null;
     const family = pairGroup(left, right);
     const holdSubmitted = Boolean(payload.hold);
-    const hold = holdSubmitted
+    const verified = holdSubmitted
       ? verifyHoldSubmission(payload.hold, holdSecret(), Date.now(), payload.battle_id)
       : { valid: false, flags: [] };
+    const holdFlags: string[] = [...verified.flags];
+    const createdAt = new Date().toISOString();
+    const id = randomUUID();
+    // One cleared challenge is worth one accepted vote, not a ten-minute season pass. Only a
+    // verified token gets a path here, so the challenge id is the uuid this server signed and
+    // not something the caller chose. Claiming it is a create-if-absent write, so a burst of
+    // replays fired at once settles the way a sequential loop does: whichever request lands
+    // the object keeps the vote and the rest come back hold_replayed. The cost of claiming
+    // before the vote is stored is that a storage failure below burns the challenge, and the
+    // voter's retry is recorded without counting.
+    const spentHoldPath =
+      verified.valid && payload.hold ? `${SPENT_HOLD_PREFIX}/${payload.hold.challengeId}.json` : null;
     const sessionHash = safeHash(checked.sessionId || "missing-session");
     const markerPath = sessionPairPath(sessionHash, family, left.id, right.id);
-    const duplicatePair = await sessionPairAlreadySeen(markerPath);
+    // Independent of each other, and each one a round trip in blob mode.
+    const [holdClaimed, duplicatePair] = await Promise.all([
+      spentHoldPath
+        ? claimOnce(spentHoldPath, { created_at: createdAt, battle_id: payload.battle_id, vote_id: id })
+        : Promise.resolve(true),
+      sessionPairAlreadySeen(markerPath),
+    ]);
+    const holdReplayed = spentHoldPath !== null && !holdClaimed;
+    if (holdReplayed) holdFlags.push("hold_replayed");
+    const holdPassed = verified.valid && !holdReplayed;
     const quality = qualityDecision({
       payload,
       holdSubmitted,
-      holdPassed: hold.valid,
+      holdPassed,
       duplicatePair,
     });
-    const qualityFlags = [...new Set([...hold.flags, ...quality.qualityFlags])];
+    const qualityFlags = [...new Set([...holdFlags, ...quality.qualityFlags])];
     const ipHash = safeHash(clientIp(req));
     const userAgentHash = safeHash(String(req.headers["user-agent"] || "unknown"));
-    const createdAt = new Date().toISOString();
-    const id = randomUUID();
     const path = votePath(createdAt, id);
 
     const record: StoredVoteRecord = {
@@ -274,7 +295,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       load_ms: quality.loadMs,
       hold_duration_ms: payload.hold?.heldMs ?? null,
       hold_target_ms: payload.hold?.targetMs ?? null,
-      hold_passed: hold.valid,
+      hold_passed: holdPassed,
       duplicate_pair: duplicatePair,
       too_fast: quality.tooFast,
       accepted_for_scoring: quality.acceptedForScoring,
@@ -313,7 +334,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error("vote: session pair marker failed after writing vote", record.id, error);
       }
     }
-
     let summary = emptySummary(dataset.datasetId, dataset.families);
     try {
       summary = await readVoteSummary(dataset.datasetId, dataset.families);

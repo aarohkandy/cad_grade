@@ -533,6 +533,28 @@ export async function markSessionPair(pathname: string, value: unknown): Promise
   }
 }
 
+// markSessionPair with the answer kept instead of thrown away. A create-if-absent write is
+// the only serialisation either backend gives us — `wx` locally, allowOverwrite:false on the
+// blob — so a caller that needs "exactly one of these requests wins" claims the path and
+// reads the boolean. Anything that is not an already-exists error still throws.
+export async function claimOnce(pathname: string, value: unknown): Promise<boolean> {
+  const mode = storageMode();
+  if (mode === "unconfigured") return true;
+  try {
+    if (mode === "blob") {
+      await writeBlobJson(pathname, value, { allowOverwrite: false });
+    } else {
+      await writeLocalJson(pathname, value, false);
+    }
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST" || isBlobPreconditionFailed(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 export async function updateVoteSummary(
   datasetId: string,
   families: ArenaFamily[],
