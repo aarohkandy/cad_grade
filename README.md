@@ -276,9 +276,12 @@ curl "https://YOUR_DEPLOYMENT/api/export?format=json&date=2026-06-12"
 `date` has to be `YYYY-MM-DD` and `limit` a positive whole number; anything else
 is a `400` (`invalid_date` / `invalid_limit`) rather than a 500. Leaving either
 one off, or passing it empty, means "no date filter" and the 10,000 default.
+`limit` names the newest N records, and it means that on a dev machine and on the
+deployment alike.
 
-The JSON body also carries `unreadableCount`: stored records that would not parse
-and were skipped, so one damaged object degrades a pull instead of failing it.
+The JSON body also carries `unreadableCount`: stored records that were skipped
+because they would not parse or because the store would not hand them back, so
+one damaged object degrades a pull instead of failing it.
 Non-zero means something in the store needs a human; the path is in the function
 log. The CSV format has nowhere to put that field and does not report it.
 

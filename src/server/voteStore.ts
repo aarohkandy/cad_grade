@@ -431,9 +431,7 @@ async function readLocalVoteRecords(prefix: string, limit: number): Promise<Vote
   const files = (await walkLocalFiles(localFilePath(prefix))).filter((file) => file.endsWith(".json")).sort();
   // A vote path is votes/v1/<day>/<ISO timestamp>_<uuid>.json, so path order is write
   // order — the same property prune.ts leans on. Taking the tail means the parse cost
-  // tracks the limit instead of the size of the store. The limit is therefore a scan
-  // bound, not a delivery guarantee: a damaged file inside the tail comes back short
-  // rather than reaching further into the store for a replacement.
+  // tracks the limit instead of the size of the store.
   const newest = files.slice(Math.max(0, files.length - limit));
   let unreadableCount = 0;
 
@@ -597,7 +595,9 @@ export async function updateVoteSummary(
 
 // One damaged object should cost the vote it holds and nothing else. Every read path here
 // skips what it cannot parse and counts it, so /api/export can report the loss instead of
-// 500ing and taking the backup loop down with it.
+// 500ing and taking the backup loop down with it. That makes `limit` a scan bound rather
+// than a delivery guarantee, in both modes: it names the newest N records, and a damaged
+// one inside that window comes back short instead of reaching further into the store.
 export async function loadVoteRecords(options: { date?: string; limit?: number } = {}): Promise<VoteRecordsResult> {
   const mode = storageMode();
   if (mode === "unconfigured") return { records: [], unreadableCount: 0 };
@@ -612,27 +612,49 @@ export async function loadVoteRecords(options: { date?: string; limit?: number }
     };
   }
 
-  const records: StoredVoteRecord[] = [];
-  let unreadableCount = 0;
+  // A listing page carries pathnames and no bodies, so walking the whole prefix costs list
+  // calls and not a single extra GET. Stopping at the first page instead would hand back
+  // the oldest objects in the store, because a listing comes back in pathname order and
+  // votePath() leads with the timestamp.
+  const pathnames: string[] = [];
   let cursor: string | undefined;
-  do {
+  let hasMore = true;
+  while (hasMore) {
     const { list } = await blobClient();
-    const page = await list({ prefix, limit: Math.min(1000, limit - records.length), cursor });
-    const rows = await mapWithLimit(page.blobs, VOTE_READ_CONCURRENCY, async (blob) => {
-      try {
-        return (await readBlobJson<StoredVoteRecord>(blob.pathname)).value;
-      } catch (error) {
-        console.error(`voteStore: skipping unreadable vote blob ${blob.pathname}`, error);
+    const page = await list({ prefix, limit: 1000, cursor });
+    for (const blob of page.blobs) pathnames.push(blob.pathname);
+    cursor = page.cursor;
+    // Both, not just the cursor: hasMore is what the listing API answers with, and a cursor
+    // that comes back unchanged or non-empty on a finished listing would spin this forever
+    // inside a function with a ten-second ceiling.
+    hasMore = Boolean(page.hasMore && cursor);
+  }
+
+  let unreadableCount = 0;
+  const newest = pathnames.sort().slice(Math.max(0, pathnames.length - limit));
+  const rows = await mapWithLimit(newest, VOTE_READ_CONCURRENCY, async (pathname) => {
+    try {
+      // readBlobJson answers a missing or non-200 object with no value rather than throwing,
+      // so the count has to happen here too. Otherwise the export comes back short with
+      // unreadableCount: 0, which reads as "nothing went wrong" instead of "one is gone".
+      const result = await readBlobJson<StoredVoteRecord>(pathname);
+      if (!result.value) {
+        console.error(`voteStore: skipping unreadable vote blob ${pathname}`);
         unreadableCount += 1;
         return undefined;
       }
-    });
-    records.push(...rows.filter((row): row is StoredVoteRecord => Boolean(row)));
-    cursor = page.cursor;
-  } while (cursor && records.length < limit);
+      return result.value;
+    } catch (error) {
+      console.error(`voteStore: skipping unreadable vote blob ${pathname}`, error);
+      unreadableCount += 1;
+      return undefined;
+    }
+  });
 
   return {
-    records: records.sort((left, right) => right.created_at.localeCompare(left.created_at)).slice(0, limit),
+    records: rows
+      .filter((row): row is StoredVoteRecord => Boolean(row))
+      .sort((left, right) => right.created_at.localeCompare(left.created_at)),
     unreadableCount,
   };
 }
