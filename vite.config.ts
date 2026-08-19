@@ -80,7 +80,9 @@ function vercelResponse(res: ServerResponse): ServerResponse {
   return response;
 }
 
-function localApiMiddleware(): Connect.NextHandleFunction {
+// Exported so tests/dev-api.test.mjs can mount it on a plain node:http server. Everything
+// under `npm run dev` and `npm run preview` reaches the API through here.
+export function localApiMiddleware(): Connect.NextHandleFunction {
   return async (req, res, next) => {
     const url = new URL(req.url || "/", "http://127.0.0.1");
     const loadHandler = apiModules[url.pathname];
